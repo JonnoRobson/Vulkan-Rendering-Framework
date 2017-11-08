@@ -1,3 +1,8 @@
 VulkanApp.sdf
 VulkanApp.VC.db
 VulkanApp.VC.VC.opendb
+*.tlog
+x64/
+Debug/
+VulkanApp/x64/
+.vs/
