@@ -1,0 +1,20 @@
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+vkCmdCopyBuffer(): It is invalid to issue this call inside an active render pass (0x1d). The spec valid usage text states 'This command must only be called outside of a render pass instance' (https://www.khronos.org/registry/vulkan/specs/1.0/html/vkspec.html#VUID-vkCmdCopyBuffer-renderpass)
+
+Cannot submit cmd buffer using image (0xa) [sub-resource: aspectMask 0x4 array layer 0, mip level 0], with layout VK_IMAGE_LAYOUT_UNDEFINED when first use is VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL.
+
