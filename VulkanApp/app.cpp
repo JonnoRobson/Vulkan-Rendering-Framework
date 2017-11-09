@@ -140,15 +140,18 @@ void App::Update()
 	UniformBufferObject ubo = {};
 	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f, 10.0f);
+	ubo.proj = glm::perspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f, 1000.0f);
 	ubo.proj[1][1] *= -1;
 
 	// send the ubo data to the gpu
 	renderer_->GetShader(0)->GetUniformBuffer(0).UpdateBufferContents(vk_devices_->GetLogicalDevice(), &ubo);
 
+	glm::mat4 transform_a = glm::translate(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 transform_b = glm::translate(glm::rotate(glm::mat4(1.0f), glm::radians(45.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)), glm::vec3(-1.0f, 0.0f, 0.0f));
+
 	// update mesh transforms
-	chalet_mesh_->UpdateWorldMatrix(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)));
-	test_mesh_->UpdateWorldMatrix(glm::rotate(glm::mat4(1.0f), glm::radians(45.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)));
+	chalet_mesh_->UpdateWorldMatrix(transform_a);
+	test_mesh_->UpdateWorldMatrix(transform_b);
 }
 
 void App::DrawFrame()

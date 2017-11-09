@@ -91,5 +91,11 @@
     <None Include="..\res\shaders\triangle.vert">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="..\res\shaders\default_lighting.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\default_lighting.vert">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

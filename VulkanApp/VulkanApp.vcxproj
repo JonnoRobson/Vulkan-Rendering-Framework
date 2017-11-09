@@ -143,6 +143,8 @@
     <ClInclude Include="uniform_buffer.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\res\shaders\default_lighting.frag" />
+    <None Include="..\res\shaders\default_lighting.vert" />
     <None Include="..\res\shaders\triangle.frag" />
     <None Include="..\res\shaders\triangle.vert">
       <FileType>Document</FileType>
