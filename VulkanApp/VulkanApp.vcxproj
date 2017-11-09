@@ -120,6 +120,7 @@
   <ItemGroup>
     <ClCompile Include="app.cpp" />
     <ClCompile Include="device.cpp" />
+    <ClCompile Include="light.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="primitive_buffer.cpp" />
@@ -133,6 +134,7 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="device.h" />
+    <ClInclude Include="light.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="primitive_buffer.h" />
     <ClInclude Include="renderer.h" />

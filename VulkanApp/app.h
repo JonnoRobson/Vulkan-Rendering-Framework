@@ -22,6 +22,7 @@
 #include "mesh.h"
 #include "device.h"
 #include "texture.h"
+#include "light.h"
 
 /*
 	 " // C" denotes functions or variables with compartmentalised alternatives
@@ -33,7 +34,7 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 #ifdef NDEBUG
 #define ENABLE_VALIDATION_LAYERS false
 #else
-#define ENABLE_VALIDATION_LAYERS true
+#define ENABLE_VALIDATION_LAYERS false
 #endif
 
 struct UniformBufferObject
@@ -41,6 +42,17 @@ struct UniformBufferObject
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
+};
+
+struct LightBufferObject
+{
+	glm::vec4 position;
+	glm::vec4 direction;
+	glm::vec4 color;
+	float range;
+	float intensity;
+	float light_type;
+	float shadows_enabled;
 };
 
 class App
@@ -80,6 +92,8 @@ protected:
 	VkDebugReportCallbackEXT vk_callback_;
 
 	Mesh* chalet_mesh_;
+	Mesh* test_mesh_;
+	Light* test_light_;
 
 	const int window_width_ = 800;
 	const int window_height_ = 600;
@@ -92,9 +106,6 @@ protected:
 	const std::vector<const char*> device_extensions_ = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
-
-
-	Mesh* test_mesh_;
 
 	std::string debug_msg_;
 

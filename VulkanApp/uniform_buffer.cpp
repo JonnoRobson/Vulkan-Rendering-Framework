@@ -53,23 +53,23 @@ void UniformBuffer::UpdateBufferContents(VkDevice device, void* data)
 	else
 	{
 		// create a temp buffer to copy the stored data from
-		int buffer_location = 0;
+		uint32_t buffer_location = 0;
 		float* buffer_data = new float[uniform_buffer_float_count_];
 		// floats
 		memcpy(buffer_data + buffer_location, uniform_buffer_float_.data(), uniform_buffer_float_.size() * sizeof(float));
-		buffer_location = buffer_location + uniform_buffer_float_.size();
+		buffer_location = buffer_location + static_cast<uint32_t>(uniform_buffer_float_.size());
 		// vec2s
 		memcpy(buffer_data + buffer_location, uniform_buffer_vec2_.data(), uniform_buffer_vec2_.size() * sizeof(glm::vec2));
-		buffer_location = buffer_location + uniform_buffer_vec2_.size();
+		buffer_location = buffer_location + static_cast<uint32_t>(uniform_buffer_vec2_.size());
 		// vec3s
 		memcpy(buffer_data + buffer_location, uniform_buffer_vec3_.data(), uniform_buffer_vec3_.size() * sizeof(glm::vec3));
-		buffer_location = buffer_location + uniform_buffer_vec3_.size();
+		buffer_location = buffer_location + static_cast<uint32_t>(uniform_buffer_vec3_.size());
 		// vec4s
 		memcpy(buffer_data + buffer_location, uniform_buffer_vec4_.data(), uniform_buffer_vec4_.size() * sizeof(glm::vec4));
-		buffer_location = buffer_location + uniform_buffer_vec4_.size();
+		buffer_location = buffer_location + static_cast<uint32_t>(uniform_buffer_vec4_.size());
 		// mat4s
 		memcpy(buffer_data + buffer_location, uniform_buffer_mat4_.data(), uniform_buffer_mat4_.size() * sizeof(glm::mat4));
-		buffer_location = buffer_location + uniform_buffer_mat4_.size();
+		buffer_location = buffer_location + static_cast<uint32_t>(uniform_buffer_mat4_.size());
 
 		// update buffer contents using stored buffer data
 		memcpy(mapped_data, buffer_data, uniform_buffer_size_);

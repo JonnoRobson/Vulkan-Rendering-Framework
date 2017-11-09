@@ -25,6 +25,6 @@ void main()
 {
 	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
 	fragTexCoord = inTexCoord;
-	normal = normalize(ubo.model * mat3(ubo.model);
+	normal = normalize(inNormal * mat3(ubo.model));
 	worldPosition = ubo.model * vec4(inPosition, 1.0);
 }

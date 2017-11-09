@@ -17,6 +17,7 @@ struct Vertex
 {
 	glm::vec3 pos;
 	glm::vec2 tex_coord;
+	glm::vec3 normal;
 
 	static VkVertexInputBindingDescription GetBindingDescription()
 	{
@@ -28,9 +29,9 @@ struct Vertex
 		return binding_description;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 2> GetAttributeDescriptions()
+	static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions()
 	{
-		std::array<VkVertexInputAttributeDescription, 2> attribute_descriptions = {};
+		std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions = {};
 
 		// position
 		attribute_descriptions[0].binding = 0;
@@ -38,18 +39,24 @@ struct Vertex
 		attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attribute_descriptions[0].offset = offsetof(Vertex, pos);
 
-		// color
+		// texcoord
 		attribute_descriptions[1].binding = 0;
 		attribute_descriptions[1].location = 1;
 		attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
 		attribute_descriptions[1].offset = offsetof(Vertex, tex_coord);
+
+		// normal
+		attribute_descriptions[2].binding = 0;
+		attribute_descriptions[2].location = 2;
+		attribute_descriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attribute_descriptions[2].offset = offsetof(Vertex, normal);
 
 		return attribute_descriptions;
 	}
 
 	bool operator==(const Vertex& other) const
 	{
-		return pos == other.pos && tex_coord == other.tex_coord;
+		return pos == other.pos && tex_coord == other.tex_coord && normal == other.normal;
 	}
 };
 
@@ -71,7 +78,6 @@ public:
 	
 	void CreateTriangleMesh(VulkanDevices* devices);
 	void CreatePlaneMesh(VulkanDevices* devices);
-	void CreateDualPlaneMesh(VulkanDevices* devices);
 	void CreateModelMesh(VulkanDevices* devices, std::string filename);
 
 	void UpdateWorldMatrix(glm::mat4 world_matrix);

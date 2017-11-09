@@ -42,9 +42,9 @@ void Mesh::CreateTriangleMesh(VulkanDevices* devices)
 {
 	const std::vector<Vertex> vertices = 
 	{
-		{{0.0f, -0.5f, 0.0f}, {0.5f, 0.0f}},
-		{{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},
-		{{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}}
+		{{0.0f, -0.5f, 0.0f}, {0.5f, 0.0f},{ 0.0f, -1.0f, 0.0f } },
+		{{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f},{ 0.0f, -1.0f, 0.0f } },
+		{{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f},{ 0.0f, -1.0f, 0.0f } }
 	};
 
 	const std::vector<uint32_t> indices =
@@ -60,41 +60,15 @@ void Mesh::CreatePlaneMesh(VulkanDevices* devices)
 {
 	const std::vector<Vertex> vertices = 
 	{
-		{ { -0.5f, -0.5f, 0.0f },{ 1.0f, 0.0f} },
-		{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, 0.0f },{ 1.0f, 1.0f} }
+		{ { -0.5f, -0.5f, 0.0f },{ 1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
+		{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f }, { 0.0f, -1.0f, 0.0f } },
+		{ { 0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f }, { 0.0f, -1.0f, 0.0f } },
+		{ { -0.5f, 0.5f, 0.0f },{ 1.0f, 1.0f}, { 0.0f, -1.0f, 0.0f } }
 	};
 
 	const std::vector<uint32_t> indices =
 	{
 		0, 1, 2, 2, 3, 0
-	};
-
-	CreateBuffers(devices, vertices, indices);
-}
-
-void Mesh::CreateDualPlaneMesh(VulkanDevices* devices)
-{
-	const std::vector<Vertex> vertices =
-	{
-		// 1st plane
-		{ { -0.5f, -0.5f, 0.0f },{ 1.0f, 0.0f } },
-		{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, 0.0f },{ 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, 0.0f },{ 1.0f, 1.0f } },
-
-		// 2nd plane
-		{ { -0.5f, -0.5f, -0.5f },{ 1.0f, 0.0f } },
-		{ { 0.5f, -0.5f, -0.5f },{ 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, -0.5f },{ 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, -0.5f },{ 1.0f, 1.0f } }
-	};
-
-	const std::vector<uint32_t> indices =
-	{
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4
 	};
 
 	CreateBuffers(devices, vertices, indices);
@@ -133,6 +107,19 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, std::string filename)
 				attrib.texcoords[2 * index.texcoord_index + 0],
 				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 			};
+
+			if (index.normal_index >= 0)
+			{
+				vertex.normal = {
+					attrib.normals[3 * index.normal_index + 0],
+					attrib.normals[3 * index.normal_index + 1],
+					attrib.normals[3 * index.normal_index + 2]
+				};
+			}
+			else
+			{
+				vertex.normal = glm::vec3(0.0f, -1.0f, 0.0f);
+			}
 
 			if (unique_vertices.count(vertex) == 0)
 			{

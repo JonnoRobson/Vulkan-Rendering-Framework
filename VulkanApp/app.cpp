@@ -73,13 +73,22 @@ bool App::InitVulkan()
 bool App::InitResources()
 {
 	chalet_mesh_ = new Mesh();
-	chalet_mesh_->CreateModelMesh(vk_devices_, "../res/models/cube.obj");
+	chalet_mesh_->CreateModelMesh(vk_devices_, "../res/models/chalet.obj");
 
 	test_mesh_ = new Mesh();
-	test_mesh_->CreateModelMesh(vk_devices_, "../res/models/craneo.obj");
+	test_mesh_->CreateModelMesh(vk_devices_, "../res/models/cube.obj");
 
 	renderer_->AddMesh(chalet_mesh_);
-	renderer_->AddMesh(test_mesh_);
+	//renderer_->AddMesh(test_mesh_);
+
+	test_light_ = new Light();
+	test_light_->SetType(0.0f);
+	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+	test_light_->SetDirection(glm::vec4(0.0f, -1.0f, 0.0f, 1.0f));
+	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+	test_light_->SetIntensity(1.0f);
+	test_light_->SetRange(1.0f);
+	test_light_->SetShadowsEnabled(false);
 
 	return true;
 }
@@ -92,6 +101,9 @@ void App::CleanUp()
 
 	delete test_mesh_;
 	test_mesh_ = nullptr;
+
+	delete test_light_;
+	test_light_ = nullptr;
 
 	// clean up swap chain
 	swap_chain_->Cleanup();
@@ -138,7 +150,7 @@ void App::Update()
 	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.proj = glm::perspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f, 1000.0f);
 	ubo.proj[1][1] *= -1;
@@ -146,12 +158,24 @@ void App::Update()
 	// send the ubo data to the gpu
 	renderer_->GetShader(0)->GetUniformBuffer(0).UpdateBufferContents(vk_devices_->GetLogicalDevice(), &ubo);
 
-	glm::mat4 transform_a = glm::translate(glm::rotate(glm::mat4(1.0f), glm::radians(90.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 transform_a = ubo.model;
 	glm::mat4 transform_b = glm::translate(glm::rotate(glm::mat4(1.0f), glm::radians(45.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)), glm::vec3(-1.0f, 0.0f, 0.0f));
 
 	// update mesh transforms
 	chalet_mesh_->UpdateWorldMatrix(transform_a);
 	test_mesh_->UpdateWorldMatrix(transform_b);
+
+	// update light data
+	LightBufferObject light = {};
+	light.position = test_light_->GetPosition();
+	light.direction = test_light_->GetDirection();
+	light.color = test_light_->GetColor();
+	light.range = test_light_->GetRange();
+	light.intensity = test_light_->GetIntensity();
+	light.light_type = test_light_->GetType();
+	light.shadows_enabled = (test_light_->GetShadowsEnabled()) ? 1.0f : 0.0f;
+
+	renderer_->GetShader(0)->GetUniformBuffer(1).UpdateBufferContents(vk_devices_->GetLogicalDevice(), &light);
 }
 
 void App::DrawFrame()

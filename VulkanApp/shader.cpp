@@ -154,6 +154,8 @@ VkDescriptorSet VulkanShader::GetDescriptorSet(VkDescriptorPool descriptor_pool)
 	{
 		CreateDescriptorSet(descriptor_pool);
 	}
+
+	return VK_NULL_HANDLE;
 }
 
 void VulkanShader::CreateDescriptorLayout()
@@ -175,6 +177,15 @@ void VulkanShader::CreateDescriptorLayout()
 	sampler_layout_binding.pImmutableSamplers = nullptr;
 	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 	descriptor_set_layout_bindings_.push_back(sampler_layout_binding);
+
+	// set up lighting buffer binding info
+	VkDescriptorSetLayoutBinding lighting_layout_binding = {};
+	lighting_layout_binding.binding = 2;
+	lighting_layout_binding.descriptorCount = 1;
+	lighting_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	lighting_layout_binding.pImmutableSamplers = nullptr;
+	lighting_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	descriptor_set_layout_bindings_.push_back(lighting_layout_binding);
 
 	// setup descriptor set layout creation info
 	descriptor_set_layout_info_ = {};
@@ -212,8 +223,13 @@ void VulkanShader::CreateDescriptorSet(VkDescriptorPool descriptor_pool)
 	image_info.imageView = shader_textures_[0].GetImageView();
 	image_info.sampler = shader_samplers_[0];
 
+	VkDescriptorBufferInfo light_buffer_info = {};
+	light_buffer_info.buffer = shader_uniform_buffers_[1].GetBuffer();
+	light_buffer_info.offset = 0;
+	light_buffer_info.range = shader_uniform_buffers_[1].GetBufferSize();
+
 	// set up write data for descriptor sets
-	std::array<VkWriteDescriptorSet, 2> descriptor_writes = {};
+	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
 	// uniform buffer data
 	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptor_writes[0].dstSet = descriptor_sets_[descriptor_pool];
@@ -230,6 +246,14 @@ void VulkanShader::CreateDescriptorSet(VkDescriptorPool descriptor_pool)
 	descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptor_writes[1].descriptorCount = 1;
 	descriptor_writes[1].pImageInfo = &image_info;
+	// light buffer data
+	descriptor_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptor_writes[2].dstSet = descriptor_sets_[descriptor_pool];
+	descriptor_writes[2].dstBinding = 2;
+	descriptor_writes[2].dstArrayElement = 0;
+	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptor_writes[2].descriptorCount = 1;
+	descriptor_writes[2].pBufferInfo = &light_buffer_info;
 
 	vkUpdateDescriptorSets(devices_->GetLogicalDevice(), static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
 }
@@ -237,7 +261,7 @@ void VulkanShader::CreateDescriptorSet(VkDescriptorPool descriptor_pool)
 void VulkanShader::CreateTextures()
 {
 	Texture test_texture;
-	test_texture.Init(devices_, "../res/textures/texture.jpg");
+	test_texture.Init(devices_, "../res/textures/chalet.jpg");
 	shader_textures_.push_back(test_texture);
 }
 
@@ -275,6 +299,10 @@ void VulkanShader::CreateUniformBuffers()
 	UniformBuffer uniform_buffer;
 	uniform_buffer.Init(devices_, 0, 0, 0, 0, 3);
 	shader_uniform_buffers_.push_back(uniform_buffer);
+
+	UniformBuffer lighting_buffer;
+	lighting_buffer.Init(devices_, 4, 0, 0, 3, 0);
+	shader_uniform_buffers_.push_back(lighting_buffer);
 }
 
 void VulkanShader::CreateVertexInput()
