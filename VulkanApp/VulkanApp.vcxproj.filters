@@ -54,6 +54,21 @@
     <ClCompile Include="light.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shape.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="material_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -89,6 +104,24 @@
     <ClInclude Include="light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shape.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="material_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\shaders\triangle.frag">
@@ -101,6 +134,12 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\default_lighting.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\default_material.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\default_material.vert">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

@@ -4,11 +4,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -23,10 +18,8 @@
 #include "device.h"
 #include "texture.h"
 #include "light.h"
-
-/*
-	 " // C" denotes functions or variables with compartmentalised alternatives
-*/
+#include "camera.h"
+#include "input.h"
 
 VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
 void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
@@ -34,26 +27,9 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 #ifdef NDEBUG
 #define ENABLE_VALIDATION_LAYERS false
 #else
-#define ENABLE_VALIDATION_LAYERS false
+#define ENABLE_VALIDATION_LAYERS true
 #endif
 
-struct UniformBufferObject
-{
-	glm::mat4 model;
-	glm::mat4 view;
-	glm::mat4 proj;
-};
-
-struct LightBufferObject
-{
-	glm::vec4 position;
-	glm::vec4 direction;
-	glm::vec4 color;
-	float range;
-	float intensity;
-	float light_type;
-	float shadows_enabled;
-};
 
 class App
 {
@@ -64,6 +40,7 @@ public:
 
 
 public:
+	Input* input_;
 
 protected:
 	virtual bool InitVulkan();
@@ -91,12 +68,13 @@ protected:
 	VkInstance vk_instance_;
 	VkDebugReportCallbackEXT vk_callback_;
 
+	Camera camera_;
 	Mesh* chalet_mesh_;
 	Mesh* test_mesh_;
 	Light* test_light_;
 
-	const int window_width_ = 800;
-	const int window_height_ = 600;
+	const int window_width_ = 1280;
+	const int window_height_ = 1024;
 
 	const std::vector<const char*> validation_layers_ = {
 		"VK_LAYER_LUNARG_standard_validation",
@@ -119,6 +97,27 @@ protected:
 		const char* layerPrefix,
 		const char* msg,
 		void* userData);
+
+	static void keyCallback(
+		GLFWwindow* window,
+		int key,
+		int scancode,
+		int action,
+		int mods
+	);
+
+	static void cursorPositionCallback(
+		GLFWwindow* window,
+		double xpos,
+		double ypos
+	);
+
+	static void mouseButtonCallback(
+		GLFWwindow* window,
+		int button,
+		int action,
+		int mods
+	);
 
 	static void OnWindowResized(GLFWwindow* window, int width, int height);
 };

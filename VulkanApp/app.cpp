@@ -28,7 +28,10 @@ bool App::InitWindow()
 
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetWindowSizeCallback(window_, App::OnWindowResized);
-	
+	glfwSetKeyCallback(window_, keyCallback);
+
+	input_ = new Input();
+
 	if (!window_)
 		return false;
 
@@ -65,30 +68,39 @@ bool App::InitVulkan()
 
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
-	renderer_->Init(vk_devices_, swap_chain_, "", "");
+	renderer_->Init(vk_devices_, swap_chain_, "../res/shaders/vert.spv", "../res/shaders/frag.spv");
 
 	return true;
 }
 
 bool App::InitResources()
 {
+	std::string filepath;
+
+	std::cout << "Select model to load: ";
+
+	std::cin >> filepath;
+
+	filepath = "../res/models/" + filepath;
+
 	chalet_mesh_ = new Mesh();
-	chalet_mesh_->CreateModelMesh(vk_devices_, "../res/models/chalet.obj");
-
-	test_mesh_ = new Mesh();
-	test_mesh_->CreateModelMesh(vk_devices_, "../res/models/cube.obj");
-
-	renderer_->AddMesh(chalet_mesh_);
-	//renderer_->AddMesh(test_mesh_);
-
+	chalet_mesh_->CreateModelMesh(vk_devices_, renderer_, filepath);
+	
 	test_light_ = new Light();
 	test_light_->SetType(0.0f);
 	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_->SetDirection(glm::vec4(0.0f, -1.0f, 0.0f, 1.0f));
+	test_light_->SetDirection(glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
 	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
 	test_light_->SetIntensity(1.0f);
 	test_light_->SetRange(1.0f);
 	test_light_->SetShadowsEnabled(false);
+
+	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
+	camera_.SetRotation(glm::vec3(-30.0f, 0.0f, 0.0f));
+
+	renderer_->AddMesh(chalet_mesh_);
+	renderer_->AddLight(test_light_);
+	renderer_->SetCamera(&camera_);
 
 	return true;
 }
@@ -104,6 +116,10 @@ void App::CleanUp()
 
 	delete test_light_;
 	test_light_ = nullptr;
+
+	// clean up input manager
+	delete input_;
+	input_ = nullptr;
 
 	// clean up swap chain
 	swap_chain_->Cleanup();
@@ -142,40 +158,26 @@ void App::MainLoop()
 
 void App::Update()
 {
-	static auto start_time = std::chrono::high_resolution_clock::now();
+	// camera movement
+	if (input_->IsKeyPressed(GLFW_KEY_W))
+		camera_.MoveForward(0.5f);
+	else if (input_->IsKeyPressed(GLFW_KEY_S))
+		camera_.MoveBackward(0.5f);
+	
+	if (input_->IsKeyPressed(GLFW_KEY_A))
+		camera_.MoveLeft(0.5f);
+	else if (input_->IsKeyPressed(GLFW_KEY_D))
+		camera_.MoveRight(0.5f);
 
-	auto current_time = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration_cast<std::chrono::milliseconds>(current_time - start_time).count() / 1000.0f;
-
-	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
-
-	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f, 1000.0f);
-	ubo.proj[1][1] *= -1;
-
-	// send the ubo data to the gpu
-	renderer_->GetShader(0)->GetUniformBuffer(0).UpdateBufferContents(vk_devices_->GetLogicalDevice(), &ubo);
-
-	glm::mat4 transform_a = ubo.model;
-	glm::mat4 transform_b = glm::translate(glm::rotate(glm::mat4(1.0f), glm::radians(45.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f)), glm::vec3(-1.0f, 0.0f, 0.0f));
-
-	// update mesh transforms
-	chalet_mesh_->UpdateWorldMatrix(transform_a);
-	test_mesh_->UpdateWorldMatrix(transform_b);
-
-	// update light data
-	LightBufferObject light = {};
-	light.position = test_light_->GetPosition();
-	light.direction = test_light_->GetDirection();
-	light.color = test_light_->GetColor();
-	light.range = test_light_->GetRange();
-	light.intensity = test_light_->GetIntensity();
-	light.light_type = test_light_->GetType();
-	light.shadows_enabled = (test_light_->GetShadowsEnabled()) ? 1.0f : 0.0f;
-
-	renderer_->GetShader(0)->GetUniformBuffer(1).UpdateBufferContents(vk_devices_->GetLogicalDevice(), &light);
+	// camera turning
+	if (input_->IsKeyPressed(GLFW_KEY_UP))
+		camera_.TurnUp(0.5f);
+	else if (input_->IsKeyPressed(GLFW_KEY_DOWN))
+		camera_.TurnDown(0.5f);
+	else if (input_->IsKeyPressed(GLFW_KEY_LEFT))
+		camera_.TurnLeft(0.5f);
+	else if (input_->IsKeyPressed(GLFW_KEY_RIGHT))
+		camera_.TurnRight(0.5f);
 }
 
 void App::DrawFrame()
@@ -194,15 +196,9 @@ void App::DrawFrame()
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	// clear the swap chain -- may be moved to the swap chain itself in the future
-	//renderer_->PreRender();
-
 	// draw the scene using the renderer
-	renderer_->RenderPass();
-
-	// run any necessary post render logic
-	renderer_->PostRender();
-
+	renderer_->RenderScene();
+	
 	// present the swap chain image to the window
 	result = swap_chain_->PostRender(renderer_->GetSignalSemaphore());
 
@@ -412,6 +408,40 @@ VKAPI_ATTR VkBool32 VKAPI_CALL App::debugCallback(
 	VulkanDevices::WriteDebugFile(msg);
 
 	return VK_FALSE;
+}
+
+void App::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	if (action == GLFW_PRESS)
+	{
+		App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+		app->input_->SetKeyDown(key);
+	}
+	else if (action == GLFW_RELEASE)
+	{
+		App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+		app->input_->SetKeyUp(key);
+	}
+}
+
+void App::cursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+	App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+	app->input_->SetCursorPosition(xpos, ypos);
+}
+
+void App::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+	if (action == GLFW_PRESS)
+	{
+		App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+		app->input_->SetMouseButtonDown(button);
+	}
+	else if (action == GLFW_RELEASE)
+	{
+		App* app = reinterpret_cast<App*>(glfwGetWindowUserPointer(window));
+		app->input_->SetMouseButtonUp(button);
+	}
 }
 
 void App::OnWindowResized(GLFWwindow* window, int width, int height)

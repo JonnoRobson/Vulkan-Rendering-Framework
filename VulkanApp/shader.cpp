@@ -6,17 +6,9 @@ void VulkanShader::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, std
 	devices_ = devices;
 	swap_chain_ = swap_chain;
 
-	primitive_shader_ = true;
-
 	LoadShaders(vs_filename, ts_filename, gs_filename, fs_filename);
 
-	// create shader resources
-	CreateTextures();
-	CreateSamplers();
-	CreateUniformBuffers();
-
 	// create shader descriptors
-	CreateDescriptorLayout();
 	CreateVertexInput();
 	CreateInputAssembly();
 	CreateViewportState();
@@ -31,58 +23,11 @@ void VulkanShader::Cleanup()
 {
 	VkDevice device = devices_->GetLogicalDevice();
 
-	// clean up descriptor set layout
-	vkDestroyDescriptorSetLayout(device, descriptor_set_layout_, nullptr);
-	
 	// clean up shader modules
 	vkDestroyShaderModule(device, vertex_shader_module_, nullptr);
 	vkDestroyShaderModule(device, tessellation_shader_module_, nullptr);
 	vkDestroyShaderModule(device, geometry_shader_module_, nullptr);
 	vkDestroyShaderModule(device, fragment_shader_module_, nullptr);
-
-	// clean up textures
-	for (Texture& texture : shader_textures_)
-	{
-		texture.Cleanup();
-	}
-	shader_textures_.clear();
-
-	// clean up samplers
-	for (VkSampler& sampler : shader_samplers_)
-	{
-		vkDestroySampler(device, sampler, nullptr);
-	}
-	shader_samplers_.clear();
-
-	// clean up buffers
-	for (UniformBuffer& buffer : shader_uniform_buffers_)
-	{
-		buffer.Cleanup(devices_);
-	}
-	shader_uniform_buffers_.clear();
-
-}
-
-void VulkanShader::RecordShaderCommands(VkCommandBuffer& command_buffer, VkPipelineLayout pipeline_layout, VkDescriptorPool descriptor_pool)
-{
-	// set the dynamic viewport data
-	VkViewport viewport = {};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = (float)(swap_chain_->GetSwapChainExtent().width);
-	viewport.height = (float)(swap_chain_->GetSwapChainExtent().height);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-
-	// set the dynamic scissor data
-	VkRect2D scissor = {};
-	scissor.offset = { 0, 0 };
-	scissor.extent = swap_chain_->GetSwapChainExtent();
-	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-
-	// bind the descriptor set to the pipeline
-	vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets_[descriptor_pool], 0, nullptr);
 }
 
 void VulkanShader::LoadShaders(std::string vs_filename, std::string ts_filename, std::string gs_filename, std::string fs_filename)
@@ -141,168 +86,6 @@ VkShaderModule VulkanShader::CreateShaderModule(const std::vector<char>& code)
 	}
 
 	return shader_module;
-}
-
-VkDescriptorSet VulkanShader::GetDescriptorSet(VkDescriptorPool descriptor_pool)
-{
-	auto search = descriptor_sets_.find(descriptor_pool);
-	if (search != descriptor_sets_.end())
-	{
-		return descriptor_sets_[descriptor_pool];
-	}
-	else
-	{
-		CreateDescriptorSet(descriptor_pool);
-	}
-
-	return VK_NULL_HANDLE;
-}
-
-void VulkanShader::CreateDescriptorLayout()
-{
-	// set up uniform buffer binding info
-	VkDescriptorSetLayoutBinding ubo_layout_binding = {};
-	ubo_layout_binding.binding = 0;
-	ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	ubo_layout_binding.descriptorCount = 1;
-	ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	ubo_layout_binding.pImmutableSamplers = nullptr;
-	descriptor_set_layout_bindings_.push_back(ubo_layout_binding);
-
-	// set up sampler binding info
-	VkDescriptorSetLayoutBinding sampler_layout_binding = {};
-	sampler_layout_binding.binding = 1;
-	sampler_layout_binding.descriptorCount = 1;
-	sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	sampler_layout_binding.pImmutableSamplers = nullptr;
-	sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	descriptor_set_layout_bindings_.push_back(sampler_layout_binding);
-
-	// set up lighting buffer binding info
-	VkDescriptorSetLayoutBinding lighting_layout_binding = {};
-	lighting_layout_binding.binding = 2;
-	lighting_layout_binding.descriptorCount = 1;
-	lighting_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	lighting_layout_binding.pImmutableSamplers = nullptr;
-	lighting_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-	descriptor_set_layout_bindings_.push_back(lighting_layout_binding);
-
-	// setup descriptor set layout creation info
-	descriptor_set_layout_info_ = {};
-	descriptor_set_layout_info_.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	descriptor_set_layout_info_.bindingCount = static_cast<uint32_t>(descriptor_set_layout_bindings_.size());
-	descriptor_set_layout_info_.pBindings = descriptor_set_layout_bindings_.data();
-
-	if (vkCreateDescriptorSetLayout(devices_->GetLogicalDevice(), &descriptor_set_layout_info_, nullptr, &descriptor_set_layout_) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to create descriptor set layout!");
-	}
-}
-
-void VulkanShader::CreateDescriptorSet(VkDescriptorPool descriptor_pool)
-{
-	VkDescriptorSetLayout layouts[] = { descriptor_set_layout_ };
-	VkDescriptorSetAllocateInfo alloc_info = {};
-	alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	alloc_info.descriptorPool = descriptor_pool;
-	alloc_info.descriptorSetCount = 1;
-	alloc_info.pSetLayouts = layouts;
-
-	if (vkAllocateDescriptorSets(devices_->GetLogicalDevice(), &alloc_info, &descriptor_sets_[descriptor_pool]) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate descriptor set!");
-	}
-
-	VkDescriptorBufferInfo buffer_info = {};
-	buffer_info.buffer = shader_uniform_buffers_[0].GetBuffer();
-	buffer_info.offset = 0;
-	buffer_info.range = shader_uniform_buffers_[0].GetBufferSize();
-
-	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	image_info.imageView = shader_textures_[0].GetImageView();
-	image_info.sampler = shader_samplers_[0];
-
-	VkDescriptorBufferInfo light_buffer_info = {};
-	light_buffer_info.buffer = shader_uniform_buffers_[1].GetBuffer();
-	light_buffer_info.offset = 0;
-	light_buffer_info.range = shader_uniform_buffers_[1].GetBufferSize();
-
-	// set up write data for descriptor sets
-	std::array<VkWriteDescriptorSet, 3> descriptor_writes = {};
-	// uniform buffer data
-	descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[0].dstSet = descriptor_sets_[descriptor_pool];
-	descriptor_writes[0].dstBinding = 0;
-	descriptor_writes[0].dstArrayElement = 0;
-	descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descriptor_writes[0].descriptorCount = 1;
-	descriptor_writes[0].pBufferInfo = &buffer_info;
-	// sampler data
-	descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[1].dstSet = descriptor_sets_[descriptor_pool];
-	descriptor_writes[1].dstBinding = 1;
-	descriptor_writes[1].dstArrayElement = 0;
-	descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptor_writes[1].descriptorCount = 1;
-	descriptor_writes[1].pImageInfo = &image_info;
-	// light buffer data
-	descriptor_writes[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptor_writes[2].dstSet = descriptor_sets_[descriptor_pool];
-	descriptor_writes[2].dstBinding = 2;
-	descriptor_writes[2].dstArrayElement = 0;
-	descriptor_writes[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descriptor_writes[2].descriptorCount = 1;
-	descriptor_writes[2].pBufferInfo = &light_buffer_info;
-
-	vkUpdateDescriptorSets(devices_->GetLogicalDevice(), static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
-}
-
-void VulkanShader::CreateTextures()
-{
-	Texture test_texture;
-	test_texture.Init(devices_, "../res/textures/chalet.jpg");
-	shader_textures_.push_back(test_texture);
-}
-
-void VulkanShader::CreateSamplers()
-{
-	VkSamplerCreateInfo sampler_info = {};
-	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	sampler_info.magFilter = VK_FILTER_LINEAR;
-	sampler_info.minFilter = VK_FILTER_LINEAR;
-	sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	sampler_info.anisotropyEnable = VK_TRUE;
-	sampler_info.maxAnisotropy = 16;
-	sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	sampler_info.unnormalizedCoordinates = VK_FALSE;
-	sampler_info.compareEnable = VK_FALSE;
-	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	sampler_info.mipLodBias = 0.0f;
-	sampler_info.minLod = 0.0f;
-	sampler_info.maxLod = 0.0f;
-
-	VkSampler test_texture_sampler;
-	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &test_texture_sampler) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to create texture sampler!");
-	}
-
-	shader_samplers_.push_back(test_texture_sampler);
-}
-
-void VulkanShader::CreateUniformBuffers()
-{
-	UniformBuffer uniform_buffer;
-	uniform_buffer.Init(devices_, 0, 0, 0, 0, 3);
-	shader_uniform_buffers_.push_back(uniform_buffer);
-
-	UniformBuffer lighting_buffer;
-	lighting_buffer.Init(devices_, 4, 0, 0, 3, 0);
-	shader_uniform_buffers_.push_back(lighting_buffer);
 }
 
 void VulkanShader::CreateVertexInput()
@@ -381,7 +164,7 @@ void VulkanShader::CreateRasterizerState()
 	rasterizer_state_.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer_state_.lineWidth = 1.0f;
 	rasterizer_state_.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer_state_.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizer_state_.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizer_state_.depthBiasEnable = VK_FALSE;
 	rasterizer_state_.depthBiasConstantFactor = 0.0f;
 	rasterizer_state_.depthBiasClamp = 0.0f;

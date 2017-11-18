@@ -6,8 +6,8 @@
 
 #include "device.h"
 
-#define MAX_PRIMITIVE_VERTICES 15000000
-#define MAX_PRIMITIVE_INDICES 15000000
+#define MAX_PRIMITIVE_VERTICES 50000000
+#define MAX_PRIMITIVE_INDICES 50000000
 
 class VulkanPrimitiveBuffer
 {
@@ -21,7 +21,6 @@ public:
 	void AddPrimitiveData(VulkanDevices* devices, uint32_t vertex_count, uint32_t index_count, VkBuffer vertices, VkBuffer indices, uint32_t& vertex_offset, uint32_t& index_offset);
 
 	void RecordBindingCommands(VkCommandBuffer& command_buffer);
-	void RecordDrawAllCommands(VkCommandBuffer& command_buffer);
 
 protected:
 	VkDevice device_handle_;

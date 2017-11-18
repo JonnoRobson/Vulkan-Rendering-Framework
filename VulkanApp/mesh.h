@@ -9,15 +9,18 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <map>
 
 #include "device.h"
 #include "primitive_buffer.h"
+#include "shape.h"
 
 struct Vertex
 {
 	glm::vec3 pos;
 	glm::vec2 tex_coord;
 	glm::vec3 normal;
+	float mat_index;
 
 	static VkVertexInputBindingDescription GetBindingDescription()
 	{
@@ -29,9 +32,9 @@ struct Vertex
 		return binding_description;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 3> GetAttributeDescriptions()
+	static std::array<VkVertexInputAttributeDescription, 4> GetAttributeDescriptions()
 	{
-		std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions = {};
+		std::array<VkVertexInputAttributeDescription, 4> attribute_descriptions = {};
 
 		// position
 		attribute_descriptions[0].binding = 0;
@@ -50,6 +53,12 @@ struct Vertex
 		attribute_descriptions[2].location = 2;
 		attribute_descriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attribute_descriptions[2].offset = offsetof(Vertex, normal);
+
+		// mat_index
+		attribute_descriptions[3].binding = 0;
+		attribute_descriptions[3].location = 3;
+		attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_UINT;
+		attribute_descriptions[3].offset = offsetof(Vertex, mat_index);
 
 		return attribute_descriptions;
 	}
@@ -76,38 +85,21 @@ public:
 	Mesh();
 	~Mesh();
 	
-	void CreateTriangleMesh(VulkanDevices* devices);
-	void CreatePlaneMesh(VulkanDevices* devices);
-	void CreateModelMesh(VulkanDevices* devices, std::string filename);
+	void CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std::string filename);
 
 	void UpdateWorldMatrix(glm::mat4 world_matrix);
-
-	void AddToPrimitiveBuffer(VulkanDevices* devices, VulkanPrimitiveBuffer* primitive_buffer);
-	void RecordDrawCommands(VkCommandBuffer& command_buffer, VkBuffer mvp_uniform_buffer);
-
-protected:
-	void CreateBuffers(VulkanDevices* devices, std::vector<Vertex> vertices, std::vector<uint32_t> indices);
-
-	void CreateVertexBuffer(VulkanDevices* devices, std::vector<Vertex> vertices);
-	void CreateIndexBuffer(VulkanDevices* devices, std::vector<uint32_t> indices);
-	void CreateWorldMatrixBuffer(VulkanDevices* devices);
+	
+	void RecordRenderCommands(VkCommandBuffer& command_buffer);
 
 protected:
 	VkDevice vk_device_handle_;
 
-	VkBuffer vertex_buffer_;
-	VkDeviceMemory vertex_buffer_memory_;
+	glm::mat4 world_matrix_;
 
-	VkBuffer index_buffer_;
-	VkDeviceMemory index_buffer_memory_;
-
-	VkBuffer world_matrix_buffer_;
-	VkDeviceMemory world_matrix_buffer_memory_;
-
-	uint32_t vertex_count_;
-	uint32_t index_count_;
-
-	uint32_t vertex_buffer_offset_;
-	uint32_t index_buffer_offset_;
+	VkBuffer matrix_buffer_;
+	VkDeviceMemory matrix_buffer_memory_;
+	
+	std::vector<Shape*> mesh_shapes_;
+	std::map<std::string, Material*> mesh_materials_;
 };
 #endif

@@ -1,5 +1,6 @@
 #include "device.h"
 #include "app.h"
+#include <iostream>
 
 VulkanDevices::VulkanDevices(VkInstance instance, VkSurfaceKHR surface, VkPhysicalDeviceFeatures required_features, std::vector<const char*> required_extensions)
 {
@@ -224,7 +225,7 @@ void VulkanDevices::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Vk
 	buffer_info.size = size;
 	buffer_info.usage = usage;
 	buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
+	
 	result = vkCreateBuffer(logical_device_, &buffer_info, nullptr, &buffer);
 	if (result != VK_SUCCESS)
 	{
@@ -279,8 +280,11 @@ void VulkanDevices::CreateImage(uint32_t width, uint32_t height, VkFormat format
 	alloc_info.allocationSize = mem_requirements.size;
 	alloc_info.memoryTypeIndex = FindMemoryType(mem_requirements.memoryTypeBits, properties, mem_requirements.size);
 
-	if (vkAllocateMemory(logical_device_, &alloc_info, nullptr, &image_memory) != VK_SUCCESS)
+	VkResult result = vkAllocateMemory(logical_device_, &alloc_info, nullptr, &image_memory);
+	if ( result != VK_SUCCESS)
 	{
+		std::cout << result << std::endl;
+		std::cin.ignore();
 		throw std::runtime_error("failed to allocate image memory!");
 	}
 

@@ -5,9 +5,9 @@
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 worldNormal;
 layout(location = 2) in vec4 worldPosition;
+layout(location = 3) flat in uint matIndex;
 
-layout(binding = 1) uniform sampler2D texSampler;
-
+// uniform buffers
 layout(binding = 2) uniform LightingBufferObject
 {
 	vec4 lightPosition;
@@ -18,6 +18,34 @@ layout(binding = 2) uniform LightingBufferObject
 	float lightType;
 	float shadowsEnabled;
 } light_data;
+
+struct MaterialData
+{
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+	vec4 transmittance;
+	vec4 emissive;
+	float shininess;
+	float ior;
+	float dissolve;
+	float illum;
+};
+
+layout(binding = 3) buffer MaterialUberBuffer
+{
+	MaterialData mat_data[];
+} material_buffer;
+
+// textures
+//layout(binding = 4) uniform sampler2D ambientSampler;
+layout(binding = 5) uniform sampler2D diffuseSampler;
+//layout(binding = 6) uniform sampler2D specularSampler;
+//layout(binding = 7) uniform sampler2D specularHighlightSampler;
+//layout(binding = 8) uniform sampler2D emissiveSampler;
+//layout(binding = 9) uniform sampler2D bumpSampler;
+//layout(binding = 10) uniform sampler2D alphaSampler;
+//layout(binding = 11) uniform sampler2D reflectiveSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -71,8 +99,9 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec4 lightPosition,
 
 void main()
 {
+	vec4 diffuse = material_buffer.mat_data[matIndex].diffuse * texture(diffuseSampler, fragTexCoord);
 	vec4 color = CalculateLighting(worldPosition, worldNormal, light_data.lightPosition, light_data.lightDirection, light_data.lightColor, light_data.lightRange, light_data.lightIntensity, light_data.lightType, light_data.shadowsEnabled);
-	color = color + texture(texSampler, fragTexCoord);
-	
+	color =  diffuse;
+
 	outColor = color;
 }

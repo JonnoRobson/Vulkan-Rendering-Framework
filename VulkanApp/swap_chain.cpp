@@ -67,7 +67,7 @@ VkResult VulkanSwapChain::PreRender()
 	vkCmdClearColorImage(clear_buffer, swap_chain_images_[current_image_index_], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_color, 1, &image_range);
 
 	VkClearDepthStencilValue clear_depth = { 1.0f, 0 };
-	image_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+	image_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
 	vkCmdClearDepthStencilImage(clear_buffer, depth_image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_depth, 1, &image_range);
 	

@@ -17,16 +17,12 @@ public:
 	void Init(VulkanDevices* devices,  VulkanSwapChain* swap_chain, std::string vs_filename, std::string ts_filename, std::string gs_filename, std::string fs_filename);
 	virtual void Cleanup();
 
-	virtual void RecordShaderCommands(VkCommandBuffer& command_buffer, VkPipelineLayout pipeline, VkDescriptorPool descriptor_pool);
-
 	// getters
 	VkShaderModule GetVertexShader() { return vertex_shader_module_; }
 	VkShaderModule GetTessellationShader() { return tessellation_shader_module_; }
 	VkShaderModule GetGeometryShader() { return geometry_shader_module_; }
 	VkShaderModule GetFragmentShader() { return fragment_shader_module_; }
 
-	VkDescriptorSet GetDescriptorSet(VkDescriptorPool descriptor_pool);
-	
 	const std::vector<VkPipelineShaderStageCreateInfo>& GetShaderStageInfo() const { return shader_stage_info_; }
 	const VkVertexInputBindingDescription& GetBindingDescription() const { return vertex_binding_; }
 	const std::vector<VkVertexInputAttributeDescription>& GetAttributeDescriptions() const { return vertex_attributes_; }
@@ -38,26 +34,12 @@ public:
 	const VkPipelineDepthStencilStateCreateInfo& GetDepthStencilStateDescription() const { return depth_stencil_state_; }
 	const VkPipelineColorBlendStateCreateInfo& GetBlendStateDescription() const { return blend_state_; }
 	const VkPipelineDynamicStateCreateInfo& GetDynamicStateDescription() const { return dynamic_state_description_; }
-	const VkDescriptorSetLayout& GetDescriptorSetLayout() const { return descriptor_set_layout_; }
-	const VkDescriptorSetLayoutCreateInfo& GetDescriptorSetLayoutInfo() const { return descriptor_set_layout_info_; }
 
-	Texture& GetTexture(int index) { return shader_textures_[index]; }
-	VkSampler& GetSampler(int index) {return shader_samplers_[index]; }
-	UniformBuffer& GetUniformBuffer(int index) { return shader_uniform_buffers_[index]; }
-
-	bool IsPrimitiveShader() { return primitive_shader_; }
+	int GetShaderStageCount() { return shader_stage_info_.size(); }
 
 protected:
 	virtual void LoadShaders(std::string vs_filename, std::string ts_filename, std::string gs_filename, std::string fs_filename);
 
-	virtual void CreateDescriptorSet(VkDescriptorPool descriptor_pool);
-	virtual void CreateDescriptorLayout();
-
-	virtual void CreateTextures();
-	virtual void CreateSamplers();
-	virtual void CreateUniformBuffers();
-
-	// these functions actually create the descriptions of the state but named for clarity
 	virtual void CreateVertexBinding();
 	virtual void CreateVertexAttributes();
 	virtual void CreateVertexInput();
@@ -75,11 +57,6 @@ protected:
 	// device and swap chain handles for function calls
 	VulkanDevices* devices_;
 	VulkanSwapChain* swap_chain_;
-
-	VkDescriptorSetLayout descriptor_set_layout_;
-	std::vector<VkDescriptorSetLayoutBinding> descriptor_set_layout_bindings_;
-	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_info_;
-	std::map<VkDescriptorPool, VkDescriptorSet> descriptor_sets_;
 
 	// pipeline creation data
 	std::vector<VkPipelineShaderStageCreateInfo> shader_stage_info_;
@@ -103,11 +80,6 @@ protected:
 	VkShaderModule geometry_shader_module_;
 	VkShaderModule fragment_shader_module_;
 
-	std::vector<Texture> shader_textures_;
-	std::vector<VkSampler> shader_samplers_;
-	std::vector<UniformBuffer> shader_uniform_buffers_;
-
-	bool primitive_shader_;
 };
 
 #endif

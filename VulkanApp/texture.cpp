@@ -1,6 +1,7 @@
 #include "texture.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <iostream>
 
 Texture::Texture()
 {
@@ -47,6 +48,8 @@ void Texture::Init(VulkanDevices* devices, std::string filename)
 	vkFreeMemory(vk_device_handle_, staging_buffer_memory, nullptr);
 
 	texture_image_view_ = devices->CreateImageView(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	InitSampler(devices);
 }
 
 void Texture::Cleanup()
@@ -54,4 +57,26 @@ void Texture::Cleanup()
 	vkDestroyImageView(vk_device_handle_, texture_image_view_, nullptr);
 	vkDestroyImage(vk_device_handle_, texture_image_, nullptr);
 	vkFreeMemory(vk_device_handle_, texture_image_memory_, nullptr);
+}
+
+void Texture::InitSampler(VulkanDevices* devices)
+{
+	VkSamplerCreateInfo sampler_info = {};
+	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	sampler_info.magFilter = VK_FILTER_LINEAR;
+	sampler_info.minFilter = VK_FILTER_LINEAR;
+	sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+	sampler_info.anisotropyEnable = VK_TRUE;
+	sampler_info.maxAnisotropy = 16;
+	sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	sampler_info.unnormalizedCoordinates = VK_FALSE;
+	sampler_info.compareEnable = VK_FALSE;
+	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+	if (vkCreateSampler(vk_device_handle_, &sampler_info, nullptr, &texture_sampler_) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create texture sampler!");
+	}
 }

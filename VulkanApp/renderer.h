@@ -9,66 +9,83 @@
 #include "swap_chain.h"
 #include "shader.h"
 #include "mesh.h"
+#include "light.h"
 #include "primitive_buffer.h"
+#include "material_buffer.h"
+#include "camera.h"
+
+
+struct UniformBufferObject
+{
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+};
 
 class VulkanRenderer
 {
 public:
 	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, std::string vs_filename, std::string ps_filename);
+	void RenderScene();
 	void Cleanup();
-
-	void PreRender();
-	void RenderPass();
-	void PostRender();
-
+	
 	void RecreateSwapChainFeatures();
 
 	void AddMesh(Mesh* mesh);
 	void RemoveMesh(Mesh* mesh);
+	void AddLight(Light* light);
+	void RemoveLight(Light* light);
+	void SetCamera(Camera* camera) { render_camera_ = camera; }
 
-	VulkanShader* GetShader(int index) { return shaders_[index]; }
-	VkSemaphore GetSignalSemaphore() { return semaphores_[1]; }
+	VulkanShader* GetMaterialShader() { return material_shader_; }
+
+	VulkanSwapChain* GetSwapChain() { return swap_chain_; }
+	VulkanPrimitiveBuffer* GetPrimitiveBuffer() { return primitive_buffer_; }
+	VulkanMaterialBuffer* GetMaterialBuffer() { return material_buffer_; }
+	VkCommandPool GetCommandPool() { return command_pool_; }
+
+	void GetMatrixBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory) { buffer = matrix_buffer_; buffer_memory = matrix_buffer_memory_; }
+	void GetLightBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory) { buffer = light_buffer_; buffer_memory = light_buffer_memory_; }
+
+	VkSemaphore GetSignalSemaphore() { return render_semaphore_; }
+	Texture* GetDefaultTexture() { return default_texture_; }
 
 protected:
-	void CreateRenderPass();
-	void CreateRenderPasses();
-	void CreateFramebuffers();
-	void CreatePipeline();
+	void CreateBuffers();
+	void CreateSemaphores();
 	void CreateCommandPool();
 	void CreateCommandBuffers();
-	void CreateBeginCommandBuffers();
-	void CreateRenderCommandBuffers();
-	void CreateFinishCommandBuffers();
-	void CreateDescriptorPool();
-	void CreateSemaphores();
-	void CreateShaders();
+	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
+	void CreatePipeline();
 	void CreatePrimitiveBuffer();
-
-	VkShaderModule CreateShaderModule(const std::vector<char>& code);
+	void CreateMaterialBuffer();
+	void RenderPass(uint32_t frame_index);
 
 protected:
 	VulkanDevices* devices_;
 	VulkanSwapChain* swap_chain_;
 	VulkanPrimitiveBuffer* primitive_buffer_;
+	VulkanMaterialBuffer* material_buffer_;
+	VulkanShader* material_shader_;
+	VulkanPipeline* rendering_pipeline_;
 
-	VkRenderPass render_pass_;
-	VkRenderPass clear_render_pass_;
-	VkRenderPass draw_render_pass_;
+	Camera* render_camera_;
+	Texture* default_texture_;
 
-	std::vector<VkFramebuffer> frame_buffers_;
-	VkPipelineLayout pipeline_layout_;
-	VkPipeline pipeline_;
+	VkBuffer matrix_buffer_;
+	VkDeviceMemory matrix_buffer_memory_;
+	
+	VkBuffer light_buffer_;
+	VkDeviceMemory light_buffer_memory_;
 
 	VkQueue graphics_queue_;
 	VkCommandPool command_pool_;
-	std::vector<VkCommandBuffer> begin_command_buffers_;
-	std::vector<VkCommandBuffer> render_command_buffers_;
-	std::vector<VkCommandBuffer> finish_command_buffers_;
-	std::vector<VkSemaphore> semaphores_;
+	std::vector<VkCommandBuffer> command_buffers_;
+
+	VkSemaphore render_semaphore_;
 	
-	std::vector<VulkanShader*> shaders_;
 	std::vector<Mesh*> meshes_;
-	VkDescriptorPool descriptor_pool_;
+	std::vector<Light*> lights_;
 };
 
 #endif

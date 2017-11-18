@@ -2,6 +2,20 @@
 #define _LIGHT_H_
 
 #include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
+
+class VulkanDevices;
+
+struct LightBufferObject
+{
+	glm::vec4 position;
+	glm::vec4 direction;
+	glm::vec4 color;
+	float range;
+	float intensity;
+	float light_type;
+	float shadows_enabled;
+};
 
 class Light
 {
@@ -28,6 +42,8 @@ public:
 
 	inline void SetShadowsEnabled(bool shadows_enabled) { shadows_enabled_ = shadows_enabled; }
 	inline bool GetShadowsEnabled() { return shadows_enabled_; }
+
+	void SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_memory);
 
 protected:
 	glm::vec4 position_;

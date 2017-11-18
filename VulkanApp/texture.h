@@ -16,11 +16,16 @@ public:
 	void Cleanup();
 
 	VkImageView GetImageView() { return texture_image_view_; }
+	VkSampler GetSampler() { return texture_sampler_; }
+
+protected:
+	void InitSampler(VulkanDevices* devices);
 
 protected:
 	VkImage texture_image_;
 	VkDeviceMemory texture_image_memory_;
 	VkImageView texture_image_view_;
+	VkSampler texture_sampler_;
 
 	VkDevice vk_device_handle_;
 };

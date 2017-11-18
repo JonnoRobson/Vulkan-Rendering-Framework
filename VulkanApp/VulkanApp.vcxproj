@@ -119,14 +119,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="camera.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="light.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="material.cpp" />
+    <ClCompile Include="material_buffer.cpp" />
     <ClCompile Include="mesh.cpp" />
+    <ClCompile Include="pipeline.cpp" />
     <ClCompile Include="primitive_buffer.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="sampler.cpp" />
     <ClCompile Include="shader.cpp" />
+    <ClCompile Include="shape.cpp" />
     <ClCompile Include="swap_chain.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="uniform_buffer.cpp" />
@@ -134,8 +139,14 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="device.h" />
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="material_buffer.h" />
+    <ClInclude Include="shape.h" />
+    <ClInclude Include="input.h" />
     <ClInclude Include="light.h" />
+    <ClInclude Include="material.h" />
     <ClInclude Include="mesh.h" />
+    <ClInclude Include="pipeline.h" />
     <ClInclude Include="primitive_buffer.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="sampler.h" />
@@ -147,6 +158,8 @@
   <ItemGroup>
     <None Include="..\res\shaders\default_lighting.frag" />
     <None Include="..\res\shaders\default_lighting.vert" />
+    <None Include="..\res\shaders\default_material.frag" />
+    <None Include="..\res\shaders\default_material.vert" />
     <None Include="..\res\shaders\triangle.frag" />
     <None Include="..\res\shaders\triangle.vert">
       <FileType>Document</FileType>
