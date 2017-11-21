@@ -61,7 +61,7 @@ void VulkanPipeline::CreateDescriptorSet()
 			if (binding.descriptorType == pool_size.type)
 			{
 				// if binding is found increment binding count
-				pool_size.descriptorCount++;
+				pool_size.descriptorCount += binding.descriptorCount;
 				found = true;
 				break;
 			}
@@ -72,7 +72,7 @@ void VulkanPipeline::CreateDescriptorSet()
 			// if binding is not found create a new entry for it
 			VkDescriptorPoolSize pool_size;
 			pool_size.type = binding.descriptorType;
-			binding.descriptorCount = 1;
+			pool_size.descriptorCount = binding.descriptorCount;
 			pool_sizes.push_back(pool_size);
 		}
 	}
@@ -82,7 +82,7 @@ void VulkanPipeline::CreateDescriptorSet()
 	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
 	pool_info.pPoolSizes = pool_sizes.data();
-	pool_info.maxSets = 1;
+	pool_info.maxSets = 256;
 
 	if (vkCreateDescriptorPool(devices_->GetLogicalDevice(), &pool_info, nullptr, &descriptor_pool_) != VK_SUCCESS)
 	{
@@ -113,10 +113,17 @@ void VulkanPipeline::CreateDescriptorSet()
 		descriptor_write.descriptorType = descriptor.layout_binding.descriptorType;
 		descriptor_write.descriptorCount = descriptor.layout_binding.descriptorCount;
 		
-		if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
-			descriptor_write.pBufferInfo = &descriptor.buffer_info;
-		else if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-			descriptor_write.pImageInfo = &descriptor.image_info;
+		if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
+			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
+		{
+			descriptor_write.pBufferInfo = descriptor.buffer_infos.data();
+		}
+		else if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
+			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
+			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER)
+		{
+			descriptor_write.pImageInfo = descriptor.image_infos.data();
+		}
 
 		descriptor_writes.push_back(descriptor_write);
 	}
@@ -279,12 +286,59 @@ void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding
 	Descriptor texture_descriptor = {};
 	
 	// setup image info
-	texture_descriptor.image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	texture_descriptor.image_info.imageView = texture->GetImageView();
-	texture_descriptor.image_info.sampler = texture->GetSampler();
-	
+	VkDescriptorImageInfo image_info = {};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = texture->GetImageView();
+	image_info.sampler = texture->GetSampler();
+	texture_descriptor.image_infos.push_back(image_info);
+
 	// setup descriptor layout info
 	texture_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	texture_descriptor.layout_binding.descriptorCount = 1;
+	texture_descriptor.layout_binding.binding = binding_location;
+	texture_descriptor.layout_binding.stageFlags = stage_flags;
+	texture_descriptor.layout_binding.pImmutableSamplers = nullptr;
+
+	descriptor_infos_.push_back(texture_descriptor);
+}
+
+void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures)
+{
+	Descriptor texture_descriptor = {};
+
+	// setup image info
+	for (Texture* texture : textures)
+	{
+		VkDescriptorImageInfo image_info = {};
+		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_info.imageView = texture->GetImageView();
+		image_info.sampler = VK_NULL_HANDLE;
+		texture_descriptor.image_infos.push_back(image_info);
+	}
+
+	// setup descriptor layout info
+	texture_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	texture_descriptor.layout_binding.descriptorCount = texture_descriptor.image_infos.size();
+	texture_descriptor.layout_binding.binding = binding_location;
+	texture_descriptor.layout_binding.stageFlags = stage_flags;
+	texture_descriptor.layout_binding.pImmutableSamplers = nullptr;
+
+	descriptor_infos_.push_back(texture_descriptor);
+}
+
+void VulkanPipeline::AddSampler(VkShaderStageFlags stage_flags, uint32_t binding_location, VkSampler sampler)
+{
+	Descriptor texture_descriptor = {};
+
+	// setup image info
+	VkDescriptorImageInfo image_info = {};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = VK_NULL_HANDLE;
+	image_info.sampler = sampler;
+	texture_descriptor.image_infos.push_back(image_info);
+
+	// setup descriptor layout info
+	texture_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
 	texture_descriptor.layout_binding.descriptorCount = 1;
 	texture_descriptor.layout_binding.binding = binding_location;
 	texture_descriptor.layout_binding.stageFlags = stage_flags;
@@ -298,9 +352,11 @@ void VulkanPipeline::AddUniformBuffer(VkShaderStageFlags stage_flags, uint32_t b
 	Descriptor buffer_descriptor = {};
 
 	// setup buffer info
-	buffer_descriptor.buffer_info.buffer = buffer;
-	buffer_descriptor.buffer_info.offset = 0;
-	buffer_descriptor.buffer_info.range = buffer_size;
+	VkDescriptorBufferInfo buffer_info = {};
+	buffer_info.buffer = buffer;
+	buffer_info.offset = 0;
+	buffer_info.range = buffer_size;
+	buffer_descriptor.buffer_infos.push_back(buffer_info);
 
 	// setup descriptor layout info
 	buffer_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -317,9 +373,11 @@ void VulkanPipeline::AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t b
 	Descriptor buffer_descriptor = {};
 
 	// setup buffer info
-	buffer_descriptor.buffer_info.buffer = buffer;
-	buffer_descriptor.buffer_info.offset = 0;
-	buffer_descriptor.buffer_info.range = buffer_size;
+	VkDescriptorBufferInfo buffer_info = {};
+	buffer_info.buffer = buffer;
+	buffer_info.offset = 0;
+	buffer_info.range = buffer_size;
+	buffer_descriptor.buffer_infos.push_back(buffer_info);
 
 	// setup descriptor layout info
 	buffer_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

@@ -3,7 +3,7 @@
 
 #include "device.h"
 
-#define MAX_MATERIAL_COUNT 500
+#define MAX_MATERIAL_COUNT 512
 
 class VulkanMaterialBuffer
 {

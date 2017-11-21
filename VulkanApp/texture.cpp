@@ -5,7 +5,7 @@
 
 Texture::Texture()
 {
-
+	texture_index_ = 0;
 }
 
 Texture::~Texture()
@@ -48,7 +48,7 @@ void Texture::Init(VulkanDevices* devices, std::string filename)
 	vkFreeMemory(vk_device_handle_, staging_buffer_memory, nullptr);
 
 	texture_image_view_ = devices->CreateImageView(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-
+	
 	InitSampler(devices);
 }
 

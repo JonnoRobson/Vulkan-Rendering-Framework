@@ -98,6 +98,8 @@ bool App::InitResources()
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
 	camera_.SetRotation(glm::vec3(-30.0f, 0.0f, 0.0f));
 
+	renderer_->InitPipeline();
+
 	renderer_->AddMesh(chalet_mesh_);
 	renderer_->AddLight(test_light_);
 	renderer_->SetCamera(&camera_);
@@ -107,7 +109,7 @@ bool App::InitResources()
 
 void App::CleanUp()
 {
-	// clean up resources
+// clean up resources
 	delete chalet_mesh_;
 	chalet_mesh_ = nullptr;
 

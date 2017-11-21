@@ -30,22 +30,24 @@ struct MaterialData
 	float ior;
 	float dissolve;
 	float illum;
+	uint ambient_map_index;
+	uint diffuse_map_index;
+	uint specular_map_index;
+	uint specular_highlight_map_index;
+	uint emissive_map_index;
+	uint bump_map_index;
+	uint alpha_map_index;
+	uint reflection_map_index;
 };
 
-layout(binding = 3) buffer MaterialUberBuffer
+layout(binding = 3) uniform MaterialUberBuffer
 {
-	MaterialData mat_data[];
-} material_buffer;
+	MaterialData materials[512];
+} material_data;
 
 // textures
-//layout(binding = 4) uniform sampler2D ambientSampler;
-layout(binding = 5) uniform sampler2D diffuseSampler;
-//layout(binding = 6) uniform sampler2D specularSampler;
-//layout(binding = 7) uniform sampler2D specularHighlightSampler;
-//layout(binding = 8) uniform sampler2D emissiveSampler;
-//layout(binding = 9) uniform sampler2D bumpSampler;
-//layout(binding = 10) uniform sampler2D alphaSampler;
-//layout(binding = 11) uniform sampler2D reflectiveSampler;
+layout(binding = 4) uniform sampler mapSampler;
+layout(binding = 5) uniform texture2D diffuseMaps[512];
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -99,9 +101,17 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec4 lightPosition,
 
 void main()
 {
-	vec4 diffuse = material_buffer.mat_data[matIndex].diffuse * texture(diffuseSampler, fragTexCoord);
+	vec4 diffuse = material_data.materials[matIndex].diffuse;
+	
+	// if diffuse map index is non-zero sample the diffuse map
+	uint diffuse_map_index = material_data.materials[matIndex].diffuse_map_index;
+	if(diffuse_map_index > 0)
+	{
+		diffuse = texture(sampler2D(diffuseMaps[diffuse_map_index - 1], mapSampler), fragTexCoord);
+	}
+
 	vec4 color = CalculateLighting(worldPosition, worldNormal, light_data.lightPosition, light_data.lightDirection, light_data.lightColor, light_data.lightRange, light_data.lightIntensity, light_data.lightType, light_data.shadowsEnabled);
-	color =  diffuse;
+	color = diffuse;
 
 	outColor = color;
 }

@@ -26,6 +26,7 @@ class VulkanRenderer
 {
 public:
 	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, std::string vs_filename, std::string ps_filename);
+	void InitPipeline();
 	void RenderScene();
 	void Cleanup();
 	
@@ -50,13 +51,18 @@ public:
 	VkSemaphore GetSignalSemaphore() { return render_semaphore_; }
 	Texture* GetDefaultTexture() { return default_texture_; }
 
+	void AddDiffuseTexture(Texture* texture) 
+	{
+		diffuse_textures_.push_back(texture);
+		texture->SetTextureIndex(diffuse_textures_.size());
+	}
+
 protected:
 	void CreateBuffers();
 	void CreateSemaphores();
 	void CreateCommandPool();
 	void CreateCommandBuffers();
 	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
-	void CreatePipeline();
 	void CreatePrimitiveBuffer();
 	void CreateMaterialBuffer();
 	void RenderPass(uint32_t frame_index);
@@ -86,6 +92,7 @@ protected:
 	
 	std::vector<Mesh*> meshes_;
 	std::vector<Light*> lights_;
+	std::vector<Texture*> diffuse_textures_;
 };
 
 #endif

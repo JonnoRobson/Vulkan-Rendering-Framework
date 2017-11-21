@@ -12,8 +12,8 @@ class VulkanPipeline
 protected:
 	struct Descriptor
 	{
-		VkDescriptorBufferInfo buffer_info;
-		VkDescriptorImageInfo image_info;
+		std::vector<VkDescriptorBufferInfo> buffer_infos;
+		std::vector<VkDescriptorImageInfo> image_infos;
 		VkDescriptorSetLayoutBinding layout_binding;
 	};
 
@@ -27,6 +27,8 @@ public:
 	inline void SetShader(VulkanShader* shader) { shader_ = shader; }
 
 	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, Texture* texture);
+	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures);
+	void AddSampler(VkShaderStageFlags stage_flags, uint32_t binding_location, VkSampler sampler);
 	void AddUniformBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
 	void AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
 

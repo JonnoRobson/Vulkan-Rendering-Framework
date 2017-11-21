@@ -20,7 +20,7 @@ struct Vertex
 	glm::vec3 pos;
 	glm::vec2 tex_coord;
 	glm::vec3 normal;
-	float mat_index;
+	uint32_t mat_index;
 
 	static VkVertexInputBindingDescription GetBindingDescription()
 	{

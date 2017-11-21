@@ -1,2 +1,2 @@
-C:/VulkanSDK/1.0.61.1/Bin/glslangValidator.exe -V %1
+C:\VulkanSDK\glslang\build\StandAlone\Release\glslangValidator.exe -V %1
 pause

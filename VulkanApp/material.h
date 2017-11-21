@@ -20,6 +20,14 @@ struct MaterialData
 	float ior;
 	float dissolve;
 	float illum;
+	uint32_t ambient_map_index;
+	uint32_t diffuse_map_index;
+	uint32_t specular_map_index;
+	uint32_t specular_highlight_map_index;
+	uint32_t emissive_map_index;
+	uint32_t bump_map_index;
+	uint32_t alpha_map_index;
+	uint32_t reflection_map_index;
 };
 
 class Material

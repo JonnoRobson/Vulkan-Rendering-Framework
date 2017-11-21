@@ -16,7 +16,6 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, s
 	CreateMaterialBuffer();
 	CreateCommandPool();
 	CreateBuffers();
-	CreatePipeline();
 	CreateSemaphores();
 
 	vkGetDeviceQueue(devices_->GetLogicalDevice(), devices_->GetQueueFamilyIndices().graphics_family, 0, &graphics_queue_);
@@ -111,17 +110,18 @@ void VulkanRenderer::Cleanup()
 	vkDestroySemaphore(devices_->GetLogicalDevice(), render_semaphore_, nullptr);
 }
 
-void VulkanRenderer::CreatePipeline()
+void VulkanRenderer::InitPipeline()
 {
 	rendering_pipeline_ = new VulkanPipeline();
 
 	// add the material buffers to the pipeline
 	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
 	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, sizeof(LightBufferObject));
-	rendering_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
 
 	// add the material textures to the pipeline
-	rendering_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 5, default_texture_);
+	rendering_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, diffuse_textures_);
 	/*
 	material_pipeline_->AddTexture(VK_SHADER_STAGE_VERTEX_BIT, 1, displacement_texture_);
 	material_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 4, ambient_texture_);

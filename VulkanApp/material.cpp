@@ -1,5 +1,6 @@
 #include "material.h"
 #include "renderer.h"
+#include <chrono>
 
 Material::Material()
 {
@@ -12,6 +13,14 @@ Material::Material()
 	material_properties_.dissolve = 0.0f;
 	material_properties_.ior = 0.0f;
 	material_properties_.illum = 0;
+	material_properties_.ambient_map_index = 0;
+	material_properties_.diffuse_map_index = 0;
+	material_properties_.specular_map_index = 0;
+	material_properties_.specular_highlight_map_index = 0;
+	material_properties_.emissive_map_index = 0;
+	material_properties_.bump_map_index = 0;
+	material_properties_.alpha_map_index = 0;
+	material_properties_.reflection_map_index = 0;
 
 	ambient_texture_ = nullptr;
 	diffuse_texture_ = nullptr;
@@ -129,6 +138,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 	{
 		diffuse_texture_ = new Texture();
 		diffuse_texture_->Init(devices, tex_dir + material.diffuse_texname);
+		renderer->AddDiffuseTexture(diffuse_texture_);
+		material_properties_.diffuse_map_index = diffuse_texture_->GetTextureIndex();
 	}
 	else
 	{
