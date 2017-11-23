@@ -57,6 +57,12 @@ public:
 		texture->SetTextureIndex(diffuse_textures_.size());
 	}
 
+	void AddNormalTexture(Texture* texture)
+	{
+		normal_textures_.push_back(texture);
+		texture->SetTextureIndex(normal_textures_.size());
+	}
+
 protected:
 	void CreateBuffers();
 	void CreateSemaphores();
@@ -93,6 +99,7 @@ protected:
 	std::vector<Mesh*> meshes_;
 	std::vector<Light*> lights_;
 	std::vector<Texture*> diffuse_textures_;
+	std::vector<Texture*> normal_textures_;
 };
 
 #endif

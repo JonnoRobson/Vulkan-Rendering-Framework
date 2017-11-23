@@ -89,7 +89,7 @@ bool App::InitResources()
 	test_light_ = new Light();
 	test_light_->SetType(0.0f);
 	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_->SetDirection(glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	test_light_->SetDirection(glm::vec4(0.0f, 0.1f, -1.0f, 1.0f));
 	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
 	test_light_->SetIntensity(1.0f);
 	test_light_->SetRange(1.0f);

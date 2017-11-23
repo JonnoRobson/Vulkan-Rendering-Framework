@@ -179,7 +179,9 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 	if (!material.bump_texname.empty())
 	{
 		bump_texture_ = new Texture();
-		bump_texture_->Init(devices, tex_dir + material.bump_texname);
+		bump_texture_->Init(devices, tex_dir + material.bump_texname); 
+		renderer->AddNormalTexture(bump_texture_);
+		material_properties_.bump_map_index = bump_texture_->GetTextureIndex();
 	}
 	else
 	{

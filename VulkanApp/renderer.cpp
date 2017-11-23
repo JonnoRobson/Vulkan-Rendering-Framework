@@ -122,6 +122,8 @@ void VulkanRenderer::InitPipeline()
 	// add the material textures to the pipeline
 	rendering_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
 	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, diffuse_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, normal_textures_);
+		
 	/*
 	material_pipeline_->AddTexture(VK_SHADER_STAGE_VERTEX_BIT, 1, displacement_texture_);
 	material_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 4, ambient_texture_);
