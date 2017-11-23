@@ -5,4 +5,5 @@ VulkanApp.VC.VC.opendb
 x64/
 Debug/
 VulkanApp/x64/
+error.txt
 .vs/

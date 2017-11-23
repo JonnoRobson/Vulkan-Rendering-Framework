@@ -8,8 +8,7 @@ layout(location = 2) in vec4 worldPosition;
 layout(location = 3) in vec3 eyeVec;
 layout(location = 4) flat in uint matIndex;
 
-// uniform buffers
-layout(binding = 2) uniform LightingBufferObject
+struct LightData
 {
 	vec4 lightPosition;
 	vec4 lightDirection;
@@ -18,6 +17,13 @@ layout(binding = 2) uniform LightingBufferObject
 	float lightIntensity;
 	float lightType;
 	float shadowsEnabled;
+};
+
+// uniform buffers
+layout(binding = 2) buffer LightingBuffer
+{
+	vec4 scene_data;
+	LightData lights[];
 } light_data;
 
 
@@ -149,8 +155,17 @@ void main()
 		normal = PerturbNormal(normal, eyeVec, fragTexCoord, normal_map_index);
 	}
 
-	vec4 lighting = CalculateLighting(worldPosition, normal, light_data.lightPosition, light_data.lightDirection, light_data.lightColor, light_data.lightRange, light_data.lightIntensity, light_data.lightType, light_data.shadowsEnabled);
-	vec4 color = material_data.materials[matIndex].ambient + (diffuse * lighting);
+	vec4 color = material_data.materials[matIndex].ambient * vec4(light_data.scene_data.xyz, 1.0f);
+
+	// calculate lighting for all lights
+	for(uint i = 0; i < light_data.scene_data.w; i++)
+	{
+		LightData light = light_data.lights[i];
+		vec4 lighting = CalculateLighting(worldPosition, normal, light.lightPosition, light.lightDirection, light.lightColor, light.lightRange, light.lightIntensity, light.lightType, light.shadowsEnabled);
+		color = color + (diffuse * lighting);
+	}
+
+	// set alpha to material dissolve value
 	color.w = material_data.materials[matIndex].dissolve;
 
 	outColor = color;

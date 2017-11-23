@@ -43,9 +43,9 @@ void VulkanRenderer::RenderScene()
 	{
 		// send the light data to the gpu
 		light->SendLightData(devices_, light_buffer_memory_);
-
-		RenderPass(image_index);
 	}
+
+	RenderPass(image_index);
 }
 
 void VulkanRenderer::RenderPass(uint32_t image_index)
@@ -116,8 +116,15 @@ void VulkanRenderer::InitPipeline()
 
 	// add the material buffers to the pipeline
 	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
-	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, sizeof(LightBufferObject));
+	CreateLightBuffer();
 	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+
+	// fill out any empty texture arrays with a copy of the default texture
+	if (diffuse_textures_.empty())
+		diffuse_textures_.push_back(default_texture_);
+
+	if (normal_textures_.empty())
+		normal_textures_.push_back(default_texture_);
 
 	// add the material textures to the pipeline
 	rendering_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
@@ -263,6 +270,7 @@ void VulkanRenderer::RemoveMesh(Mesh* remove_mesh)
 
 void VulkanRenderer::AddLight(Light* light)
 {
+	light->SetLightBufferIndex(lights_.size());
 	lights_.push_back(light);
 }
 
@@ -300,5 +308,21 @@ void VulkanRenderer::CreateSemaphores()
 void VulkanRenderer::CreateBuffers()
 {
 	devices_->CreateBuffer(sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, matrix_buffer_, matrix_buffer_memory_);
-	devices_->CreateBuffer(sizeof(LightBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, light_buffer_, light_buffer_memory_);
+}
+
+void VulkanRenderer::CreateLightBuffer()
+{
+	VkDeviceSize buffer_size = sizeof(glm::vec4) + (lights_.size() * sizeof(LightData));
+
+	devices_->CreateBuffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, light_buffer_, light_buffer_memory_);
+
+	SceneLightData light_data = {};
+	light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
+
+	void* mapped_data;
+	vkMapMemory(devices_->GetLogicalDevice(), light_buffer_memory_, 0, buffer_size, 0, &mapped_data);
+	memcpy(mapped_data, &light_data, sizeof(SceneLightData));
+	vkUnmapMemory(devices_->GetLogicalDevice(), light_buffer_memory_);
+
+	rendering_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
 }

@@ -35,6 +35,10 @@ bool App::InitWindow()
 	if (!window_)
 		return false;
 
+	current_time_ = 0.0f;
+	prev_time_ = 0.0f;
+	frame_time_ = 0.0f;
+
 	return true;
 }
 
@@ -83,25 +87,36 @@ bool App::InitResources()
 
 	filepath = "../res/models/" + filepath;
 
-	chalet_mesh_ = new Mesh();
-	chalet_mesh_->CreateModelMesh(vk_devices_, renderer_, filepath);
+	loaded_mesh_ = new Mesh();
+	loaded_mesh_->CreateModelMesh(vk_devices_, renderer_, filepath);
 	
 	test_light_ = new Light();
 	test_light_->SetType(0.0f);
 	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_->SetDirection(glm::vec4(0.0f, 0.1f, -1.0f, 1.0f));
+	test_light_->SetDirection(glm::vec4(0.1f, 0.1f, -1.0f, 1.0f));
 	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_->SetIntensity(1.0f);
+	test_light_->SetIntensity(0.25f);
 	test_light_->SetRange(1.0f);
 	test_light_->SetShadowsEnabled(false);
+	renderer_->AddLight(test_light_);
+
+	test_light_b_ = new Light();
+	test_light_b_->SetType(0.0f);
+	test_light_b_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+	test_light_b_->SetDirection(glm::vec4(-0.1f, -0.1f, -1.0f, 1.0f));
+	test_light_b_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+	test_light_b_->SetIntensity(0.25f);
+	test_light_b_->SetRange(1.0f);
+	test_light_b_->SetShadowsEnabled(false);
+	renderer_->AddLight(test_light_b_);
+
 
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
 	camera_.SetRotation(glm::vec3(-30.0f, 0.0f, 0.0f));
 
 	renderer_->InitPipeline();
 
-	renderer_->AddMesh(chalet_mesh_);
-	renderer_->AddLight(test_light_);
+	renderer_->AddMesh(loaded_mesh_);
 	renderer_->SetCamera(&camera_);
 
 	return true;
@@ -110,14 +125,14 @@ bool App::InitResources()
 void App::CleanUp()
 {
 // clean up resources
-	delete chalet_mesh_;
-	chalet_mesh_ = nullptr;
-
-	delete test_mesh_;
-	test_mesh_ = nullptr;
-
+	delete loaded_mesh_;
+	loaded_mesh_ = nullptr;
+	
 	delete test_light_;
 	test_light_ = nullptr;
+
+	delete test_light_b_;
+	test_light_b_ = nullptr;
 
 	// clean up input manager
 	delete input_;
@@ -160,26 +175,34 @@ void App::MainLoop()
 
 void App::Update()
 {
+	static auto startTime = std::chrono::high_resolution_clock::now();
+
+	auto currentTime = std::chrono::high_resolution_clock::now();
+
+	prev_time_ = current_time_;
+	current_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
+	frame_time_ = current_time_ - prev_time_;
+
 	// camera movement
 	if (input_->IsKeyPressed(GLFW_KEY_W))
-		camera_.MoveForward(0.5f);
+		camera_.MoveForward(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_S))
-		camera_.MoveBackward(0.5f);
+		camera_.MoveBackward(frame_time_ * 100.0f);
 	
 	if (input_->IsKeyPressed(GLFW_KEY_A))
-		camera_.MoveLeft(0.5f);
+		camera_.MoveLeft(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_D))
-		camera_.MoveRight(0.5f);
+		camera_.MoveRight(frame_time_ * 100.0f);
 
 	// camera turning
 	if (input_->IsKeyPressed(GLFW_KEY_UP))
-		camera_.TurnUp(0.5f);
+		camera_.TurnUp(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_DOWN))
-		camera_.TurnDown(0.5f);
+		camera_.TurnDown(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_LEFT))
-		camera_.TurnLeft(0.5f);
+		camera_.TurnLeft(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_RIGHT))
-		camera_.TurnRight(0.5f);
+		camera_.TurnRight(frame_time_ * 100.0f);
 }
 
 void App::DrawFrame()

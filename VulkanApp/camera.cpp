@@ -31,7 +31,7 @@ void Camera::MoveLeft(float speed)
 	right = glm::rotateY(right, glm::radians(rotation_.y));
 	right = glm::rotateZ(right, glm::radians(rotation_.z));
 
-	position_ += right * speed;
+	position_ -= right * speed;
 }
 
 void Camera::MoveRight(float speed)
@@ -40,7 +40,7 @@ void Camera::MoveRight(float speed)
 	right = glm::rotateY(right, glm::radians(rotation_.y));
 	right = glm::rotateZ(right, glm::radians(rotation_.z));
 
-	position_ -= right * speed;
+	position_ += right * speed;
 }
 
 glm::mat4 Camera::GetViewMatrix()

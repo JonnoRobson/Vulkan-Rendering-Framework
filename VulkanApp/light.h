@@ -6,7 +6,7 @@
 
 class VulkanDevices;
 
-struct LightBufferObject
+struct LightData
 {
 	glm::vec4 position;
 	glm::vec4 direction;
@@ -45,6 +45,9 @@ public:
 
 	void SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_memory);
 
+	void SetLightBufferIndex(uint16_t index) { light_buffer_index_ = index; }
+	uint16_t GetLightBufferIndex() { return light_buffer_index_; }
+
 protected:
 	glm::vec4 position_;
 	glm::vec4 direction_;
@@ -54,7 +57,8 @@ protected:
 	float intensity_;
 	float type_;
 	bool shadows_enabled_;
-
+	
+	uint16_t light_buffer_index_;
 };
 
 #endif

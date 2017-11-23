@@ -22,6 +22,11 @@ struct UniformBufferObject
 	glm::mat4 proj;
 };
 
+struct SceneLightData
+{
+	glm::vec4 scene_data; // xyz - ambient color, w - light count
+};
+
 class VulkanRenderer
 {
 public:
@@ -71,6 +76,7 @@ protected:
 	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
 	void CreatePrimitiveBuffer();
 	void CreateMaterialBuffer();
+	void CreateLightBuffer();
 	void RenderPass(uint32_t frame_index);
 
 protected:

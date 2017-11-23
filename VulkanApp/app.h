@@ -69,9 +69,13 @@ protected:
 	VkDebugReportCallbackEXT vk_callback_;
 
 	Camera camera_;
-	Mesh* chalet_mesh_;
-	Mesh* test_mesh_;
+	Mesh* loaded_mesh_;
 	Light* test_light_;
+	Light* test_light_b_;
+
+	float current_time_;
+	float prev_time_;
+	float frame_time_;
 
 	const int window_width_ = 1280;
 	const int window_height_ = 1024;
