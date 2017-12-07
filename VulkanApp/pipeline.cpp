@@ -302,6 +302,27 @@ void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding
 	descriptor_infos_.push_back(texture_descriptor);
 }
 
+void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image)
+{
+	Descriptor texture_descriptor = {};
+
+	// setup image info
+	VkDescriptorImageInfo image_info = {};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = image;
+	image_info.sampler = nullptr;
+	texture_descriptor.image_infos.push_back(image_info);
+
+	// setup descriptor layout info
+	texture_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	texture_descriptor.layout_binding.descriptorCount = 1;
+	texture_descriptor.layout_binding.binding = binding_location;
+	texture_descriptor.layout_binding.stageFlags = stage_flags;
+	texture_descriptor.layout_binding.pImmutableSamplers = nullptr;
+
+	descriptor_infos_.push_back(texture_descriptor);
+}
+
 void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures)
 {
 	Descriptor texture_descriptor = {};
@@ -325,6 +346,31 @@ void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t bi
 
 	descriptor_infos_.push_back(texture_descriptor);
 }
+
+void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& textures)
+{
+	Descriptor texture_descriptor = {};
+
+	// setup image info
+	for (VkImageView texture : textures)
+	{
+		VkDescriptorImageInfo image_info = {};
+		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_info.imageView = texture;
+		image_info.sampler = VK_NULL_HANDLE;
+		texture_descriptor.image_infos.push_back(image_info);
+	}
+
+	// setup descriptor layout info
+	texture_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	texture_descriptor.layout_binding.descriptorCount = texture_descriptor.image_infos.size();
+	texture_descriptor.layout_binding.binding = binding_location;
+	texture_descriptor.layout_binding.stageFlags = stage_flags;
+	texture_descriptor.layout_binding.pImmutableSamplers = nullptr;
+
+	descriptor_infos_.push_back(texture_descriptor);
+}
+
 
 void VulkanPipeline::AddSampler(VkShaderStageFlags stage_flags, uint32_t binding_location, VkSampler sampler)
 {
@@ -399,12 +445,12 @@ void VulkanPipeline::RecordRenderCommands(VkCommandBuffer& command_buffer, uint3
 	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
 	render_pass_info.clearValueCount = 0;
 	render_pass_info.pClearValues = nullptr;
-
-	primitive_buffer_->RecordBindingCommands(command_buffer);
-
+	
 	// create pipleine commands
 	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
+	
+	primitive_buffer_->RecordBindingCommands(command_buffer);
 
 	// set the dynamic viewport data
 	VkViewport viewport = {};

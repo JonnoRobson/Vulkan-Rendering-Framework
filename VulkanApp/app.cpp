@@ -22,8 +22,9 @@ bool App::InitWindow()
 		return false;
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// Don't create an opengl context
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// Window should be resizable
+	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// Window should be resizable
 
+	//window_ = glfwCreateWindow(1920, 1080, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
 	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
 
 	glfwSetWindowUserPointer(window_, this);
@@ -72,7 +73,7 @@ bool App::InitVulkan()
 
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
-	renderer_->Init(vk_devices_, swap_chain_, "../res/shaders/vert.spv", "../res/shaders/frag.spv");
+	renderer_->Init(vk_devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "../res/shaders/default_material.frag.spv");
 
 	return true;
 }
@@ -93,22 +94,22 @@ bool App::InitResources()
 	test_light_ = new Light();
 	test_light_->SetType(0.0f);
 	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_->SetDirection(glm::vec4(0.1f, 0.1f, -1.0f, 1.0f));
+	test_light_->SetDirection(glm::vec4(-0.2f, -0.2f, -1.0f, 1.0f));
 	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_->SetIntensity(0.25f);
+	test_light_->SetIntensity(0.75f);
 	test_light_->SetRange(1.0f);
 	test_light_->SetShadowsEnabled(false);
-	renderer_->AddLight(test_light_);
+	test_light_->Init(vk_devices_, renderer_);
 
 	test_light_b_ = new Light();
 	test_light_b_->SetType(0.0f);
 	test_light_b_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_b_->SetDirection(glm::vec4(-0.1f, -0.1f, -1.0f, 1.0f));
+	test_light_b_->SetDirection(glm::vec4(0.2f, 0.2f, -1.0f, 1.0f));
 	test_light_b_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_b_->SetIntensity(0.25f);
+	test_light_b_->SetIntensity(0.75f);
 	test_light_b_->SetRange(1.0f);
 	test_light_b_->SetShadowsEnabled(false);
-	renderer_->AddLight(test_light_b_);
+	test_light_b_->Init(vk_devices_, renderer_);
 
 
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
@@ -119,18 +120,23 @@ bool App::InitResources()
 	renderer_->AddMesh(loaded_mesh_);
 	renderer_->SetCamera(&camera_);
 
+	test_light_->GenerateShadowMap();
+	//test_light_b_->GenerateShadowMap();
+
 	return true;
 }
 
 void App::CleanUp()
 {
-// clean up resources
+	// clean up resources
 	delete loaded_mesh_;
 	loaded_mesh_ = nullptr;
 	
+	test_light_->Cleanup();
 	delete test_light_;
 	test_light_ = nullptr;
 
+	test_light_b_->Cleanup();
 	delete test_light_b_;
 	test_light_b_ = nullptr;
 
@@ -203,6 +209,18 @@ void App::Update()
 		camera_.TurnLeft(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_RIGHT))
 		camera_.TurnRight(frame_time_ * 100.0f);
+
+	// render mode switch
+	if (input_->IsKeyPressed(GLFW_KEY_TAB))
+	{
+		renderer_->SetRenderMode(VulkanRenderer::RenderMode::FORWARD);
+		input_->SetKeyUp(GLFW_KEY_TAB);
+	}
+	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
+	{
+		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED);
+		input_->SetKeyUp(GLFW_KEY_LEFT_SHIFT);
+	}
 }
 
 void App::DrawFrame()
@@ -388,6 +406,7 @@ void App::InitDevices()
 {
 	VkPhysicalDeviceFeatures device_features = {};
 	device_features.samplerAnisotropy = VK_TRUE;
+	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 
 	// create the physical device
 	vk_devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);

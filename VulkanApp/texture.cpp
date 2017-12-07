@@ -5,7 +5,7 @@
 
 Texture::Texture()
 {
-	texture_index_ = 0;
+	usage_count_ = 0;
 }
 
 Texture::~Texture()
@@ -16,11 +16,12 @@ Texture::~Texture()
 void Texture::Init(VulkanDevices* devices, std::string filename)
 {
 	vk_device_handle_ = devices->GetLogicalDevice();
+	texture_name_ = filename;
 
 	int tex_width, tex_height, tex_channels;
 	stbi_uc* pixels = stbi_load(filename.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 
-	VkDeviceSize image_size = tex_width * tex_height * 4;
+	image_size_ = tex_width * tex_height * 4;
 
 	if (!pixels)
 	{
@@ -30,11 +31,11 @@ void Texture::Init(VulkanDevices* devices, std::string filename)
 	VkBuffer staging_buffer;
 	VkDeviceMemory staging_buffer_memory;
 
-	devices->CreateBuffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+	devices->CreateBuffer(image_size_, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
 	void* data;
-	vkMapMemory(vk_device_handle_, staging_buffer_memory, 0, image_size, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(image_size));
+	vkMapMemory(vk_device_handle_, staging_buffer_memory, 0, image_size_, 0, &data);
+	memcpy(data, pixels, static_cast<size_t>(image_size_));
 	vkUnmapMemory(vk_device_handle_, staging_buffer_memory);
 
 	stbi_image_free(pixels);
@@ -79,4 +80,17 @@ void Texture::InitSampler(VulkanDevices* devices)
 	if (vkCreateSampler(vk_device_handle_, &sampler_info, nullptr, &texture_sampler_) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create texture sampler!");
 	}
+}
+
+void Texture::AddMapType(MapType map_type)
+{
+	for (MapType type : map_types_)
+	{
+		if (type == map_type)
+		{
+			return;
+		}
+	}
+
+	map_types_.push_back(map_type);
 }

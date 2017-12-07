@@ -2,11 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // inputs
-layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) in vec3 worldNormal;
-layout(location = 2) in vec4 worldPosition;
-layout(location = 3) in vec3 eyeVec;
-layout(location = 4) flat in uint matIndex;
+layout(location = 0) in vec2 screenTexCoord;
 
 struct LightData
 {
@@ -67,6 +63,9 @@ layout(binding = 11) uniform texture2D alphaMaps[512];
 layout(binding = 12) uniform texture2D reflectionMaps[512];
 layout(binding = 13) uniform texture2D shadowMaps[16];
 
+layout(binding = 14) uniform texture2D gBuffer[2];
+layout(binding = 15) uniform sampler gBufferSampler;
+
 // outputs
 layout(location = 0) out vec4 outColor;
 
@@ -90,7 +89,7 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 	return attenuation;
 }
 
-vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, uint matIndex, uint lightIndex)
+vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, uint matIndex, uint lightIndex)
 {
 	MaterialData mat = material_data.materials[matIndex];
 	LightData light = light_data.lights[lightIndex];
@@ -192,18 +191,21 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, uint matIndex, uint
 
 mat3 CotangentFrame(vec3 normal, vec3 view, vec2 uv)
 {
+	// if the normal is 0,0,1 construct tangent and binormal in the other axis
+	vec3 tangent, binormal;
+
 	// get edge vectors of the pixel triangle
-    vec3 dp1 = dFdx( view );
-    vec3 dp2 = dFdy( view );
-    vec2 duv1 = dFdx( uv );
-    vec2 duv2 = dFdy( uv );
+	vec3 dp1 = dFdx( view );
+	vec3 dp2 = dFdy( view );
+	vec2 duv1 = dFdx( uv );
+	vec2 duv2 = dFdy( uv );
  
-    // solve the linear system
-    vec3 dp2perp = cross( dp2, normal );
-    vec3 dp1perp = cross( normal, dp1 );
-    vec3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
-    vec3 binormal = dp2perp * duv1.y + dp1perp * duv2.y;
- 
+	// solve the linear system
+	vec3 dp2perp = cross( dp2, normal );
+	vec3 dp1perp = cross( normal, dp1 );
+	tangent = dp2perp * duv1.x + dp1perp * duv2.x;
+	binormal = dp2perp * duv1.y + dp1perp * duv2.y;
+
     // construct a scale-invariant frame 
     float invmax = inversesqrt( max( dot(tangent,tangent), dot(binormal,binormal) ) );
     return mat3( tangent * invmax, binormal * invmax, normal );
@@ -212,14 +214,55 @@ mat3 CotangentFrame(vec3 normal, vec3 view, vec2 uv)
 vec3 PerturbNormal(vec3 normal, vec3 view, vec2 texCoord, uint normal_map_index)
 {
 	// sample normal map
-	vec3 map = texture(sampler2D(normalMaps[normal_map_index - 1], mapSampler), fragTexCoord).xyz;
+	vec3 map = texture(sampler2D(normalMaps[normal_map_index - 1], mapSampler), texCoord).xyz;
 	map = map * 2.0f - 1.0f;
 	mat3 cotangentFrame = CotangentFrame(normal, -view, texCoord);
 	return normalize(cotangentFrame * map);
 }
 
+vec3 SphereMapDecode(vec2 encoded_normal)
+{
+	if(length(encoded_normal) > 128.0f)
+	{
+		return vec3(0, 0, 1);
+	}
+
+	vec4 nn = vec4(encoded_normal, 0, 0) * vec4(2, 2, 0, 0) + vec4(-1, -1, 1, -1);
+	float l = dot(nn.xyz, -nn.xyw);
+	nn.z = l;
+	nn.xy *= sqrt(l);
+	return nn.xyz * 2.0f + vec3(0, 0, -1);
+}
+
+void ReadGBuffer(in vec4 g_buffer_1, in vec4 g_buffer_2, out vec3 world_position, out vec3 world_normal, out vec2 tex_coords, out uint material_index)
+{
+	world_position = g_buffer_1.xyz;
+	material_index = uint(g_buffer_1.w) - 1;
+	
+	world_normal = SphereMapDecode(g_buffer_2.xy);
+	tex_coords = g_buffer_2.zw;
+}
+
 void main()
 {
+	vec3 worldPosition = vec3(0.0f, 0.0f, 0.0f);
+	vec3 worldNormal = vec3(0.0f, 0.0f, 0.0f);
+	vec2 fragTexCoord = vec2(0.0f, 0.0f);
+	uint matIndex = 0;
+
+	// sample the g-buffer textures
+	vec4 gBuffer1 = texture(sampler2D(gBuffer[0], gBufferSampler), screenTexCoord);
+	vec4 gBuffer2 = texture(sampler2D(gBuffer[1], gBufferSampler), screenTexCoord);
+
+	// discard pixel if it has an empty material index
+	if(gBuffer1.w == 0)
+	{
+		discard;
+	}
+
+	// decode g buffer data
+	ReadGBuffer(gBuffer1, gBuffer2, worldPosition, worldNormal, fragTexCoord, matIndex);
+	
 	vec4 diffuse = material_data.materials[matIndex].diffuse;
 	
 	// if diffuse map index is non-zero sample the diffuse map
@@ -228,7 +271,7 @@ void main()
 	{
 		diffuse = diffuse * texture(sampler2D(diffuseMaps[diffuse_map_index - 1], mapSampler), fragTexCoord);
 	}
-	
+
 	// if normal map index is non-zero sample the normal map
 	vec3 normal = worldNormal;
 	uint normal_map_index = material_data.materials[matIndex].bump_map_index;
@@ -243,7 +286,7 @@ void main()
 	// calculate lighting for all lights
 	for(uint i = 0; i < light_data.scene_data.w; i++)
 	{
-		vec4 lighting = CalculateLighting(worldPosition, normal, matIndex, i);
+		vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, matIndex, i);
 		color = color + (diffuse * lighting);
 	}
 
@@ -255,5 +298,7 @@ void main()
 		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord).x;
 	}
 
+	color.w = 1.0f;
+	
 	outColor = color;
 }

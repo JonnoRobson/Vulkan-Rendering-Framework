@@ -109,6 +109,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>C:\Libraries\tinyobjloader-master;C:\Libraries\stb-master;C:\Libraries\glm-0.9.9-a1;C:\Libraries\glfw-3.2.1.bin.WIN64\include;C:\VulkanSDK\1.0.61.1\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -119,8 +120,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="buffer_visualisation_pipeline.cpp" />
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="deferred_pipeline.cpp" />
     <ClCompile Include="device.cpp" />
+    <ClCompile Include="g_buffer_pipeline.cpp" />
     <ClCompile Include="light.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="material.cpp" />
@@ -129,18 +133,26 @@
     <ClCompile Include="pipeline.cpp" />
     <ClCompile Include="primitive_buffer.cpp" />
     <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="render_target.cpp" />
     <ClCompile Include="sampler.cpp" />
     <ClCompile Include="shader.cpp" />
+    <ClCompile Include="shadow_map_pipeline.cpp" />
     <ClCompile Include="shape.cpp" />
     <ClCompile Include="swap_chain.cpp" />
     <ClCompile Include="texture.cpp" />
+    <ClCompile Include="texture_cache.cpp" />
     <ClCompile Include="uniform_buffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
+    <ClInclude Include="buffer_visualisation_pipeline.h" />
+    <ClInclude Include="deferred_pipeline.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="camera.h" />
+    <ClInclude Include="g_buffer_pipeline.h" />
     <ClInclude Include="material_buffer.h" />
+    <ClInclude Include="render_target.h" />
+    <ClInclude Include="shadow_map_pipeline.h" />
     <ClInclude Include="shape.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="light.h" />
@@ -153,23 +165,20 @@
     <ClInclude Include="shader.h" />
     <ClInclude Include="swap_chain.h" />
     <ClInclude Include="texture.h" />
+    <ClInclude Include="texture_cache.h" />
     <ClInclude Include="uniform_buffer.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\res\shaders\default_lighting.frag" />
-    <None Include="..\res\shaders\default_lighting.vert" />
+    <None Include="..\res\shaders\buffer_visualisation.frag" />
+    <None Include="..\res\shaders\buffer_visualisation.vert" />
     <None Include="..\res\shaders\default_material.frag" />
     <None Include="..\res\shaders\default_material.vert" />
-    <None Include="..\res\shaders\triangle.frag" />
-    <None Include="..\res\shaders\triangle.vert">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(SolutionDir)res/shaders/compile_shader" "%(Filename).vert"</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)res/shaders/%(Filename).spv</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(SolutionDir)res/shaders/compile_shader" "%(Filename).vert"</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Vertex Shader: "%(FullPath)"</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)res/shaders/%(Filename).spv</Outputs>
-    </None>
+    <None Include="..\res\shaders\deferred.frag" />
+    <None Include="..\res\shaders\deferred.vert" />
+    <None Include="..\res\shaders\g_buffer.frag" />
+    <None Include="..\res\shaders\g_buffer.vert" />
+    <None Include="..\res\shaders\shadow_map.frag" />
+    <None Include="..\res\shaders\shadow_map.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -151,7 +151,7 @@ bool VulkanDevices::IsDeviceSuitable(VkPhysicalDevice device, VkSurfaceKHR surfa
 		swap_chain_adequate = !swap_chain_support.formats.empty() && !swap_chain_support.present_modes.empty();
 	}
 
-	return indices.isComplete() && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy == required_features.samplerAnisotropy;
+	return indices.isComplete() && extensions_supported && swap_chain_adequate && device_features.samplerAnisotropy == required_features.samplerAnisotropy && device_features.shaderSampledImageArrayDynamicIndexing == required_features.shaderSampledImageArrayDynamicIndexing;
 }
 
 SwapChainSupportDetails VulkanDevices::QuerySwapChainSupport(VkPhysicalDevice device, VkSurfaceKHR surface)

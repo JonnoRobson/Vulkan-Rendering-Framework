@@ -62,15 +62,10 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 
 	std::cout << "Model contains " << materials.size() << " unique materials" << std::endl;
 
-	// create the mesh materials
-	for (tinyobj::material_t material : materials)
-	{
-		if (mesh_materials_.find(material.name) == mesh_materials_.end())
-		{
-			mesh_materials_[material.name] = new Material();
-			mesh_materials_[material.name]->InitMaterial(devices, renderer, material);
-		}
-	}
+	// get the name of the model to find textures
+	size_t filename_begin = filename.find_last_of('/');
+	size_t filename_end = filename.find_last_of('.');
+	mat_dir = mat_dir + (filename.substr(filename_begin + 1, (filename_end - 1) - filename_begin)) + "/";
 
 	size_t index_count = 0;
 	for (const tinyobj::shape_t& shape : shapes)
@@ -79,6 +74,16 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 	}
 
 	std::cout << "Model contains " << index_count << " indices" << std::endl;
+
+	// create the mesh materials
+	for (tinyobj::material_t material : materials)
+	{
+		if (mesh_materials_.find(material.name) == mesh_materials_.end())
+		{
+			mesh_materials_[material.name] = new Material();
+			mesh_materials_[material.name]->InitMaterial(devices, renderer, material, mat_dir);
+		}
+	}
 
 	int vertex_size = 0;
 

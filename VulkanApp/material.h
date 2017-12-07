@@ -8,6 +8,7 @@
 #include "pipeline.h"
 
 class VulkanRenderer;
+class VulkanTextureCache;
 
 struct MaterialData
 {
@@ -35,7 +36,7 @@ class Material
 public:
 	Material();
 
-	virtual void InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::material_t& material);	// init material from tinyobj material struct (virtual to allow pbr extension)
+	virtual void InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::material_t& material, std::string texture_path = "");	// init material from tinyobj material struct (virtual to allow pbr extension)
 	virtual void CleanUp();
 
 	uint32_t GetMaterialIndex() { return material_buffer_index_; }
@@ -46,6 +47,9 @@ protected:
 	
 	// default texture for any missing textures
 	Texture* default_texture_;
+
+	// texture cache
+	VulkanTextureCache* texture_cache_;
 
 	// material buffer index
 	uint32_t material_buffer_index_;

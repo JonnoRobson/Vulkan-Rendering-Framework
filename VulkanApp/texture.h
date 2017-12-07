@@ -6,8 +6,22 @@
 
 #include "device.h"
 
+
 class Texture
 {
+public:
+	enum class MapType
+	{
+		AMBIENT,
+		DIFFUSE,
+		SPECULAR,
+		SPECULAR_HIGHLIGHT,
+		EMISSIVE,
+		NORMAL,
+		ALPHA,
+		REFLECTION
+	};
+
 public:
 	Texture();
 	~Texture();
@@ -18,8 +32,16 @@ public:
 	VkImageView GetImageView() { return texture_image_view_; }
 	VkSampler GetSampler() { return texture_sampler_; }
 
-	void SetTextureIndex(uint32_t index) { texture_index_ = index; }
-	uint32_t GetTextureIndex() { return texture_index_; }
+	void AddMapType(MapType map_type);
+	std::vector<MapType> GetMapTypes() { return map_types_; }
+
+	void IncrementUsageCount() { usage_count_++; }
+	void DecrementUsageCount() { usage_count_--; }
+	uint16_t GetUsageCount() { return usage_count_; }
+	
+	std::string GetTextureName() { return texture_name_; }
+
+	VkDeviceSize GetImageSize() { return image_size_; }
 
 protected:
 	void InitSampler(VulkanDevices* devices);
@@ -29,7 +51,11 @@ protected:
 	VkDeviceMemory texture_image_memory_;
 	VkImageView texture_image_view_;
 	VkSampler texture_sampler_;
-	uint32_t texture_index_;
+
+	VkDeviceSize image_size_;
+	std::string texture_name_;
+	std::vector<MapType> map_types_;
+	uint16_t usage_count_;
 
 	VkDevice vk_device_handle_;
 };

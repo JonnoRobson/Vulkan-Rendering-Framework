@@ -11,6 +11,7 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <assert.h>
 
 #include "swap_chain.h"
 #include "renderer.h"
@@ -25,7 +26,7 @@ VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCa
 void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
 
 #ifdef NDEBUG
-#define ENABLE_VALIDATION_LAYERS false
+#define ENABLE_VALIDATION_LAYERS true
 #else
 #define ENABLE_VALIDATION_LAYERS true
 #endif
@@ -77,8 +78,8 @@ protected:
 	float prev_time_;
 	float frame_time_;
 
-	const int window_width_ = 1280;
-	const int window_height_ = 1024;
+	const int window_width_ = 1920;
+	const int window_height_ = 1080;
 
 	const std::vector<const char*> validation_layers_ = {
 		"VK_LAYER_LUNARG_standard_validation",

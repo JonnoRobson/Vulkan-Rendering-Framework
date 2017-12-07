@@ -1,5 +1,6 @@
 #include "material.h"
 #include "renderer.h"
+#include "texture_cache.h"
 #include <chrono>
 
 Material::Material()
@@ -40,73 +41,56 @@ void Material::CleanUp()
 	// clean up textures
 	if (ambient_texture_ && ambient_texture_ != default_texture_)
 	{
-		ambient_texture_->Cleanup();
-		delete ambient_texture_;
-		ambient_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(ambient_texture_);
 	}
 
 	if (diffuse_texture_ && diffuse_texture_ != default_texture_)
 	{
-		diffuse_texture_->Cleanup();
-		delete diffuse_texture_;
-		diffuse_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(diffuse_texture_);
 	}
 
 	if (specular_texture_ && specular_texture_ != default_texture_)
 	{
-		specular_texture_->Cleanup();
-		delete specular_texture_;
-		specular_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(specular_texture_);
 	}
 
 	if (specular_highlight_texture_ && specular_highlight_texture_ != default_texture_)
 	{
-		specular_highlight_texture_->Cleanup();
-		delete specular_highlight_texture_;
-		specular_highlight_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(specular_highlight_texture_);
 	}
 
 	if (emissive_texture_ && emissive_texture_ != default_texture_)
 	{
-		emissive_texture_->Cleanup();
-		delete emissive_texture_;
-		emissive_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(emissive_texture_);
 	}
 
 	if (bump_texture_ && bump_texture_ != default_texture_)
 	{
-		bump_texture_->Cleanup();
-		delete bump_texture_;
-		bump_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(bump_texture_);
 	}
 
 	if (displacement_texture_ && displacement_texture_ != default_texture_)
 	{
-		displacement_texture_->Cleanup();
-		delete displacement_texture_;
-		displacement_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(displacement_texture_);
 	}
 
 	if (alpha_texture_ && alpha_texture_ != default_texture_)
 	{
-		alpha_texture_->Cleanup();
-		delete alpha_texture_;
-		alpha_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(alpha_texture_);
 	}
 
 	if (reflection_texture_ && reflection_texture_ != default_texture_)
 	{
-		reflection_texture_->Cleanup();
-		delete reflection_texture_;
-		reflection_texture_ = nullptr;
+		texture_cache_->ReleaseTexture(reflection_texture_);
 	}
 }
 
-void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::material_t& material)
+void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::material_t& material, std::string texture_path)
 {
 	VulkanSwapChain* swap_chain = renderer->GetSwapChain();
 	VulkanPrimitiveBuffer* primitive_buffer = renderer->GetPrimitiveBuffer();
 	default_texture_ = renderer->GetDefaultTexture();
+	texture_cache_ = renderer->GetTextureCache();
 
 	material_name_ = material.name;
 	
@@ -121,13 +105,13 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 	material_properties_.dissolve = material.dissolve;
 	material_properties_.illum = material.illum;
 
-	std::string tex_dir = "../res/materials/";
+	std::string tex_dir = texture_path;
 
 	// load material textures
 	if (!material.ambient_texname.empty())
 	{
-		ambient_texture_ = new Texture();
-		ambient_texture_->Init(devices, tex_dir + material.ambient_texname);
+		ambient_texture_ = texture_cache_->LoadTexture(tex_dir + material.ambient_texname);
+		material_properties_.ambient_map_index = renderer->AddTextureMap(ambient_texture_, Texture::MapType::AMBIENT);
 	}
 	else
 	{
@@ -136,10 +120,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.diffuse_texname.empty())
 	{
-		diffuse_texture_ = new Texture();
-		diffuse_texture_->Init(devices, tex_dir + material.diffuse_texname);
-		renderer->AddDiffuseTexture(diffuse_texture_);
-		material_properties_.diffuse_map_index = diffuse_texture_->GetTextureIndex();
+		diffuse_texture_ = texture_cache_->LoadTexture(tex_dir + material.diffuse_texname);
+		material_properties_.diffuse_map_index = renderer->AddTextureMap(diffuse_texture_, Texture::MapType::DIFFUSE);
 	}
 	else
 	{
@@ -148,8 +130,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.specular_texname.empty())
 	{
-		specular_texture_ = new Texture();
-		specular_texture_->Init(devices, tex_dir + material.specular_texname);
+		specular_texture_ = texture_cache_->LoadTexture(tex_dir + material.specular_texname);
+		material_properties_.specular_map_index = renderer->AddTextureMap(specular_texture_, Texture::MapType::SPECULAR);
 	}
 	else
 	{
@@ -158,8 +140,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.specular_highlight_texname.empty())
 	{
-		specular_highlight_texture_ = new Texture();
-		specular_highlight_texture_->Init(devices, tex_dir + material.specular_highlight_texname);
+		specular_highlight_texture_ = texture_cache_->LoadTexture(tex_dir + material.specular_highlight_texname);
+		material_properties_.specular_highlight_map_index = renderer->AddTextureMap(specular_highlight_texture_, Texture::MapType::SPECULAR_HIGHLIGHT);
 	}
 	else
 	{
@@ -168,8 +150,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.emissive_texname.empty())
 	{
-		emissive_texture_ = new Texture();
-		emissive_texture_->Init(devices, tex_dir + material.emissive_texname);
+		emissive_texture_ = texture_cache_->LoadTexture(tex_dir + material.emissive_texname);
+		material_properties_.emissive_map_index = renderer->AddTextureMap(emissive_texture_, Texture::MapType::EMISSIVE);
 	}
 	else
 	{
@@ -178,10 +160,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.bump_texname.empty())
 	{
-		bump_texture_ = new Texture();
-		bump_texture_->Init(devices, tex_dir + material.bump_texname); 
-		renderer->AddNormalTexture(bump_texture_);
-		material_properties_.bump_map_index = bump_texture_->GetTextureIndex();
+		bump_texture_ = texture_cache_->LoadTexture(tex_dir + material.bump_texname);
+		material_properties_.bump_map_index = renderer->AddTextureMap(bump_texture_, Texture::MapType::NORMAL);
 	}
 	else
 	{
@@ -190,8 +170,7 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.displacement_texname.empty())
 	{
-		displacement_texture_ = new Texture();
-		displacement_texture_->Init(devices, tex_dir + material.displacement_texname);
+		displacement_texture_ = texture_cache_->LoadTexture(tex_dir + material.displacement_texname);
 	}
 	else
 	{
@@ -200,8 +179,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.alpha_texname.empty())
 	{
-		alpha_texture_ = new Texture();
-		alpha_texture_->Init(devices, tex_dir + material.alpha_texname);
+		alpha_texture_ = texture_cache_->LoadTexture(tex_dir + material.alpha_texname);
+		material_properties_.alpha_map_index = renderer->AddTextureMap(alpha_texture_, Texture::MapType::ALPHA);
 	}
 	else
 	{
@@ -210,8 +189,8 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	if (!material.reflection_texname.empty())
 	{
-		reflection_texture_ = new Texture();
-		reflection_texture_->Init(devices, tex_dir + material.reflection_texname);
+		reflection_texture_ = texture_cache_->LoadTexture(tex_dir + material.reflection_texname);
+		material_properties_.reflection_map_index = renderer->AddTextureMap(reflection_texture_, Texture::MapType::REFLECTION);
 	}
 	else
 	{

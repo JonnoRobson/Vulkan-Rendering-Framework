@@ -27,19 +27,21 @@ public:
 	inline void SetShader(VulkanShader* shader) { shader_ = shader; }
 
 	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, Texture* texture);
+	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image);
 	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures);
+	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& textures);
 	void AddSampler(VkShaderStageFlags stage_flags, uint32_t binding_location, VkSampler sampler);
 	void AddUniformBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
 	void AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
 
-	void RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
+	virtual void RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
 protected:
 
 	void CreateDescriptorSet();
-	void CreateRenderPass();
-	void CreateFramebuffers();
-	void CreatePipeline();
+	virtual void CreateRenderPass();
+	virtual void CreateFramebuffers();
+	virtual void CreatePipeline();
 
 protected:
 
