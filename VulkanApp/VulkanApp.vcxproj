@@ -122,6 +122,8 @@
     <ClCompile Include="app.cpp" />
     <ClCompile Include="buffer_visualisation_pipeline.cpp" />
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="compute_shader.cpp" />
+    <ClCompile Include="deferred_compute_pipeline.cpp" />
     <ClCompile Include="deferred_pipeline.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="g_buffer_pipeline.cpp" />
@@ -146,6 +148,8 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="buffer_visualisation_pipeline.h" />
+    <ClInclude Include="compute_shader.h" />
+    <ClInclude Include="deferred_compute_pipeline.h" />
     <ClInclude Include="deferred_pipeline.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="camera.h" />
@@ -173,6 +177,7 @@
     <None Include="..\res\shaders\buffer_visualisation.vert" />
     <None Include="..\res\shaders\default_material.frag" />
     <None Include="..\res\shaders\default_material.vert" />
+    <None Include="..\res\shaders\deferred.comp" />
     <None Include="..\res\shaders\deferred.frag" />
     <None Include="..\res\shaders\deferred.vert" />
     <None Include="..\res\shaders\g_buffer.frag" />

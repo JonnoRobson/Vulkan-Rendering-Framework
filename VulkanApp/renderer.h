@@ -14,10 +14,11 @@
 #include "material_buffer.h"
 #include "texture_cache.h"
 #include "camera.h"
+#include "compute_shader.h"
 #include "buffer_visualisation_pipeline.h"
 #include "g_buffer_pipeline.h"
+#include "deferred_compute_pipeline.h"
 #include "deferred_pipeline.h"
-
 
 
 struct UniformBufferObject
@@ -34,6 +35,7 @@ public:
 	{
 		FORWARD,
 		DEFERRED,
+		DEFERRED_COMPUTE,
 		BUFFER_VIS
 	};
 
@@ -69,6 +71,9 @@ public:
 
 	inline void SetRenderMode(RenderMode mode) { render_mode_ = mode; }
 
+	inline void SetTextureDirectory(std::string dir) { texture_directory_ = dir; }
+	inline std::string GetTextureDirectory() { return texture_directory_; }
+
 	VulkanTextureCache*	GetTextureCache() { return texture_cache_; }
 
 protected:
@@ -78,15 +83,17 @@ protected:
 	void CreateCommandBuffers();
 	void CreateGBufferCommandBuffers();
 	void CreateDeferredCommandBuffers();
+	void CreateDeferredComputeCommandBuffers();
 	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
 	void CreateShaders();
 	void CreatePrimitiveBuffer();
 	void CreateMaterialBuffer();
 	void CreateLightBuffer();
-	void RenderPass(uint32_t frame_index);
+	void RenderForward(uint32_t frame_index);
 	void RenderVisualisation(uint32_t frame_index);
 	void RenderGBuffer(uint32_t frame_index);
 	void RenderDeferred(uint32_t frame_index);
+	void RenderDeferredCompute(uint32_t frame_index);
 
 	void InitGBufferPipeline();
 
@@ -105,9 +112,13 @@ protected:
 	// deferred shading components
 	VulkanShader* g_buffer_shader_;
 	VulkanShader* deferred_shader_;
-	VkSampler g_buffer_sampler_;
+	VulkanComputeShader* deferred_compute_shader_;
+	VkSampler g_buffer_unnormalized_sampler_;
+	VkSampler g_buffer_normalized_sampler_;
+	VkSampler shadow_map_sampler_;
 	GBufferPipeline* g_buffer_pipeline_;
 	DeferredPipeline* deferred_pipeline_;
+	DeferredComputePipeline* deferred_compute_pipeline_;
 	VulkanRenderTarget* g_buffer_;
 
 	Camera* render_camera_;
@@ -120,17 +131,20 @@ protected:
 	VkDeviceMemory light_buffer_memory_;
 
 	VkQueue graphics_queue_;
+	VkQueue compute_queue_;
 	VkCommandPool command_pool_;
 	std::vector<VkCommandBuffer> command_buffers_;
 	std::vector<VkCommandBuffer> buffer_visualisation_command_buffers_;
 	std::vector<VkCommandBuffer> g_buffer_command_buffers_;
 	std::vector<VkCommandBuffer> deferred_command_buffers_;
+	std::vector<VkCommandBuffer> deferred_compute_command_buffers_;
 
 	VkSemaphore g_buffer_semaphore_;
 	VkSemaphore render_semaphore_;
 	
 	std::vector<Mesh*> meshes_;
 	std::vector<Light*> lights_;
+	std::string texture_directory_;
 
 	RenderMode render_mode_;
 

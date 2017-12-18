@@ -5,10 +5,12 @@ Camera::Camera()
 {
 	position_ = glm::vec3(0.0f);
 	rotation_ = glm::vec3(0.0f);
+	speed_ = 100.0f;
 }
 
 void Camera::MoveForward(float speed)
 {
+	speed *= speed_;
 	glm::vec3 forward = glm::rotateX(glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(rotation_.x));
 	forward = glm::rotateY(forward, glm::radians(rotation_.y));
 	forward = glm::rotateZ(forward, glm::radians(rotation_.z));
@@ -18,6 +20,7 @@ void Camera::MoveForward(float speed)
 
 void Camera::MoveBackward(float speed)
 {
+	speed *= speed_;
 	glm::vec3 forward = glm::rotateX(glm::vec3(0.0f, 1.0f, 0.0f), glm::radians(rotation_.x));
 	forward = glm::rotateY(forward, glm::radians(rotation_.y));
 	forward = glm::rotateZ(forward, glm::radians(rotation_.z));
@@ -27,6 +30,7 @@ void Camera::MoveBackward(float speed)
 
 void Camera::MoveLeft(float speed)
 {
+	speed *= speed_;
 	glm::vec3 right = glm::rotateX(glm::vec3(1.0f, 0.0f, 0.0f), glm::radians(rotation_.x));
 	right = glm::rotateY(right, glm::radians(rotation_.y));
 	right = glm::rotateZ(right, glm::radians(rotation_.z));
@@ -36,6 +40,7 @@ void Camera::MoveLeft(float speed)
 
 void Camera::MoveRight(float speed)
 {
+	speed *= speed_;
 	glm::vec3 right = glm::rotateX(glm::vec3(1.0f, 0.0f, 0.0f), glm::radians(rotation_.x));
 	right = glm::rotateY(right, glm::radians(rotation_.y));
 	right = glm::rotateZ(right, glm::radians(rotation_.z));

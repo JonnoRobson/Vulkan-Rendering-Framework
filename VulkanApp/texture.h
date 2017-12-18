@@ -6,6 +6,7 @@
 
 #include "device.h"
 
+#define MAX_TEXTURE_RESOLUTION 2048
 
 class Texture
 {

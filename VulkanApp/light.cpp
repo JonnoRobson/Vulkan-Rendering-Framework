@@ -87,6 +87,8 @@ void Light::GenerateShadowMap()
 	{
 		throw std::runtime_error("failed to submit draw command buffer!");
 	}
+
+	vkQueueWaitIdle(graphics_queue);
 }
 
 void Light::SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_memory)
@@ -99,7 +101,7 @@ void Light::SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_me
 	light_data.range = range_;
 	light_data.light_type = type_;
 	light_data.shadows_enabled = (shadows_enabled_) ? 1.0f : 0.0f;
-	light_data.view_proj_matrix = view_matrix_ * proj_matrix_;
+	light_data.view_proj_matrix = proj_matrix_ * view_matrix_;
 
 	VkDeviceSize offset = sizeof(SceneLightData) + (light_buffer_index_ * sizeof(LightData));
 
@@ -126,7 +128,7 @@ void Light::CalculateViewMatrix()
 {
 	if (type_ != 1.0f)
 	{
-		view_matrix_ = glm::lookAt(glm::vec3(position_), glm::vec3(position_ + direction_), glm::vec3(0.0f, 0.0f, 1.0f));
+		view_matrix_ = glm::lookAt(glm::vec3(direction_ * -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	}
 }
 
@@ -136,11 +138,27 @@ void Light::CalculateProjectionMatrix()
 	{
 		glm::mat4 clip =
 		glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f,
-				0.0f, 0.0f, 1.0f, 0.0f,
+				0.0f, -1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 0.5f, 0.0f,
 				0.0f, 0.0f, 0.5f, 1.0f);
 
-		proj_matrix_ = clip * glm::ortho<float>(-1000.0, 1000.0, 1000.0, -1000.0, -1000.0, 1000.0);
+		// transform the scene bounds to light view space
+		glm::vec4 scene_light_min = view_matrix_ * glm::vec4(scene_min_vertex_, 1.0f);
+		scene_light_min /= scene_light_min.w;
+
+		glm::vec4 scene_light_max = view_matrix_* glm::vec4(scene_max_vertex_, 1.0f);
+		scene_light_max /= scene_light_max.w;
+
+		float l = -scene_max_vertex_.x - (scene_max_vertex_.x / 5.0f);
+		float r = scene_max_vertex_.x + (scene_max_vertex_.x / 5.0f);
+		float b = scene_max_vertex_.y + (scene_max_vertex_.y / 5.0f);
+		float t = -scene_max_vertex_.y - (scene_max_vertex_.y / 5.0f);
+		float n = -scene_max_vertex_.z - (scene_max_vertex_.z / 5.0f);
+		float f = scene_max_vertex_.z + (scene_max_vertex_.z / 5.0f);
+
+		proj_matrix_ = clip * glm::ortho<float>(-scene_max_vertex_.x, scene_max_vertex_.x, scene_max_vertex_.y, -scene_max_vertex_.y, -scene_max_vertex_.z, scene_max_vertex_.z);
+		proj_matrix_ = clip * glm::ortho<float>(l, r, b, t, n, f);
+		//proj_matrix_ = clip * glm::ortho<float>(scene_light_min.x, scene_light_max.x, scene_light_min.z, scene_light_max.z, scene_light_min.y, scene_light_max.y);
 	}
 	else
 	{
@@ -156,6 +174,27 @@ void Light::CalculateProjectionMatrix()
 
 void Light::RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh*>& meshes)
 {
+	// use this access to mesh data to set the scene size vertices
+	scene_min_vertex_ = glm::vec3(1e8f, 1e8f, 1e8f);
+	scene_max_vertex_ = glm::vec3(-1e8f, -1e8f, -1e8f);
+	for (Mesh* mesh : meshes)
+	{
+		float scene_min_len = scene_min_vertex_.x + scene_min_vertex_.y + scene_min_vertex_.z;
+		float scene_max_len = scene_max_vertex_.x + scene_max_vertex_.y + scene_max_vertex_.z;
+
+		glm::vec3 mesh_min = mesh->GetMinVertex();
+		glm::vec3 mesh_max = mesh->GetMaxVertex();
+
+		float mesh_min_len = mesh_min.x + mesh_min.y + mesh_min.z;
+		float mesh_max_len = mesh_max.x + mesh_max.y + mesh_max.z;
+
+		if (mesh_min_len < scene_min_len)
+			scene_min_vertex_ = mesh_min;
+		
+		if (mesh_max_len > scene_max_len)
+			scene_max_vertex_ = mesh_max;
+	}
+
 	vkFreeCommandBuffers(devices_->GetLogicalDevice(), command_pool, 1, &shadow_map_commands_);
 
 	VkCommandBufferAllocateInfo allocate_info = {};
@@ -180,7 +219,7 @@ void Light::RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh
 	if (shadow_map_pipeline_)
 	{
 		// bind pipeline
-		shadow_map_pipeline_->RecordRenderCommands(shadow_map_commands_, 0);
+		shadow_map_pipeline_->RecordCommands(shadow_map_commands_, 0);
 		
 		for (Mesh* mesh : meshes)
 		{

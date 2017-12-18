@@ -1,7 +1,7 @@
 #include "g_buffer_pipeline.h"
 #include <array>
 
-void GBufferPipeline::RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
+void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
 {
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

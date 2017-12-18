@@ -8,13 +8,14 @@ const uint32_t shadow_map_resolution = 2048;
 class ShadowMapPipeline : public VulkanPipeline
 {
 public:
-	void RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
+	void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
 	void SetImageViews(VkFormat format, VkFormat depth_format, VkImageView image_view, VkImageView depth_image_view);
 
 protected:
 	void CreateRenderPass();
 	void CreateFramebuffers();
+	void CreatePipeline();
 
 protected:
 	VkImageView shadow_map_image_view_;

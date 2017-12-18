@@ -6,7 +6,7 @@
 
 #include "device.h"
 
-#define MAX_PRIMITIVE_VERTICES 20000000
+#define MAX_PRIMITIVE_VERTICES 15000000
 #define MAX_PRIMITIVE_INDICES 30000000
 
 class VulkanPrimitiveBuffer

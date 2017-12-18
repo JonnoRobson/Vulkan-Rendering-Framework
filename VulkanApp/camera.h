@@ -28,13 +28,16 @@ public:
 	inline void SetRotation(glm::vec3 rot) { rotation_ = rot; }
 	inline glm::vec3 GetRotation() { return rotation_; }
 
+	inline void SetSpeed(float speed) { speed_ = speed; }
+	inline float GetSpeed() { return speed_; }
+
 	glm::mat4 GetViewMatrix();
 
 protected:
 	glm::vec3 position_;
 	glm::vec3 rotation_;
 
-
+	float speed_;
 };
 
 #endif

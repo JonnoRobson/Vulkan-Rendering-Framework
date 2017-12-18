@@ -3,12 +3,15 @@
 #include <tiny_obj_loader.h>
 #include <unordered_map>
 #include <iostream>
+#include <thread>
 #include "renderer.h"
 
 Mesh::Mesh()
 {
 	world_matrix_ = glm::mat4(1.0f);
 	vk_device_handle_ = VK_NULL_HANDLE;
+	min_vertex_ = glm::vec3(1e9f, 1e9f, 1e9f);
+	max_vertex_ = glm::vec3(-1e9f, -1e9f, -1e9f);
 }
 
 Mesh::~Mesh()
@@ -62,11 +65,7 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 
 	std::cout << "Model contains " << materials.size() << " unique materials" << std::endl;
 
-	// get the name of the model to find textures
-	size_t filename_begin = filename.find_last_of('/');
-	size_t filename_end = filename.find_last_of('.');
-	mat_dir = mat_dir + (filename.substr(filename_begin + 1, (filename_end - 1) - filename_begin)) + "/";
-
+	
 	size_t index_count = 0;
 	for (const tinyobj::shape_t& shape : shapes)
 	{
@@ -74,6 +73,8 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 	}
 
 	std::cout << "Model contains " << index_count << " indices" << std::endl;
+
+	mat_dir = renderer->GetTextureDirectory();
 
 	// create the mesh materials
 	for (tinyobj::material_t material : materials)
@@ -85,19 +86,64 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 		}
 	}
 
-	int vertex_size = 0;
+	// multithread shape loading
+	const int thread_count = 10;
+	std::thread shape_threads[thread_count];
 
+	// determine how many shapes are calculated per thread
+	const int shapes_per_thread = shapes.size() / thread_count;
+	int leftover_shapes = shapes.size() % thread_count;
+
+	// create mutex for sending shape data to the renderer
+	std::mutex shape_mutex;
+
+	int shape_index = 0;
+
+	// send the shapes to the threads
+	for (int thread_index = 0; thread_index < thread_count; thread_index++)
+	{
+		std::vector<tinyobj::shape_t*> thread_shapes;
+
+		
+		// determine the shapes that will be sent to this thread
+		for (int i = 0; i < shapes_per_thread; i++)
+		{
+			thread_shapes.push_back(&shapes[shape_index]);
+			shape_index++;
+		}
+
+		// if there are still leftover shapes add one to this vector
+		if (leftover_shapes > 0)
+		{
+			thread_shapes.push_back(&shapes[shape_index]);
+			shape_index++;
+			leftover_shapes--;
+		}
+
+		// start the thread for this set of shapes
+		shape_threads[thread_index] = std::thread(&Mesh::LoadShapeThreaded, this, &shape_mutex, devices, renderer, &attrib, &materials, thread_shapes);
+	}
+
+	for (int i = 0; i < thread_count; i++)
+	{
+		shape_threads[i].join();
+	}
+
+}
+
+void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::attrib_t* attrib, std::vector<tinyobj::material_t>* materials, std::vector<tinyobj::shape_t*> shapes)
+{
 	for (const auto& shape : shapes)
 	{
 		std::unordered_map<Vertex, uint32_t> unique_vertices = {};
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indices;
-		
+
 		Shape* mesh_shape = new Shape();
 
 		int face_index = 0;
 
-		for (const auto& index : shape.mesh.indices)
+		for (const auto& index : shape->mesh.indices)
 		{
 			Vertex vertex = {};
 
@@ -105,9 +151,9 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 			if (index.vertex_index >= 0)
 			{
 				vertex.pos = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 2],
-					attrib.vertices[3 * index.vertex_index + 1]
+					attrib->vertices[3 * index.vertex_index + 0],
+					attrib->vertices[3 * index.vertex_index + 2],
+					attrib->vertices[3 * index.vertex_index + 1]
 				};
 			}
 			else
@@ -118,8 +164,8 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 			if (index.texcoord_index >= 0)
 			{
 				vertex.tex_coord = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+					attrib->texcoords[2 * index.texcoord_index + 0],
+					1.0f - attrib->texcoords[2 * index.texcoord_index + 1]
 				};
 			}
 			else
@@ -130,9 +176,9 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 			if (index.normal_index >= 0)
 			{
 				vertex.normal = {
-					-attrib.normals[3 * index.normal_index + 0],
-					attrib.normals[3 * index.normal_index + 2],
-					attrib.normals[3 * index.normal_index + 1]
+					-attrib->normals[3 * index.normal_index + 0],
+					attrib->normals[3 * index.normal_index + 2],
+					attrib->normals[3 * index.normal_index + 1]
 				};
 			}
 			else
@@ -142,7 +188,7 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 
 			// material index
 			vertex.mat_index = 0;
-			Material* face_material = mesh_materials_[materials[shape.mesh.material_ids[face_index]].name];
+			Material* face_material = mesh_materials_[(*materials)[shape->mesh.material_ids[face_index]].name];
 			if (face_material)
 			{
 				if (face_material->GetMaterialIndex() >= 0)
@@ -153,6 +199,22 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 			{
 				unique_vertices[vertex] = static_cast<uint32_t>(vertices.size());
 				vertices.push_back(vertex);
+
+				// test to see if this vertex is outside the current bounds
+				if (vertex.pos.x < min_vertex_.x)
+					min_vertex_.x = vertex.pos.x;
+				else if (vertex.pos.x > max_vertex_.x)
+					max_vertex_.x = vertex.pos.x;
+
+				if (vertex.pos.y < min_vertex_.y)
+					min_vertex_.y = vertex.pos.y;
+				else if (vertex.pos.y > max_vertex_.y)
+					max_vertex_.y = vertex.pos.y;
+
+				if (vertex.pos.z < min_vertex_.z)
+					min_vertex_.z = vertex.pos.z;
+				else if (vertex.pos.z > max_vertex_.z)
+					max_vertex_.z = vertex.pos.z;
 			}
 
 			indices.push_back(unique_vertices[vertex]);
@@ -161,14 +223,11 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 				face_index++;
 		}
 
-		vertex_size += vertices.size();
-
+		std::unique_lock<std::mutex> shape_lock(*shape_mutex);
 		mesh_shape->InitShape(devices, renderer, vertices, indices);
 		mesh_shapes_.push_back(mesh_shape);
+		shape_lock.unlock();
 	}
-
-	std::cout << "Mesh contains " << vertex_size << " unique vertices" << std::endl;
-
 }
 
 void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer)

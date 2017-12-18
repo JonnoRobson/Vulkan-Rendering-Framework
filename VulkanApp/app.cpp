@@ -80,35 +80,71 @@ bool App::InitVulkan()
 
 bool App::InitResources()
 {
-	std::string filepath;
+	std::string combined_filepaths;
 
 	std::cout << "Select model to load: ";
 
-	std::cin >> filepath;
+	std::cin >> combined_filepaths;
 
-	filepath = "../res/models/" + filepath;
+	// separate out model filepaths
+	std::vector<std::string> filepaths;
+	int path_start = 0;
+	for (int i = 0; i < combined_filepaths.length(); i++)
+	{
+		if (combined_filepaths[i] == ',')
+		{
+			std::string filepath = "../res/models/" + combined_filepaths.substr(path_start, i - path_start);
+			filepaths.push_back(filepath);
+			path_start = i;
+		}
+	}
 
-	loaded_mesh_ = new Mesh();
-	loaded_mesh_->CreateModelMesh(vk_devices_, renderer_, filepath);
-	
+	// add the trailing file path
+	int last_path_start = combined_filepaths.find_last_of(',');
+	if (last_path_start != std::string::npos)
+	{
+		// find and add the last filepath
+		std::string filepath = "../res/models/" + combined_filepaths.substr(last_path_start + 1);
+		filepaths.push_back(filepath);
+	}
+	else
+	{
+		// only one filename is contained
+		filepaths.push_back("../res/models/" + combined_filepaths);
+	}
+
+	// set the first filepath used as the material directory for this load
+	std::string texture_dir;
+	size_t filename_begin = filepaths[0].find_last_of('/');
+	size_t filename_end = filepaths[0].find_last_of('.');
+	texture_dir = "../res/materials/" + (filepaths[0].substr(filename_begin + 1, (filename_end - 1) - filename_begin)) + "/";
+	renderer_->SetTextureDirectory(texture_dir);
+
+	for (std::string filepath : filepaths)
+	{
+		Mesh* loaded_mesh = new Mesh();
+		loaded_mesh->CreateModelMesh(vk_devices_, renderer_, filepath);
+		loaded_meshes_.push_back(loaded_mesh);
+	}
+
 	test_light_ = new Light();
 	test_light_->SetType(0.0f);
 	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_->SetDirection(glm::vec4(-0.2f, -0.2f, -1.0f, 1.0f));
+	test_light_->SetDirection(glm::vec4(-0.15f, -0.15f, -1.0f, 1.0f));
 	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_->SetIntensity(0.75f);
+	test_light_->SetIntensity(1.0f);
 	test_light_->SetRange(1.0f);
-	test_light_->SetShadowsEnabled(false);
+	test_light_->SetShadowsEnabled(true);
 	test_light_->Init(vk_devices_, renderer_);
 
 	test_light_b_ = new Light();
 	test_light_b_->SetType(0.0f);
 	test_light_b_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_b_->SetDirection(glm::vec4(0.2f, 0.2f, -1.0f, 1.0f));
+	test_light_b_->SetDirection(glm::vec4(-0.15f, 0.15f, -1.0f, 1.0f));
 	test_light_b_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_b_->SetIntensity(0.75f);
+	test_light_b_->SetIntensity(1.0f);
 	test_light_b_->SetRange(1.0f);
-	test_light_b_->SetShadowsEnabled(false);
+	test_light_b_->SetShadowsEnabled(true);
 	test_light_b_->Init(vk_devices_, renderer_);
 
 
@@ -117,21 +153,29 @@ bool App::InitResources()
 
 	renderer_->InitPipeline();
 
-	renderer_->AddMesh(loaded_mesh_);
+	for (Mesh* mesh : loaded_meshes_)
+	{
+		renderer_->AddMesh(mesh);
+	}
+
 	renderer_->SetCamera(&camera_);
 
 	test_light_->GenerateShadowMap();
-	//test_light_b_->GenerateShadowMap();
+	test_light_b_->GenerateShadowMap();
 
 	return true;
 }
 
 void App::CleanUp()
 {
-	// clean up resources
-	delete loaded_mesh_;
-	loaded_mesh_ = nullptr;
-	
+	// clean up resources	
+	for (Mesh* mesh : loaded_meshes_)
+	{
+		delete mesh;
+		mesh = nullptr;
+	}
+	loaded_meshes_.clear();
+
 	test_light_->Cleanup();
 	delete test_light_;
 	test_light_ = nullptr;
@@ -191,14 +235,14 @@ void App::Update()
 
 	// camera movement
 	if (input_->IsKeyPressed(GLFW_KEY_W))
-		camera_.MoveForward(frame_time_ * 100.0f);
+		camera_.MoveForward(frame_time_);
 	else if (input_->IsKeyPressed(GLFW_KEY_S))
-		camera_.MoveBackward(frame_time_ * 100.0f);
+		camera_.MoveBackward(frame_time_);
 	
 	if (input_->IsKeyPressed(GLFW_KEY_A))
-		camera_.MoveLeft(frame_time_ * 100.0f);
+		camera_.MoveLeft(frame_time_);
 	else if (input_->IsKeyPressed(GLFW_KEY_D))
-		camera_.MoveRight(frame_time_ * 100.0f);
+		camera_.MoveRight(frame_time_);
 
 	// camera turning
 	if (input_->IsKeyPressed(GLFW_KEY_UP))
@@ -210,6 +254,26 @@ void App::Update()
 	else if (input_->IsKeyPressed(GLFW_KEY_RIGHT))
 		camera_.TurnRight(frame_time_ * 100.0f);
 
+	// camera speed
+	if (input_->IsKeyPressed(GLFW_KEY_Q))
+	{
+		float current_speed = camera_.GetSpeed();
+		current_speed += 10.0f;
+		camera_.SetSpeed(current_speed);
+		input_->SetKeyUp(GLFW_KEY_Q);
+	}
+	else if (input_->IsKeyPressed(GLFW_KEY_E))
+	{
+		float current_speed = camera_.GetSpeed();
+		current_speed -= 10.0f;
+		if (current_speed <= 0.0f)
+		{
+			current_speed = 1.0f;
+		}
+		camera_.SetSpeed(current_speed);
+		input_->SetKeyUp(GLFW_KEY_E);
+	}
+
 	// render mode switch
 	if (input_->IsKeyPressed(GLFW_KEY_TAB))
 	{
@@ -220,6 +284,16 @@ void App::Update()
 	{
 		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED);
 		input_->SetKeyUp(GLFW_KEY_LEFT_SHIFT);
+	}
+	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_ALT))
+	{
+		renderer_->SetRenderMode(VulkanRenderer::RenderMode::BUFFER_VIS);
+		input_->SetKeyUp(GLFW_KEY_LEFT_ALT);
+	}
+	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
+	{
+		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED_COMPUTE);
+		input_->SetKeyUp(GLFW_KEY_LEFT_CONTROL);
 	}
 }
 

@@ -100,6 +100,8 @@ protected:
 	VulkanRenderTarget* shadow_map_;
 	VkCommandBuffer shadow_map_commands_;
 	VkDeviceMemory matrix_buffer_memory_;
+	glm::vec3 scene_min_vertex_;
+	glm::vec3 scene_max_vertex_;
 
 	uint16_t light_buffer_index_;
 };

@@ -17,7 +17,7 @@ struct LightData
 };
 
 // uniform buffers
-layout(binding = 2) buffer LightingBuffer
+layout(binding = 0) buffer LightingBuffer
 {
 	vec4 scene_data;
 	vec4 camera_pos;
@@ -46,25 +46,25 @@ struct MaterialData
 	uint reflection_map_index;
 };
 
-layout(binding = 3) uniform MaterialUberBuffer
+layout(binding = 1) uniform MaterialUberBuffer
 {
 	MaterialData materials[512];
 } material_data;
 
 // textures
-layout(binding = 4) uniform sampler mapSampler;
-layout(binding = 5) uniform texture2D ambientMaps[512];
-layout(binding = 6) uniform texture2D diffuseMaps[512];
-layout(binding = 7) uniform texture2D specularMaps[512];
-layout(binding = 8) uniform texture2D specularHighlightMaps[512];
-layout(binding = 9) uniform texture2D emissiveMaps[512];
-layout(binding = 10) uniform texture2D normalMaps[512];
-layout(binding = 11) uniform texture2D alphaMaps[512];
-layout(binding = 12) uniform texture2D reflectionMaps[512];
-layout(binding = 13) uniform texture2D shadowMaps[16];
+layout(binding = 2) uniform sampler mapSampler;
+layout(binding = 3) uniform texture2D ambientMaps[512];
+layout(binding = 4) uniform texture2D diffuseMaps[512];
+layout(binding = 5) uniform texture2D specularMaps[512];
+layout(binding = 6) uniform texture2D specularHighlightMaps[512];
+layout(binding = 7) uniform texture2D emissiveMaps[512];
+layout(binding = 8) uniform texture2D normalMaps[512];
+layout(binding = 9) uniform texture2D alphaMaps[512];
+layout(binding = 10) uniform texture2D reflectionMaps[512];
+layout(binding = 11) uniform texture2D shadowMaps[16];
 
-layout(binding = 14) uniform texture2D gBuffer[2];
-layout(binding = 15) uniform sampler gBufferSampler;
+layout(binding = 12) uniform texture2D gBuffer[2];
+layout(binding = 13) uniform sampler gBufferSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -89,6 +89,61 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 	return attenuation;
 }
 
+float CalculateShadowOcclusion(vec4 worldPosition, uint lightIndex, uint pcfSize)
+{
+	LightData light = light_data.lights[lightIndex];
+	float shadowsEnabled = light.shadowsEnabled;
+	mat4 lightViewProj = light.viewProjMatrix;
+
+	if(shadowsEnabled > 0)
+	{
+		// calculate pixel position in light space
+		vec4 lightSpacePos = lightViewProj * worldPosition;
+		lightSpacePos = lightSpacePos / lightSpacePos.w; 
+
+		// calculate shadow map tex coords
+		vec2 projTexCoord = lightSpacePos.xy * 0.5 + 0.5;
+
+		// test if the pixel falls inside the light map
+		if((clamp(projTexCoord.x, 0, 1) == projTexCoord.x) && (clamp(projTexCoord.y, 0, 1) == projTexCoord.y))
+		{
+			// compute total number of samples to take from shadow map
+			int pcfSizeMinus1 = int(pcfSize - 1);
+			float kernelSize = 2.0 * pcfSizeMinus1 + 1.0;
+			float numSamples = kernelSize * kernelSize;
+
+			// counter for shadow map samples not in shadow
+			float lightCount = 0.0;
+
+			// sample the shadow map
+			float shadowMapTexelSize = 1.0 / 2048.0;
+			for(int x = -pcfSizeMinus1; x <= pcfSizeMinus1; x++)
+			{
+				for(int y = -pcfSizeMinus1; y <= pcfSizeMinus1; y++)
+				{
+					// compute coordinate for this pcf sample
+					vec2 pcfCoord = projTexCoord + vec2(x, y) * shadowMapTexelSize;
+
+					// check if sample is in light
+					float shadowMapValue = texture(sampler2D(shadowMaps[lightIndex], gBufferSampler), pcfCoord).x;
+					if(lightSpacePos.z - 0.001 <= shadowMapValue)
+						lightCount  += 1.0;
+				}
+			}
+
+			return 1.0 - (lightCount / numSamples);
+		}
+		else
+		{
+			return 1.0f;
+		}
+	}
+	else
+	{
+		return 0.0f;
+	}
+}
+
 vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, uint matIndex, uint lightIndex)
 {
 	MaterialData mat = material_data.materials[matIndex];
@@ -100,8 +155,12 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	float lightRange = light.lightRange;
 	float lightIntensity = light.lightIntensity;
 	float lightType = light.lightType;
-	float shadowsEnabled = light.shadowsEnabled;
-	mat4 lightViewProj = light.viewProjMatrix;
+
+	// immediatly return black if light intensity is zero or less
+	if(lightIntensity <= 0.0f)
+	{
+		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
 
 	vec3 rayDir = vec3(0.0f, 0.0f, 0.0f);
 	float dist = 0.0f;
@@ -119,9 +178,20 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		rayDir = -lightDirection.xyz;
 	}
 
+	// calculate light power and return black if it is zero or less
 	float lightPower = clamp(dot(worldNormal, rayDir), 0.0f, 1.0f);
+	if(lightPower <= 0.0f)
+	{
+		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
 
+
+	// calculate attenuation and return black if fully attenuated
 	float attenuation = CalculateAttenuation(rayDir, lightDirection, dist, lightRange, lightType);
+	if(attenuation <= 0.0f)
+	{
+		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	}
 
 	// calculate specular lighting
 	vec4 specularColor = material_data.materials[matIndex].specular;
@@ -148,42 +218,14 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	float specularPower = pow(clamp(dot(eyeVec, reflectLight), 0, 1), specularExponent);
 
 	specularColor = specularColor * specularPower;
-
-	// calculate shadow occlusion
-	float occlusion = 0.0f;
-	if(shadowsEnabled > 0)
+	
+	// calculate shadow occlusion and return black if fully occluded
+	float occlusion = CalculateShadowOcclusion(worldPosition, lightIndex, 8);
+	if(occlusion >= 1.0f)
 	{
-		// calculate pixel position in light space
-		vec4 lightSpacePos = worldPosition * lightViewProj;
-		lightSpacePos = lightSpacePos / lightSpacePos.w; 
-
-		// calculate shadow map tex coords
-		vec2 projTexCoord;
-		projTexCoord.x = lightSpacePos.x / 2.0f + 0.5f;
-		projTexCoord.y = -lightSpacePos.y / 2.0f + 0.5f;
-
-		// test if the pixel falls inside the light map
-		if((clamp(projTexCoord.x, 0, 1) == projTexCoord.x) && (clamp(projTexCoord.y, 0, 1) == projTexCoord.y))
-		{
-			// sample the shadow map
-			float shadowMapValue = texture(sampler2D(shadowMaps[lightIndex], mapSampler), projTexCoord).x;
-			
-			// test if the pixel is the closest pixel to the light
-			if(lightSpacePos.z - 0.001f <= shadowMapValue)
-			{
-				occlusion = 0.0f;
-			}
-			else
-			{
-				occlusion = 1.0f;
-			}
-		}
-		else
-		{
-			occlusion = 1.0f;
-		}
+		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
-
+		
 	vec3 color = (lightColor.xyz + specularColor.xyz) * lightPower * lightIntensity * attenuation * (1.0f - occlusion);
 
 	return vec4(color, 1.0f);

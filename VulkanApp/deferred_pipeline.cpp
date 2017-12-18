@@ -1,7 +1,7 @@
 #include "deferred_pipeline.h"
 #include <array>
 
-void DeferredPipeline::RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
+void DeferredPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
 {
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -85,7 +85,7 @@ void DeferredPipeline::CreatePipeline()
 
 	if (vkCreateGraphicsPipelines(devices_->GetLogicalDevice(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline_) != VK_SUCCESS)
 	{
-		throw std::runtime_error("failed to create buffer visualisation pipeline!");
+		throw std::runtime_error("failed to create deferred pipeline!");
 	}
 }
 

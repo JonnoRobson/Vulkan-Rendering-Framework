@@ -1,7 +1,7 @@
 #include "shadow_map_pipeline.h"
 #include <array>
 
-void ShadowMapPipeline::RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
+void ShadowMapPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
 {
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -129,6 +129,62 @@ void ShadowMapPipeline::CreateRenderPass()
 	if (vkCreateRenderPass(devices_->GetLogicalDevice(), &render_pass_info, nullptr, &render_pass_) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to create render pass!");
+	}
+}
+
+void ShadowMapPipeline::CreatePipeline()
+{
+	// setup pipeline layout creation info
+	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
+	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipeline_layout_info.setLayoutCount = 1;
+	pipeline_layout_info.pSetLayouts = &descriptor_set_layout_;
+	pipeline_layout_info.pushConstantRangeCount = 0;
+	pipeline_layout_info.pPushConstantRanges = 0;
+
+	// create the pipeline layout
+	if (vkCreatePipelineLayout(devices_->GetLogicalDevice(), &pipeline_layout_info, nullptr, &pipeline_layout_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
+
+	// setup rasterizer creation info
+	VkPipelineRasterizationStateCreateInfo rasterizer_state = {};
+	rasterizer_state.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer_state.depthClampEnable = VK_FALSE;
+	rasterizer_state.rasterizerDiscardEnable = VK_FALSE;
+	rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer_state.lineWidth = 1.0f;
+	rasterizer_state.cullMode = VK_CULL_MODE_NONE;
+	rasterizer_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer_state.depthBiasEnable = VK_FALSE;
+	rasterizer_state.depthBiasConstantFactor = 0.0f;
+	rasterizer_state.depthBiasClamp = 0.0f;
+	rasterizer_state.depthBiasSlopeFactor = 0.0f;
+
+	// setup pipeline creation info
+	VkGraphicsPipelineCreateInfo pipeline_info = {};
+	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipeline_info.stageCount = shader_->GetShaderStageCount();
+	pipeline_info.pStages = shader_->GetShaderStageInfo().data();
+	pipeline_info.pVertexInputState = &shader_->GetVertexInputDescription();
+	pipeline_info.pInputAssemblyState = &shader_->GetInputAssemblyDescription();
+	pipeline_info.pViewportState = &shader_->GetViewportStateDescription();
+	pipeline_info.pRasterizationState = &rasterizer_state;
+	pipeline_info.pMultisampleState = &shader_->GetMultisampleStateDescription();
+	pipeline_info.pDepthStencilState = &shader_->GetDepthStencilStateDescription();
+	pipeline_info.pColorBlendState = &shader_->GetBlendStateDescription();
+	pipeline_info.pDynamicState = &shader_->GetDynamicStateDescription();
+	pipeline_info.layout = pipeline_layout_;
+	pipeline_info.renderPass = render_pass_;
+	pipeline_info.subpass = 0;
+	pipeline_info.basePipelineHandle = VK_NULL_HANDLE;
+	pipeline_info.basePipelineIndex = -1;
+	pipeline_info.flags = 0;
+
+	if (vkCreateGraphicsPipelines(devices_->GetLogicalDevice(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &pipeline_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 }
 

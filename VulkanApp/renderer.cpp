@@ -24,6 +24,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, s
 	CreateSemaphores();
 
 	vkGetDeviceQueue(devices_->GetLogicalDevice(), devices_->GetQueueFamilyIndices().graphics_family, 0, &graphics_queue_);
+	vkGetDeviceQueue(devices_->GetLogicalDevice(), devices_->GetQueueFamilyIndices().compute_family, 0, &compute_queue_);
 }
 
 void VulkanRenderer::RenderScene()
@@ -31,7 +32,7 @@ void VulkanRenderer::RenderScene()
 	// regenerate the shadow map for any moving light
 	for (Light* light : lights_)
 	{
-		if(!light->GetLightStationary())
+		if (!light->GetLightStationary() && light->GetShadowsEnabled())
 			light->GenerateShadowMap();
 	}
 
@@ -39,18 +40,25 @@ void VulkanRenderer::RenderScene()
 	uint32_t image_index = swap_chain_->GetCurrentSwapChainImage();
 	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
 
+
 	if (render_mode_ == RenderMode::BUFFER_VIS)
 	{
 		RenderVisualisation(image_index);
 	}
-	else if (render_mode_ == RenderMode::FORWARD || render_mode_ == RenderMode::DEFERRED)
+	else if (render_mode_ == RenderMode::FORWARD || render_mode_ == RenderMode::DEFERRED || render_mode_ == RenderMode::DEFERRED_COMPUTE)
 	{
 		// send matrix data to the gpu
 		UniformBufferObject ubo = {};
 		ubo.model = glm::mat4(1.0f);
 		ubo.view = render_camera_->GetViewMatrix();
-		ubo.proj = glm::perspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f, 1000.0f);
-		ubo.proj[1][1] *= -1;
+
+		glm::mat4 clip =
+			glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+				0.0f, -1.0f, 0.0f, 0.0f,
+				0.0f, 0.0f, 0.5f, 0.0f,
+				0.0f, 0.0f, 0.5f, 1.0f);
+
+		ubo.proj = clip * glm::infinitePerspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f);
 
 		void* mapped_data;
 		vkMapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, 0, sizeof(UniformBufferObject), 0, &mapped_data);
@@ -66,6 +74,7 @@ void VulkanRenderer::RenderScene()
 		memcpy(mapped_data, &scene_data, sizeof(SceneLightData));
 		vkUnmapMemory(devices_->GetLogicalDevice(), light_buffer_memory_);
 
+		//render_mode_ = RenderMode::DEFERRED;
 
 		for (Light* light : lights_)
 		{
@@ -75,9 +84,14 @@ void VulkanRenderer::RenderScene()
 
 		if (render_mode_ == RenderMode::FORWARD)
 		{
-			RenderPass(image_index);
+			RenderForward(image_index);
 		}
-		else
+		else if (render_mode_ == RenderMode::DEFERRED_COMPUTE)
+		{
+			RenderGBuffer(image_index);
+			RenderDeferredCompute(image_index);
+		}
+		else if (render_mode_ == RenderMode::DEFERRED)
 		{
 			RenderGBuffer(image_index);
 			RenderDeferred(image_index);
@@ -86,7 +100,7 @@ void VulkanRenderer::RenderScene()
 
 }
 
-void VulkanRenderer::RenderPass(uint32_t image_index)
+void VulkanRenderer::RenderForward(uint32_t image_index)
 {
 	VkSemaphore wait_semaphore = swap_chain_->GetImageAvailableSemaphore();
 
@@ -134,7 +148,6 @@ void VulkanRenderer::RenderGBuffer(uint32_t image_index)
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
 
-
 	VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
 	if (result != VK_SUCCESS)
 	{
@@ -143,7 +156,7 @@ void VulkanRenderer::RenderGBuffer(uint32_t image_index)
 }
 
 void VulkanRenderer::RenderDeferred(uint32_t image_index)
-{	
+{
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -160,12 +173,39 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
 
-
 	VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
 	if (result != VK_SUCCESS)
 	{
-		throw std::runtime_error("failed to submit draw command buffer!");
+		throw std::runtime_error("failed to submit deferred command buffer!");
 	}
+}
+
+void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
+{	
+	// submit the draw command buffer
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_ };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = wait_semaphores;
+	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &deferred_compute_command_buffers_[image_index];
+
+	VkSemaphore signal_semaphores[] = { render_semaphore_ };
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = signal_semaphores;
+
+	VkResult result = vkQueueSubmit(compute_queue_, 1, &submit_info, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to submit deferred compute command buffer!");
+	}
+	
+	// copy the intermediate image to the swap chain
+	swap_chain_->FinalizeIntermediateImage();
 }
 
 void VulkanRenderer::RenderVisualisation(uint32_t image_index)
@@ -222,6 +262,10 @@ void VulkanRenderer::Cleanup()
 	delete deferred_shader_;
 	deferred_shader_ = nullptr;
 
+	deferred_compute_shader_->Cleanup();
+	delete deferred_compute_shader_;
+	deferred_compute_shader_ = nullptr;
+
 	// clean up primitive buffer
 	primitive_buffer_->Cleanup();
 	delete primitive_buffer_;
@@ -256,6 +300,10 @@ void VulkanRenderer::Cleanup()
 	delete deferred_pipeline_;
 	deferred_pipeline_ = nullptr;
 
+	deferred_compute_pipeline_->CleanUp();
+	delete deferred_compute_pipeline_;
+	deferred_compute_pipeline_ = nullptr;
+
 	// clean up g buffer
 	g_buffer_->Cleanup();
 	delete g_buffer_;
@@ -266,8 +314,10 @@ void VulkanRenderer::Cleanup()
 	delete default_texture_;
 	default_texture_ = nullptr;
 
-	// clean up g buffer sampler
-	vkDestroySampler(devices_->GetLogicalDevice(), g_buffer_sampler_, nullptr);
+	// clean up samplers
+	vkDestroySampler(devices_->GetLogicalDevice(), g_buffer_normalized_sampler_, nullptr);
+	vkDestroySampler(devices_->GetLogicalDevice(), g_buffer_unnormalized_sampler_, nullptr);
+	vkDestroySampler(devices_->GetLogicalDevice(), shadow_map_sampler_, nullptr);
 
 	// clean up semaphores
 	vkDestroySemaphore(devices_->GetLogicalDevice(), render_semaphore_, nullptr);
@@ -324,15 +374,16 @@ void VulkanRenderer::InitPipeline()
 	// create the material pipeline
 	rendering_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
+	InitGBufferPipeline();
+
 	// initialize a buffer visualisation pipeline
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
-	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, default_texture_->GetSampler());
+	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
 	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, lights_[0]->GetShadowMap()->GetImageViews()[0]);
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
-	InitGBufferPipeline();
 }
 
 void VulkanRenderer::InitGBufferPipeline()
@@ -348,13 +399,21 @@ void VulkanRenderer::InitGBufferPipeline()
 	sampler_info.anisotropyEnable = VK_FALSE;
 	sampler_info.maxAnisotropy = 1;
 	sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	sampler_info.unnormalizedCoordinates = VK_FALSE;
+	sampler_info.unnormalizedCoordinates = VK_TRUE;
 	sampler_info.compareEnable = VK_FALSE;
 	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
 	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &g_buffer_sampler_) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create texture sampler!");
+	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &g_buffer_unnormalized_sampler_) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create g buffer sampler!");
+	}
+
+	// initialize the shadow map sampler
+	sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &shadow_map_sampler_) != VK_SUCCESS ||
+		vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &g_buffer_normalized_sampler_) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create normalized samplers!");
 	}
 
 	// initialize the g buffer
@@ -368,22 +427,8 @@ void VulkanRenderer::InitGBufferPipeline()
 	g_buffer_pipeline_->SetGBuffer(g_buffer_);
 	g_buffer_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
-	// initialize the deferred pipeline
-	deferred_pipeline_ = new DeferredPipeline();
+	// calculate size of the light buffer
 	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
-	deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
-	deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
-
-	// add the material textures to the pipeline
-	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, ambient_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, diffuse_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, specular_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, specular_highlight_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, emissive_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, normal_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
 
 	// setup the shadow map descriptor
 	std::vector<VkImageView> shadow_maps;
@@ -392,18 +437,63 @@ void VulkanRenderer::InitGBufferPipeline()
 		shadow_maps.push_back(light->GetShadowMap()->GetImageViews()[0]);
 	}
 
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps);
+	// initialize the deferred pipeline
+	deferred_pipeline_ = new DeferredPipeline();
+	deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 0, light_buffer_, buffer_size);
+	deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+
+	// add the material textures to the pipeline
+	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, ambient_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 4, diffuse_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, specular_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, specular_highlight_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, emissive_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, normal_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, alpha_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, reflection_textures_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps);
 
 	// add the g buffer to the pipeline
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 14, g_buffer_->GetImageViews());
-	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 15, g_buffer_sampler_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
+	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, g_buffer_normalized_sampler_);
 
 	// set the deferred shader
 	deferred_pipeline_->SetShader(deferred_shader_);
 	deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
-	// create the deferred command buffers now
+	// create the deferred command buffers
 	CreateDeferredCommandBuffers();
+
+	// initialize the deferred compute pipeline
+	deferred_compute_pipeline_ = new DeferredComputePipeline();
+	deferred_compute_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_COMPUTE_BIT, 1, light_buffer_, buffer_size);
+	deferred_compute_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_COMPUTE_BIT, 2, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+
+	// add the material textures to the pipeline
+	deferred_compute_pipeline_->AddSampler(VK_SHADER_STAGE_COMPUTE_BIT, 3, default_texture_->GetSampler());
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 4, ambient_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 5, diffuse_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 6, specular_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 7, specular_highlight_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 8, emissive_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 9, normal_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 10, alpha_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 11, reflection_textures_);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 12, shadow_maps);
+
+	// add the g buffer to the pipeline
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 13, g_buffer_->GetImageViews());
+	deferred_compute_pipeline_->AddSampler(VK_SHADER_STAGE_COMPUTE_BIT, 14, g_buffer_unnormalized_sampler_);
+	deferred_compute_pipeline_->AddSampler(VK_SHADER_STAGE_COMPUTE_BIT, 15, shadow_map_sampler_);
+	deferred_compute_pipeline_->AddStorageImage(VK_SHADER_STAGE_COMPUTE_BIT, 0, swap_chain_->GetIntermediateImageView());
+
+	// set the deferred shader
+	deferred_compute_pipeline_->SetComputeShader(deferred_compute_shader_);
+	deferred_compute_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
+	// create the deferred compute command buffers
+	CreateDeferredComputeCommandBuffers();
 }
 
 void VulkanRenderer::RecreateSwapChainFeatures()
@@ -455,7 +545,7 @@ void VulkanRenderer::CreateCommandBuffers()
 		if (rendering_pipeline_)
 		{
 			// bind pipeline
-			rendering_pipeline_->RecordRenderCommands(command_buffers_[i], i);
+			rendering_pipeline_->RecordCommands(command_buffers_[i], i);
 			
 			for (Mesh* mesh : meshes_)
 			{
@@ -496,7 +586,7 @@ void VulkanRenderer::CreateCommandBuffers()
 		if (buffer_visualisation_pipeline_)
 		{
 			// bind pipeline
-			buffer_visualisation_pipeline_->RecordRenderCommands(buffer_visualisation_command_buffers_[i], i);
+			buffer_visualisation_pipeline_->RecordCommands(buffer_visualisation_command_buffers_[i], i);
 
 			vkCmdEndRenderPass(buffer_visualisation_command_buffers_[i]);
 		}
@@ -538,7 +628,7 @@ void VulkanRenderer::CreateGBufferCommandBuffers()
 		if (g_buffer_pipeline_)
 		{
 			// bind pipeline
-			g_buffer_pipeline_->RecordRenderCommands(g_buffer_command_buffers_[i], i);
+			g_buffer_pipeline_->RecordCommands(g_buffer_command_buffers_[i], i);
 
 			for (Mesh* mesh : meshes_)
 			{
@@ -549,6 +639,46 @@ void VulkanRenderer::CreateGBufferCommandBuffers()
 		}
 
 		if (vkEndCommandBuffer(g_buffer_command_buffers_[i]) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to record render command buffer!");
+		}
+	}
+}
+
+void VulkanRenderer::CreateDeferredComputeCommandBuffers()
+{
+	int buffer_count = swap_chain_->GetSwapChainImages().size();
+
+	// create rendering command buffers
+	deferred_compute_command_buffers_.resize(buffer_count);
+
+	VkCommandBufferAllocateInfo allocate_info = {};
+	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocate_info.commandPool = command_pool_;
+	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocate_info.commandBufferCount = (uint32_t)deferred_compute_command_buffers_.size();
+
+	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, deferred_compute_command_buffers_.data()) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to allocate render command buffers!");
+	}
+
+	for (size_t i = 0; i < deferred_compute_command_buffers_.size(); i++)
+	{
+		VkCommandBufferBeginInfo begin_info = {};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		begin_info.pInheritanceInfo = nullptr;
+
+		vkBeginCommandBuffer(deferred_compute_command_buffers_[i], &begin_info);
+
+		if (deferred_compute_pipeline_)
+		{
+			// bind pipeline
+			deferred_compute_pipeline_->RecordCommands(deferred_compute_command_buffers_[i], i);
+		}
+
+		if (vkEndCommandBuffer(deferred_compute_command_buffers_[i]) != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to record render command buffer!");
 		}
@@ -585,7 +715,7 @@ void VulkanRenderer::CreateDeferredCommandBuffers()
 		if (deferred_pipeline_)
 		{
 			// bind pipeline
-			deferred_pipeline_->RecordRenderCommands(deferred_command_buffers_[i], i);
+			deferred_pipeline_->RecordCommands(deferred_command_buffers_[i], i);
 
 			vkCmdEndRenderPass(deferred_command_buffers_[i]);
 		}
@@ -613,9 +743,12 @@ void VulkanRenderer::CreateShaders()
 
 	g_buffer_shader_ = new VulkanShader();
 	g_buffer_shader_->Init(devices_, swap_chain_, "../res/shaders/g_buffer.vert.spv", "", "", "../res/shaders/g_buffer.frag.spv");
-
+	
 	deferred_shader_ = new VulkanShader();
 	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", "../res/shaders/deferred.frag.spv");
+
+	deferred_compute_shader_ = new VulkanComputeShader();
+	deferred_compute_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.comp.spv");
 }
 
 void VulkanRenderer::CreatePrimitiveBuffer()

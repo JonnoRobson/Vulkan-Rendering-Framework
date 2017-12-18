@@ -87,6 +87,12 @@
     <ClCompile Include="texture_cache.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="deferred_compute_pipeline.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -158,6 +164,12 @@
     <ClInclude Include="texture_cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="compute_shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="deferred_compute_pipeline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\shaders\default_material.frag">
@@ -188,6 +200,9 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\g_buffer.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\deferred.comp">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

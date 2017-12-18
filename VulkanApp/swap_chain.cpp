@@ -31,6 +31,10 @@ void VulkanSwapChain::CleanupSwapChain()
 		vkDestroyImageView(device, swap_chain_image_views_[i], nullptr);
 	}
 	
+	vkDestroyImage(device, intermediate_image_, nullptr);
+	vkDestroyImageView(device, intermediate_image_view_, nullptr);
+	vkFreeMemory(device, intermediate_image_memory_, nullptr);
+
 	vkDestroyImageView(device, depth_image_view_, nullptr);
 	vkDestroyImage(device, depth_image_, nullptr);
 	vkFreeMemory(device, depth_image_memory_, nullptr);
@@ -53,18 +57,20 @@ VkResult VulkanSwapChain::PreRender()
 	// clear the swap chain image and depth stencil view before rendering
 	// transition the buffers to the correct format for clearing
 	devices_->TransitionImageLayout(swap_chain_images_[current_image_index_], swap_chain_image_format_, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	devices_->TransitionImageLayout(depth_image_, depth_format_, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// clear the buffers
 	VkCommandBuffer clear_buffer = devices_->BeginSingleTimeCommands();
 
-	VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 1.0f };
+	VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 0.0f };
 	VkImageSubresourceRange image_range = {};
 	image_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	image_range.levelCount = 1;
 	image_range.layerCount = 1;
 
 	vkCmdClearColorImage(clear_buffer, swap_chain_images_[current_image_index_], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_color, 1, &image_range);
+	vkCmdClearColorImage(clear_buffer, intermediate_image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &clear_color, 1, &image_range);
 
 	VkClearDepthStencilValue clear_depth = { 1.0f, 0 };
 	image_range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -75,6 +81,7 @@ VkResult VulkanSwapChain::PreRender()
 
 	// transition buffers back to the correct format
 	devices_->TransitionImageLayout(swap_chain_images_[current_image_index_], swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 	devices_->TransitionImageLayout(depth_image_, depth_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
 	return VK_SUCCESS;
@@ -82,6 +89,7 @@ VkResult VulkanSwapChain::PreRender()
 
 VkResult VulkanSwapChain::PostRender(VkSemaphore signal_semaphore)
 {
+	// present the swap chain
 	VkPresentInfoKHR present_info = {};
 	present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -110,6 +118,40 @@ VkResult VulkanSwapChain::PostRender(VkSemaphore signal_semaphore)
 	vkQueueWaitIdle(present_queue_);
 
 	return result;
+}
+
+void VulkanSwapChain::FinalizeIntermediateImage()
+{
+	// transition the intermediate image to transfersrc layout
+	devices_->TransitionImageLayout(swap_chain_images_[current_image_index_], swap_chain_image_format_, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+	// start the copy command buffer
+	VkCommandBuffer blit_buffer = devices_->BeginSingleTimeCommands();
+
+	VkImageBlit image_blit = {};
+	image_blit.srcOffsets[0] = { 0, 0, 0 };
+	image_blit.srcOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_blit.srcSubresource.baseArrayLayer = 0;
+	image_blit.srcSubresource.layerCount = 1;
+	image_blit.srcSubresource.mipLevel = 0;
+
+	image_blit.dstOffsets[0] = { 0, 0, 0 };
+	image_blit.dstOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_blit.dstSubresource.baseArrayLayer = 0;
+	image_blit.dstSubresource.layerCount = 1;
+	image_blit.dstSubresource.mipLevel = 0;
+
+	vkCmdBlitImage(blit_buffer, intermediate_image_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swap_chain_images_[current_image_index_], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit, VK_FILTER_LINEAR);
+
+	// submit the blit command buffer
+	devices_->EndSingleTimeCommands(blit_buffer);
+
+	// transition images back to correct layouts
+	devices_->TransitionImageLayout(swap_chain_images_[current_image_index_], swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 }
 
 void VulkanSwapChain::CreateSurface()
@@ -215,6 +257,7 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevices* devices)
 	}
 
 	CreateImageViews();
+	CreateIntermediateImage();
 	CreateDepthResources();
 	CreateSemaphores();
 
@@ -231,6 +274,18 @@ void VulkanSwapChain::CreateImageViews()
 	{
 		swap_chain_image_views_[i] = devices_->CreateImageView(swap_chain_images_[i], swap_chain_image_format_, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
+}
+
+void VulkanSwapChain::CreateIntermediateImage()
+{
+	// create the intermediate storage image
+	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, swap_chain_image_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, intermediate_image_, intermediate_image_memory_);
+
+	// create the intermediate storage image view
+	intermediate_image_view_ = devices_->CreateImageView(intermediate_image_, swap_chain_image_format_, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+
 }
 
 void VulkanSwapChain::CreateDepthResources()

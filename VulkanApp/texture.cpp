@@ -40,10 +40,70 @@ void Texture::Init(VulkanDevices* devices, std::string filename)
 
 	stbi_image_free(pixels);
 
-	devices->CreateImage(tex_width, tex_height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image_, texture_image_memory_);
-	devices->TransitionImageLayout(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	devices->CopyBufferToImage(staging_buffer, texture_image_, static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height));
-	devices->TransitionImageLayout(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	// reduce sizes of textures that are larger than max texture resolution
+	if (tex_width * tex_height > MAX_TEXTURE_RESOLUTION * MAX_TEXTURE_RESOLUTION)
+	{
+		int new_width, new_height;
+		// determine new resolution for texture
+		if (tex_height > tex_width)
+		{
+			new_height = MAX_TEXTURE_RESOLUTION;
+			new_width = tex_width * ((float)new_height / (float)tex_height);
+		}
+		else
+		{
+			new_width = MAX_TEXTURE_RESOLUTION;
+			new_height = tex_height * ((float)new_width / (float)tex_width);
+		}
+
+		// create the initial texture and copy in data from the staging buffer
+		VkImage initial_image;
+		VkDeviceMemory initial_image_memory;
+
+		devices->CreateImage(tex_width, tex_height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, initial_image, initial_image_memory);
+		devices->TransitionImageLayout(initial_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		devices->CopyBufferToImage(staging_buffer, initial_image, static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height));
+		devices->TransitionImageLayout(initial_image, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		// create the final texture
+		devices->CreateImage(new_width, new_height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image_, texture_image_memory_);
+		devices->TransitionImageLayout(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		// blit the image from the initial texture
+		VkCommandBuffer blit_buffer = devices->BeginSingleTimeCommands();
+
+		VkImageBlit image_blit = {};
+		image_blit.srcOffsets[0] = { 0, 0, 0 };
+		image_blit.srcOffsets[1] = { tex_width, tex_height, 1 };
+		image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_blit.srcSubresource.baseArrayLayer = 0;
+		image_blit.srcSubresource.layerCount = 1;
+		image_blit.srcSubresource.mipLevel = 0;
+
+		image_blit.dstOffsets[0] = { 0, 0, 0 };
+		image_blit.dstOffsets[1] = { new_width, new_height, 1 };
+		image_blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		image_blit.dstSubresource.baseArrayLayer = 0;
+		image_blit.dstSubresource.layerCount = 1;
+		image_blit.dstSubresource.mipLevel = 0;
+
+		vkCmdBlitImage(blit_buffer, initial_image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, texture_image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit, VK_FILTER_LINEAR);
+
+		// submit the blit command buffer
+		devices->EndSingleTimeCommands(blit_buffer);
+
+		// clean up the initial texture now it is no longer needed
+		vkDestroyImage(vk_device_handle_, initial_image, nullptr);
+		vkFreeMemory(vk_device_handle_, initial_image_memory, nullptr);
+	}
+	else
+	{
+		// create the texture and copy in data from the buffer
+		devices->CreateImage(tex_width, tex_height, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image_, texture_image_memory_);
+		devices->TransitionImageLayout(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		devices->CopyBufferToImage(staging_buffer, texture_image_, static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height));
+		devices->TransitionImageLayout(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
 
 	vkDestroyBuffer(vk_device_handle_, staging_buffer, nullptr);
 	vkFreeMemory(vk_device_handle_, staging_buffer_memory, nullptr);

@@ -11,10 +11,11 @@ struct QueueFamilyIndices
 	int graphics_family = -1;
 	int transfer_family = -1;
 	int present_family = -1;
+	int compute_family = -1;
 
 	bool isComplete()
 	{
-		return graphics_family >= 0 && transfer_family >= 0 && present_family >= 0;
+		return graphics_family >= 0 && transfer_family >= 0 && present_family >= 0 && compute_family >= 0;
 	}
 };
 

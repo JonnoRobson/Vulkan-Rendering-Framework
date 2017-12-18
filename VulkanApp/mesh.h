@@ -10,6 +10,7 @@
 #include <array>
 #include <string>
 #include <map>
+#include <mutex>
 
 #include "device.h"
 #include "primitive_buffer.h"
@@ -91,10 +92,19 @@ public:
 	
 	void RecordRenderCommands(VkCommandBuffer& command_buffer);
 
+	inline glm::vec3 GetMinVertex() { return min_vertex_; }
+	inline glm::vec3 GetMaxVertex() { return max_vertex_;}
+
+protected:
+	void LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::attrib_t* attrib, std::vector<tinyobj::material_t>* materials, std::vector<tinyobj::shape_t*> shapes);
+
 protected:
 	VkDevice vk_device_handle_;
 
 	glm::mat4 world_matrix_;
+
+	glm::vec3 min_vertex_;
+	glm::vec3 max_vertex_;
 
 	VkBuffer matrix_buffer_;
 	VkDeviceMemory matrix_buffer_memory_;

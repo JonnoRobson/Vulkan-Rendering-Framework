@@ -2,11 +2,11 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // inputs
-layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) in vec3 worldNormal;
-layout(location = 2) in vec4 worldPosition;
-layout(location = 3) in vec3 eyeVec;
-layout(location = 4) flat in uint matIndex;
+#define WORKGROUP_SIZE 32
+layout(local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1) in;
+
+// output image
+layout(binding = 0, rgba8) uniform image2D screenImage;
 
 struct LightData
 {
@@ -21,7 +21,7 @@ struct LightData
 };
 
 // uniform buffers
-layout(binding = 2) buffer LightingBuffer
+layout(binding = 1) buffer LightingBuffer
 {
 	vec4 scene_data;
 	vec4 camera_pos;
@@ -50,25 +50,30 @@ struct MaterialData
 	uint reflection_map_index;
 };
 
-layout(binding = 3) uniform MaterialUberBuffer
+layout(binding = 2) uniform MaterialUberBuffer
 {
 	MaterialData materials[512];
 } material_data;
 
 // textures
-layout(binding = 4) uniform sampler mapSampler;
-layout(binding = 5) uniform texture2D ambientMaps[512];
-layout(binding = 6) uniform texture2D diffuseMaps[512];
-layout(binding = 7) uniform texture2D specularMaps[512];
-layout(binding = 8) uniform texture2D specularHighlightMaps[512];
-layout(binding = 9) uniform texture2D emissiveMaps[512];
-layout(binding = 10) uniform texture2D normalMaps[512];
-layout(binding = 11) uniform texture2D alphaMaps[512];
-layout(binding = 12) uniform texture2D reflectionMaps[512];
-layout(binding = 13) uniform texture2D shadowMaps[16];
+layout(binding = 3) uniform sampler mapSampler;
+layout(binding = 4) uniform texture2D ambientMaps[512];
+layout(binding = 5) uniform texture2D diffuseMaps[512];
+layout(binding = 6) uniform texture2D specularMaps[512];
+layout(binding = 7) uniform texture2D specularHighlightMaps[512];
+layout(binding = 8) uniform texture2D emissiveMaps[512];
+layout(binding = 9) uniform texture2D normalMaps[512];
+layout(binding = 10) uniform texture2D alphaMaps[512];
+layout(binding = 11) uniform texture2D reflectionMaps[512];
+layout(binding = 12) uniform texture2D shadowMaps[16];
 
-// outputs
-layout(location = 0) out vec4 outColor;
+layout(binding = 13) uniform texture2D gBuffer[2];
+layout(binding = 14) uniform sampler gBufferSampler;
+layout(binding = 15) uniform sampler shadowMapSampler;
+
+
+shared vec3 cameraVecs[WORKGROUP_SIZE][WORKGROUP_SIZE];
+shared vec2 texCoords[WORKGROUP_SIZE][WORKGROUP_SIZE];
 
 float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, float lightRange, float lightType)
 {
@@ -126,7 +131,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, uint lightIndex, uint pcfSize
 					vec2 pcfCoord = projTexCoord + vec2(x, y) * shadowMapTexelSize;
 
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[lightIndex], mapSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[lightIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount  += 1.0;
 				}
@@ -232,17 +237,77 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	return vec4(color, 1.0f);
 }
 
-mat3 CotangentFrame(vec3 normal, vec3 view, vec2 uv)
+void CalculateViewDerivatives(out vec3 dFdx, out vec3 dFdy)
+{
+	vec2 localID = gl_LocalInvocationID.xy;
+	vec2 xOffsetID = vec2(0, 0);
+	vec2 yOffsetID = vec2(0, 0);
+
+	// if pixel is at edge of workgroup calculate derivative using offset
+	if(localID.x >= WORKGROUP_SIZE - 1)
+	{
+		localID.x -= 1;
+	}
+	
+	if(localID.y >= WORKGROUP_SIZE - 1)
+	{
+		localID.y -= 1;
+	}
+
+	xOffsetID = localID + vec2(1, 0);
+
+	// calculate x derivative
+	dFdx = cameraVecs[int(xOffsetID.x)][int(xOffsetID.y)] - cameraVecs[int(localID.x)][int(localID.y)]; 
+
+	yOffsetID = localID + vec2(0, 1);
+
+	// calculate y derivative
+	dFdy = cameraVecs[int(yOffsetID.x)][int(yOffsetID.y)] - cameraVecs[int(localID.x)][int(localID.y)];
+
+}
+
+void CalculateTexDerivatives(out vec2 dFdx, out vec2 dFdy)
+{
+	vec2 localID = gl_LocalInvocationID.xy;
+	vec2 xOffsetID = vec2(0, 0);
+	vec2 yOffsetID = vec2(0, 0);
+
+	// if pixel is at edge of workgroup calculate derivative using inverse offset
+	if(localID.x >= WORKGROUP_SIZE - 1 )
+	{
+		localID.x -= 1;
+	}
+
+	if(localID.y >= WORKGROUP_SIZE - 1)
+	{
+		localID.y -= 1;
+	}
+
+	xOffsetID = localID + vec2(1, 0);
+	
+	// calculate x derivative
+	dFdx = texCoords[int(xOffsetID.x)][int(xOffsetID.y)] - texCoords[int(localID.x)][int(localID.y)]; 
+
+	yOffsetID = localID + vec2(0, 1);
+	
+	// calculate y derivative
+	dFdy = texCoords[int(yOffsetID.x)][int(yOffsetID.y)] - texCoords[int(localID.x)][int(localID.y)];
+}
+
+mat3 CotangentFrame(vec3 normal)
 {
 	// if the normal is 0,0,1 construct tangent and binormal in the other axis
 	vec3 tangent, binormal;
 
 	// get edge vectors of the pixel triangle
-	vec3 dp1 = dFdx( view );
-	vec3 dp2 = dFdy( view );
-	vec2 duv1 = dFdx( uv );
-	vec2 duv2 = dFdy( uv );
- 
+	vec3 dp1 = vec3(0.0f, 0.0f, 0.0f);
+	vec3 dp2 = vec3(0.0f, 0.0f, 0.0f);
+	vec2 duv1 = vec2(0.0f, 0.0f);
+	vec2 duv2 = vec2(0.0f, 0.0f);
+
+	CalculateViewDerivatives(dp1, dp2);
+	CalculateTexDerivatives(duv1, duv2);
+
 	// solve the linear system
 	vec3 dp2perp = cross( dp2, normal );
 	vec3 dp1perp = cross( normal, dp1 );
@@ -254,17 +319,75 @@ mat3 CotangentFrame(vec3 normal, vec3 view, vec2 uv)
     return mat3( tangent * invmax, binormal * invmax, normal );
 }
 
-vec3 PerturbNormal(vec3 normal, vec3 view, vec2 texCoord, uint normal_map_index)
+vec3 PerturbNormal(vec3 normal,vec2 texCoord, uint normal_map_index)
 {
 	// sample normal map
 	vec3 map = texture(sampler2D(normalMaps[normal_map_index - 1], mapSampler), texCoord).xyz;
 	map = map * 2.0f - 1.0f;
-	mat3 cotangentFrame = CotangentFrame(normal, -view, texCoord);
+	mat3 cotangentFrame = CotangentFrame(normal);
 	return normalize(cotangentFrame * map);
+}
+
+vec3 SphereMapDecode(vec2 encoded_normal)
+{
+	if(length(encoded_normal) > 128.0f)
+	{
+		return vec3(0, 0, 1);
+	}
+
+	vec4 nn = vec4(encoded_normal, 0, 0) * vec4(2, 2, 0, 0) + vec4(-1, -1, 1, -1);
+	float l = dot(nn.xyz, -nn.xyw);
+	nn.z = l;
+	nn.xy *= sqrt(l);
+	return nn.xyz * 2.0f + vec3(0, 0, -1);
+}
+
+void ReadGBuffer(in vec4 g_buffer_1, in vec4 g_buffer_2, out vec3 world_position, out vec3 world_normal, out vec2 tex_coords, out uint material_index)
+{
+	world_position = g_buffer_1.xyz;
+	material_index = uint(g_buffer_1.w) - 1;
+	
+	world_normal = SphereMapDecode(g_buffer_2.xy);
+	tex_coords = g_buffer_2.zw;
 }
 
 void main()
 {
+	vec3 worldPosition = vec3(0.0f, 0.0f, 0.0f);
+	vec3 worldNormal = vec3(0.0f, 0.0f, 0.0f);
+	vec2 fragTexCoord = vec2(0.0f, 0.0f);
+	uint matIndex = 0;
+
+	ivec2 texDimensions = textureSize(sampler2D(gBuffer[0], gBufferSampler), 0);
+
+	if(gl_GlobalInvocationID.x >= texDimensions.x || gl_GlobalInvocationID.y >= texDimensions.y)
+	{
+		return;
+	}
+
+	// generate the screen tex coord from global invocation id
+	vec2 screenTexCoord = gl_GlobalInvocationID.xy;
+
+	// sample the g-buffer textures
+	vec4 gBuffer1 = texture(sampler2D(gBuffer[0], gBufferSampler), screenTexCoord);
+	vec4 gBuffer2 = texture(sampler2D(gBuffer[1], gBufferSampler), screenTexCoord);
+
+
+	// discard pixel if it has an empty material index
+	if(gBuffer1.w == 0)
+	{
+		return;
+	}
+
+	// decode g buffer data
+	ReadGBuffer(gBuffer1, gBuffer2, worldPosition, worldNormal, fragTexCoord, matIndex);
+	
+	// store the tex coord and camera vector for this invocation
+	cameraVecs[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = -(worldPosition.xyz - light_data.camera_pos.xyz);
+	texCoords[gl_LocalInvocationID.x][gl_LocalInvocationID.y] = fragTexCoord;
+
+	barrier();
+	
 	vec4 diffuse = material_data.materials[matIndex].diffuse;
 	
 	// if diffuse map index is non-zero sample the diffuse map
@@ -273,14 +396,13 @@ void main()
 	{
 		diffuse = diffuse * texture(sampler2D(diffuseMaps[diffuse_map_index - 1], mapSampler), fragTexCoord);
 	}
-	
+
 	// if normal map index is non-zero sample the normal map
 	vec3 normal = worldNormal;
 	uint normal_map_index = material_data.materials[matIndex].bump_map_index;
 	if(normal_map_index > 0)
 	{
-		vec3 cameraVec = worldPosition.xyz - light_data.camera_pos.xyz;
-		normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
+		normal = PerturbNormal(normal, fragTexCoord, normal_map_index);
 	}
 
 	vec4 color = material_data.materials[matIndex].ambient * vec4(light_data.scene_data.xyz, 1.0f);
@@ -288,7 +410,7 @@ void main()
 	// calculate lighting for all lights
 	for(uint i = 0; i < light_data.scene_data.w; i++)
 	{
-		vec4 lighting = CalculateLighting(worldPosition, normal, fragTexCoord, matIndex, i);
+		vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, matIndex, i);
 		color = color + (diffuse * lighting);
 	}
 
@@ -300,5 +422,7 @@ void main()
 		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord).x;
 	}
 
-	outColor = color;
+	color.w = 1.0f;
+
+	imageStore(screenImage, ivec2(gl_GlobalInvocationID.xy), color);
 }

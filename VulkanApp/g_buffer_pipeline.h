@@ -7,7 +7,7 @@
 class GBufferPipeline : public VulkanPipeline
 {
 public:
-	void RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
+	void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
 	inline void SetGBuffer(VulkanRenderTarget* g_buffer) { g_buffer_ = g_buffer; }
 

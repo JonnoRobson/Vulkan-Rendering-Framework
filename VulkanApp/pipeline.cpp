@@ -120,7 +120,8 @@ void VulkanPipeline::CreateDescriptorSet()
 		}
 		else if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
 			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE ||
-			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER)
+			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER ||
+			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
 		{
 			descriptor_write.pImageInfo = descriptor.image_infos.data();
 		}
@@ -435,7 +436,27 @@ void VulkanPipeline::AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t b
 	descriptor_infos_.push_back(buffer_descriptor);
 }
 
-void VulkanPipeline::RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
+void VulkanPipeline::AddStorageImage(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image)
+{
+	Descriptor image_descriptor = {};
+
+	// setup image info
+	VkDescriptorImageInfo image_info = {};
+	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageView = image;
+	image_info.sampler = VK_NULL_HANDLE;
+
+	image_descriptor.image_infos.push_back(image_info);
+	image_descriptor.layout_binding.binding = binding_location;
+	image_descriptor.layout_binding.descriptorCount = 1;
+	image_descriptor.layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+	image_descriptor.layout_binding.stageFlags = stage_flags;
+	image_descriptor.layout_binding.pImmutableSamplers = nullptr;
+
+	descriptor_infos_.push_back(image_descriptor);
+}
+
+void VulkanPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
 {
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;

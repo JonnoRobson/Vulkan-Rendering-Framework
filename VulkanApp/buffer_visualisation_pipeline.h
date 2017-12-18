@@ -6,7 +6,7 @@
 class BufferVisualisationPipeline : public VulkanPipeline
 {
 public:
-	void RecordRenderCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
+	void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
 protected:
 	void CreatePipeline();
