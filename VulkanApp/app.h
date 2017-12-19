@@ -62,7 +62,7 @@ protected:
 
 protected:
 	GLFWwindow *window_;
-	VulkanDevices *vk_devices_;
+	VulkanDevices *devices_;
 	VulkanSwapChain* swap_chain_;
 	VulkanRenderer* renderer_;
 
@@ -71,8 +71,7 @@ protected:
 
 	Camera camera_;
 	std::vector<Mesh*> loaded_meshes_;
-	Light* test_light_;
-	Light* test_light_b_;
+	std::vector<Light*> lights_;
 
 	float current_time_;
 	float prev_time_;

@@ -83,7 +83,11 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 		// add in spotlight attenuation factor
 		vec3 lightVector2 = lightDirection.xyz;
 		float rho = dot(lightVector, lightVector2);
-		attenuation *= pow(rho, 8);
+
+		if(degrees(acos(rho)) > 45.0f)
+		{
+			attenuation *= pow(rho, 8);
+		}
 	}
 
 	return attenuation;
@@ -323,7 +327,15 @@ void main()
 		normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
 	}
 
-	vec4 color = material_data.materials[matIndex].ambient * vec4(light_data.scene_data.xyz, 1.0f);
+	// if ambient map index is non-zero sample the ambient map
+	vec4 ambient = material_data.materials[matIndex].ambient;
+	uint ambient_map_index = material_data.materials[matIndex].ambient_map_index;
+	if(ambient_map_index > 0)
+	{
+		ambient = ambient + texture(sampler2D(ambientMaps[ambient_map_index - 1], mapSampler), fragTexCoord);
+	}
+		
+	vec4 color = ambient * vec4(light_data.scene_data.xyz, 1.0f);
 
 	// calculate lighting for all lights
 	for(uint i = 0; i < light_data.scene_data.w; i++)
@@ -341,6 +353,6 @@ void main()
 	}
 
 	color.w = 1.0f;
-	
+
 	outColor = color;
 }

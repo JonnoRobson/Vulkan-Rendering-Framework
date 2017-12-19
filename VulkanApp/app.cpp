@@ -69,11 +69,11 @@ bool App::InitVulkan()
 	InitDevices();
 
 	// init the swap chain
-	swap_chain_->CreateSwapChain(vk_devices_);
+	swap_chain_->CreateSwapChain(devices_);
 
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
-	renderer_->Init(vk_devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "../res/shaders/default_material.frag.spv");
+	renderer_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "../res/shaders/default_material.frag.spv");
 
 	return true;
 }
@@ -123,30 +123,44 @@ bool App::InitResources()
 	for (std::string filepath : filepaths)
 	{
 		Mesh* loaded_mesh = new Mesh();
-		loaded_mesh->CreateModelMesh(vk_devices_, renderer_, filepath);
+		loaded_mesh->CreateModelMesh(devices_, renderer_, filepath);
 		loaded_meshes_.push_back(loaded_mesh);
 	}
 
-	test_light_ = new Light();
-	test_light_->SetType(0.0f);
-	test_light_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_->SetDirection(glm::vec4(-0.15f, -0.15f, -1.0f, 1.0f));
-	test_light_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_->SetIntensity(1.0f);
-	test_light_->SetRange(1.0f);
-	test_light_->SetShadowsEnabled(true);
-	test_light_->Init(vk_devices_, renderer_);
+	Light* test_light = new Light();
+	test_light->SetType(0.0f);
+	test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+	test_light->SetDirection(glm::vec4(-0.15f, -0.15f, -1.0f, 1.0f));
+	test_light->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+	test_light->SetIntensity(1.0f);
+	test_light->SetRange(1.0f);
+	test_light->SetShadowsEnabled(true);
+	test_light->Init(devices_, renderer_);
+	lights_.push_back(test_light);
 
-	test_light_b_ = new Light();
-	test_light_b_->SetType(0.0f);
-	test_light_b_->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_b_->SetDirection(glm::vec4(-0.15f, 0.15f, -1.0f, 1.0f));
-	test_light_b_->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light_b_->SetIntensity(1.0f);
-	test_light_b_->SetRange(1.0f);
-	test_light_b_->SetShadowsEnabled(true);
-	test_light_b_->Init(vk_devices_, renderer_);
+	Light* test_light_b = new Light();
+	test_light_b->SetType(0.0f);
+	test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+	test_light_b->SetDirection(glm::vec4(-0.15f, 0.15f, -1.0f, 1.0f));
+	test_light_b->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+	test_light_b->SetIntensity(1.0f);
+	test_light_b->SetRange(1.0f);
+	test_light_b->SetShadowsEnabled(true);
+	test_light_b->Init(devices_, renderer_);
+	lights_.push_back(test_light_b);
 
+	/*
+	Light* test_light_c = new Light();
+	test_light_c->SetType(2.0f);
+	test_light_c->SetPosition(glm::vec4(0.0f, 100.0f, 10.0f, 1.0f));
+	test_light_c->SetDirection(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+	test_light_c->SetColor(glm::vec4(0.95f, 0.95f, 0.95f, 1.0f));
+	test_light_c->SetIntensity(1.0f);
+	test_light_c->SetRange(1000.0f);
+	test_light_c->SetShadowsEnabled(false);
+	test_light_c->Init(devices_, renderer_);
+	lights_.push_back(test_light_c);
+	*/
 
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
 	camera_.SetRotation(glm::vec3(-30.0f, 0.0f, 0.0f));
@@ -160,8 +174,10 @@ bool App::InitResources()
 
 	renderer_->SetCamera(&camera_);
 
-	test_light_->GenerateShadowMap();
-	test_light_b_->GenerateShadowMap();
+	for (Light* light : lights_)
+	{
+		light->GenerateShadowMap();
+	}
 
 	return true;
 }
@@ -176,13 +192,13 @@ void App::CleanUp()
 	}
 	loaded_meshes_.clear();
 
-	test_light_->Cleanup();
-	delete test_light_;
-	test_light_ = nullptr;
-
-	test_light_b_->Cleanup();
-	delete test_light_b_;
-	test_light_b_ = nullptr;
+	for (Light* light : lights_)
+	{
+		light->Cleanup();
+		delete light;
+		light = nullptr;
+	}
+	lights_.clear();
 
 	// clean up input manager
 	delete input_;
@@ -199,8 +215,8 @@ void App::CleanUp()
 	renderer_ = nullptr;
 
 	// clean up devices
-	delete vk_devices_;
-	vk_devices_ = nullptr;
+	delete devices_;
+	devices_ = nullptr;
 
 	// destroy debug callback and instance
 	DestroyDebugReportCallbackEXT(vk_instance_, vk_callback_, nullptr);
@@ -220,7 +236,7 @@ void App::MainLoop()
 		DrawFrame();
 	}
 
-	vkDeviceWaitIdle(vk_devices_->GetLogicalDevice());
+	vkDeviceWaitIdle(devices_->GetLogicalDevice());
 }
 
 void App::Update()
@@ -483,10 +499,10 @@ void App::InitDevices()
 	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 
 	// create the physical device
-	vk_devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);
+	devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);
 
 	// setup requirements for logical device
-	QueueFamilyIndices indices = vk_devices_->GetQueueFamilyIndices();
+	QueueFamilyIndices indices = devices_->GetQueueFamilyIndices();
 	std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
 	std::set<int> unique_queue_families = { indices.graphics_family, indices.present_family };
 
@@ -502,13 +518,13 @@ void App::InitDevices()
 	}
 
 	// create the logical device
-	vk_devices_->CreateLogicalDevice(device_features, queue_create_infos, device_extensions_, validation_layers_);
+	devices_->CreateLogicalDevice(device_features, queue_create_infos, device_extensions_, validation_layers_);
 }
 
 
 void App::RecreateSwapChain()
 {
-	swap_chain_->CreateSwapChain(vk_devices_);
+	swap_chain_->CreateSwapChain(devices_);
 	renderer_->RecreateSwapChainFeatures();
 }
 
