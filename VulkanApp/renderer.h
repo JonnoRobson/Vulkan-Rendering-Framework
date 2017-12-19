@@ -95,7 +95,7 @@ protected:
 	void RenderDeferred(uint32_t frame_index);
 	void RenderDeferredCompute(uint32_t frame_index);
 
-	void InitGBufferPipeline();
+	void InitDeferredPipeline();
 
 protected:
 	VulkanDevices* devices_;
@@ -136,8 +136,8 @@ protected:
 	std::vector<VkCommandBuffer> command_buffers_;
 	std::vector<VkCommandBuffer> buffer_visualisation_command_buffers_;
 	std::vector<VkCommandBuffer> g_buffer_command_buffers_;
-	std::vector<VkCommandBuffer> deferred_command_buffers_;
-	std::vector<VkCommandBuffer> deferred_compute_command_buffers_;
+	VkCommandBuffer deferred_command_buffer_;
+	VkCommandBuffer deferred_compute_command_buffer_;
 
 	VkSemaphore g_buffer_semaphore_;
 	VkSemaphore render_semaphore_;

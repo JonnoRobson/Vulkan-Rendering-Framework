@@ -157,6 +157,9 @@ void VulkanRenderer::RenderGBuffer(uint32_t image_index)
 
 void VulkanRenderer::RenderDeferred(uint32_t image_index)
 {
+	//  transition the intermediate image to color write optimal layout
+	devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetSwapChainImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -167,7 +170,7 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &deferred_command_buffers_[image_index];
+	submit_info.pCommandBuffers = &deferred_command_buffer_;
 
 	VkSemaphore signal_semaphores[] = { render_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
@@ -178,6 +181,9 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	{
 		throw std::runtime_error("failed to submit deferred command buffer!");
 	}
+
+	// copy the intermediate image to the swap chain
+	swap_chain_->FinalizeIntermediateImage();
 }
 
 void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
@@ -192,7 +198,7 @@ void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
-	submit_info.pCommandBuffers = &deferred_compute_command_buffers_[image_index];
+	submit_info.pCommandBuffers = &deferred_compute_command_buffer_;
 
 	VkSemaphore signal_semaphores[] = { render_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
@@ -374,7 +380,7 @@ void VulkanRenderer::InitPipeline()
 	// create the material pipeline
 	rendering_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
-	InitGBufferPipeline();
+	InitDeferredPipeline();
 
 	// initialize a buffer visualisation pipeline
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
@@ -386,7 +392,7 @@ void VulkanRenderer::InitPipeline()
 
 }
 
-void VulkanRenderer::InitGBufferPipeline()
+void VulkanRenderer::InitDeferredPipeline()
 {
 	// initialize the g buffer sampler
 	VkSamplerCreateInfo sampler_info = {};
@@ -650,38 +656,33 @@ void VulkanRenderer::CreateDeferredComputeCommandBuffers()
 	int buffer_count = swap_chain_->GetSwapChainImages().size();
 
 	// create rendering command buffers
-	deferred_compute_command_buffers_.resize(buffer_count);
-
 	VkCommandBufferAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocate_info.commandPool = command_pool_;
 	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = (uint32_t)deferred_compute_command_buffers_.size();
+	allocate_info.commandBufferCount = 1;
 
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, deferred_compute_command_buffers_.data()) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &deferred_compute_command_buffer_) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to allocate render command buffers!");
 	}
 
-	for (size_t i = 0; i < deferred_compute_command_buffers_.size(); i++)
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(deferred_compute_command_buffer_, &begin_info);
+
+	if (deferred_compute_pipeline_)
 	{
-		VkCommandBufferBeginInfo begin_info = {};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-		begin_info.pInheritanceInfo = nullptr;
+		// bind pipeline
+		deferred_compute_pipeline_->RecordCommands(deferred_compute_command_buffer_, 0);
+	}
 
-		vkBeginCommandBuffer(deferred_compute_command_buffers_[i], &begin_info);
-
-		if (deferred_compute_pipeline_)
-		{
-			// bind pipeline
-			deferred_compute_pipeline_->RecordCommands(deferred_compute_command_buffers_[i], i);
-		}
-
-		if (vkEndCommandBuffer(deferred_compute_command_buffers_[i]) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to record render command buffer!");
-		}
+	if (vkEndCommandBuffer(deferred_compute_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record render command buffer!");
 	}
 }
 
@@ -690,41 +691,36 @@ void VulkanRenderer::CreateDeferredCommandBuffers()
 	int buffer_count = swap_chain_->GetSwapChainImages().size();
 
 	// create rendering command buffers
-	deferred_command_buffers_.resize(buffer_count);
-
 	VkCommandBufferAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocate_info.commandPool = command_pool_;
 	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = (uint32_t)deferred_command_buffers_.size();
+	allocate_info.commandBufferCount = 1;
 
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, deferred_command_buffers_.data()) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &deferred_command_buffer_) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to allocate render command buffers!");
 	}
 
-	for (size_t i = 0; i < deferred_command_buffers_.size(); i++)
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(deferred_command_buffer_, &begin_info);
+
+	if (deferred_pipeline_)
 	{
-		VkCommandBufferBeginInfo begin_info = {};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-		begin_info.pInheritanceInfo = nullptr;
+		// bind pipeline
+		deferred_pipeline_->RecordCommands(deferred_command_buffer_, 0);
 
-		vkBeginCommandBuffer(deferred_command_buffers_[i], &begin_info);
-
-		if (deferred_pipeline_)
-		{
-			// bind pipeline
-			deferred_pipeline_->RecordCommands(deferred_command_buffers_[i], i);
-
-			vkCmdEndRenderPass(deferred_command_buffers_[i]);
-		}
-
-		if (vkEndCommandBuffer(deferred_command_buffers_[i]) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to record render command buffer!");
-		}
+		vkCmdEndRenderPass(deferred_command_buffer_);
 	}
+
+	if (vkEndCommandBuffer(deferred_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record render command buffer!");
+	}	
 }
 
 void VulkanRenderer::CreateMaterialShader(std::string vs_filename, std::string ps_filename)

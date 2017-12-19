@@ -6,7 +6,7 @@ void DeferredPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t 
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	render_pass_info.renderPass = render_pass_;
-	render_pass_info.framebuffer = framebuffers_[buffer_index];
+	render_pass_info.framebuffer = framebuffers_[0];
 	render_pass_info.renderArea.offset = { 0, 0 };
 	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
 	render_pass_info.clearValueCount = 0;
@@ -92,26 +92,23 @@ void DeferredPipeline::CreatePipeline()
 
 void DeferredPipeline::CreateFramebuffers()
 {
-	std::vector<VkImageView>& image_views = swap_chain_->GetSwapChainImageViews();
-	framebuffers_.resize(image_views.size());
+	VkImageView image_view = swap_chain_->GetIntermediateImageView();
+	framebuffers_.resize(1);
 
-	for (size_t i = 0; i < image_views.size(); i++)
+	std::array<VkImageView, 1> attachments = { image_view };
+
+	VkFramebufferCreateInfo framebuffer_info = {};
+	framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebuffer_info.renderPass = render_pass_;
+	framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
+	framebuffer_info.pAttachments = attachments.data();
+	framebuffer_info.width = swap_chain_->GetSwapChainExtent().width;
+	framebuffer_info.height = swap_chain_->GetSwapChainExtent().height;
+	framebuffer_info.layers = 1;
+	
+	if (vkCreateFramebuffer(devices_->GetLogicalDevice(), &framebuffer_info, nullptr, &framebuffers_[0]) != VK_SUCCESS)
 	{
-		std::array<VkImageView, 1> attachments = { image_views[i] };
-
-		VkFramebufferCreateInfo framebuffer_info = {};
-		framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebuffer_info.renderPass = render_pass_;
-		framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
-		framebuffer_info.pAttachments = attachments.data();
-		framebuffer_info.width = swap_chain_->GetSwapChainExtent().width;
-		framebuffer_info.height = swap_chain_->GetSwapChainExtent().height;
-		framebuffer_info.layers = 1;
-
-		if (vkCreateFramebuffer(devices_->GetLogicalDevice(), &framebuffer_info, nullptr, &framebuffers_[i]) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to create framebuffer!");
-		}
+		throw std::runtime_error("failed to create framebuffer!");
 	}
 }
 
@@ -125,8 +122,8 @@ void DeferredPipeline::CreateRenderPass()
 	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	color_attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	// setup the subpass attachment description
 	VkAttachmentReference color_attachment_ref = {};

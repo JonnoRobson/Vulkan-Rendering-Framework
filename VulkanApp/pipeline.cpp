@@ -442,7 +442,7 @@ void VulkanPipeline::AddStorageImage(VkShaderStageFlags stage_flags, uint32_t bi
 
 	// setup image info
 	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 	image_info.imageView = image;
 	image_info.sampler = VK_NULL_HANDLE;
 
