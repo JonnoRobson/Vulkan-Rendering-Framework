@@ -91,7 +91,7 @@ public:
 	void UpdateWorldMatrix(glm::mat4 world_matrix);
 	
 	void RecordRenderCommands(VkCommandBuffer& command_buffer);
-
+	
 	inline glm::vec3 GetMinVertex() { return min_vertex_; }
 	inline glm::vec3 GetMaxVertex() { return max_vertex_;}
 
@@ -106,9 +106,6 @@ protected:
 	glm::vec3 min_vertex_;
 	glm::vec3 max_vertex_;
 
-	VkBuffer matrix_buffer_;
-	VkDeviceMemory matrix_buffer_memory_;
-	
 	std::vector<Shape*> mesh_shapes_;
 	std::map<std::string, Material*> mesh_materials_;
 };

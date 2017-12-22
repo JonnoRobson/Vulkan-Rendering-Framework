@@ -33,9 +33,6 @@
     <ClCompile Include="texture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="sampler.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="swap_chain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -43,9 +40,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="shader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="uniform_buffer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="primitive_buffer.cpp">
@@ -93,6 +87,9 @@
     <ClCompile Include="compute_shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="skybox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -107,9 +104,6 @@
     <ClInclude Include="texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="sampler.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -117,9 +111,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="renderer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="uniform_buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="primitive_buffer.h">
@@ -170,6 +161,9 @@
     <ClInclude Include="deferred_compute_pipeline.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="skybox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\shaders\default_material.frag">
@@ -203,6 +197,12 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\deferred.comp">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\skybox.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\skybox.vert">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

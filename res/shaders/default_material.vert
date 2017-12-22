@@ -23,8 +23,7 @@ out gl_PerVertex
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec3 normal;
 layout(location = 2) out vec4 worldPosition;
-layout(location = 3) out vec3 eyeVec;
-layout(location = 4) out uint matIndex;
+layout(location = 3) out uint matIndex;
 
 void ApproximateTangentVectors(in vec3 normal, out vec3 tangent, out vec3 binormal)
 {
@@ -44,8 +43,6 @@ void main()
 	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
 	fragTexCoord = inTexCoord;
 	normal = normalize(inNormal * mat3(ubo.model));
-	eyeVec = inPosition * mat3(ubo.model);
-	eyeVec = eyeVec * mat3(ubo.view);
 	worldPosition = ubo.model * vec4(inPosition, 1.0);
 	matIndex = inMatIndex;
 }

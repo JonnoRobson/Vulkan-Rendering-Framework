@@ -32,12 +32,23 @@ public:
 	inline float GetSpeed() { return speed_; }
 
 	glm::mat4 GetViewMatrix();
+	glm::mat4 GetProjectionMatrix();
 
+	inline void SetViewDimensions(float width, float height) { view_width_ = width; view_height_ = height; }
+	inline void GetViewDimensions(float& width, float& height) { width = view_width_; height = view_height_; }
+
+	inline void SetFieldOfView(float fov) { fov_ = fov; }
+	inline float GetFieldOfView() { return fov_; }
+	
 protected:
 	glm::vec3 position_;
 	glm::vec3 rotation_;
 
 	float speed_;
+
+	float view_width_, view_height_;
+	float fov_;
+
 };
 
 #endif

@@ -9,7 +9,6 @@
 #include "device.h"
 #include "swap_chain.h"
 #include "texture.h"
-#include "uniform_buffer.h"
 
 class VulkanShader
 {

@@ -6,6 +6,9 @@ Camera::Camera()
 	position_ = glm::vec3(0.0f);
 	rotation_ = glm::vec3(0.0f);
 	speed_ = 100.0f;
+	view_width_ = 0.0f;
+	view_height_ = 0.0f;
+	fov_ = 0.0f;
 }
 
 void Camera::MoveForward(float speed)
@@ -60,4 +63,19 @@ glm::mat4 Camera::GetViewMatrix()
 	view_matrix = glm::lookAt(position_, look_at, glm::vec3(0.0f, 0.0f, 1.0f));
 
 	return view_matrix;
+}
+
+glm::mat4 Camera::GetProjectionMatrix()
+{
+	glm::mat4 proj_matrix;
+
+	glm::mat4 clip =
+		glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, -1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 0.5f, 0.0f,
+			0.0f, 0.0f, 0.5f, 1.0f);
+
+	proj_matrix = clip * glm::infinitePerspective(fov_, view_width_ / view_height_, 0.1f);
+	
+	return proj_matrix;
 }

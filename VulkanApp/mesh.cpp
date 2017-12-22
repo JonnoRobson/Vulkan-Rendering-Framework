@@ -45,8 +45,6 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 {
 	vk_device_handle_ = devices->GetLogicalDevice();
 
-	renderer->GetMatrixBuffer(matrix_buffer_, matrix_buffer_memory_);
-
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -74,7 +72,8 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 
 	std::cout << "Model contains " << index_count << " indices" << std::endl;
 
-	mat_dir = renderer->GetTextureDirectory();
+	if(renderer)
+		mat_dir = renderer->GetTextureDirectory();
 
 	// create the mesh materials
 	for (tinyobj::material_t material : materials)
@@ -188,11 +187,14 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 
 			// material index
 			vertex.mat_index = 0;
-			Material* face_material = mesh_materials_[(*materials)[shape->mesh.material_ids[face_index]].name];
-			if (face_material)
+			if (mesh_materials_.size() > 0)
 			{
-				if (face_material->GetMaterialIndex() >= 0)
-					vertex.mat_index = face_material->GetMaterialIndex();
+				Material* face_material = mesh_materials_[(*materials)[shape->mesh.material_ids[face_index]].name];
+				if (face_material)
+				{
+					if (face_material->GetMaterialIndex() >= 0)
+						vertex.mat_index = face_material->GetMaterialIndex();
+				}
 			}
 
 			if (unique_vertices.count(vertex) == 0)

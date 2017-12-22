@@ -19,7 +19,7 @@
 #include "g_buffer_pipeline.h"
 #include "deferred_compute_pipeline.h"
 #include "deferred_pipeline.h"
-
+#include "skybox.h"
 
 struct UniformBufferObject
 {
@@ -41,7 +41,7 @@ public:
 
 public:
 	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, std::string vs_filename, std::string ps_filename);
-	void InitPipeline();
+	void InitPipelines();
 	void RenderScene();
 	void Cleanup();
 	
@@ -79,22 +79,24 @@ public:
 protected:
 	void CreateBuffers();
 	void CreateSemaphores();
+
 	void CreateCommandPool();
 	void CreateCommandBuffers();
 	void CreateGBufferCommandBuffers();
 	void CreateDeferredCommandBuffers();
 	void CreateDeferredComputeCommandBuffers();
+
 	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
 	void CreateShaders();
 	void CreatePrimitiveBuffer();
 	void CreateMaterialBuffer();
 	void CreateLightBuffer();
+
 	void RenderForward(uint32_t frame_index);
 	void RenderVisualisation(uint32_t frame_index);
 	void RenderGBuffer(uint32_t frame_index);
 	void RenderDeferred(uint32_t frame_index);
 	void RenderDeferredCompute(uint32_t frame_index);
-
 	void InitDeferredPipeline();
 
 protected:
@@ -103,6 +105,7 @@ protected:
 	VulkanPrimitiveBuffer* primitive_buffer_;
 	VulkanMaterialBuffer* material_buffer_;
 	VulkanTextureCache* texture_cache_;
+
 	VulkanShader* material_shader_;
 	VulkanShader* shadow_map_shader_;
 	VulkanShader* buffer_visualisation_shader_;
@@ -120,6 +123,8 @@ protected:
 	DeferredPipeline* deferred_pipeline_;
 	DeferredComputePipeline* deferred_compute_pipeline_;
 	VulkanRenderTarget* g_buffer_;
+
+	Skybox* skybox_;
 
 	Camera* render_camera_;
 	Texture* default_texture_;
@@ -141,7 +146,7 @@ protected:
 
 	VkSemaphore g_buffer_semaphore_;
 	VkSemaphore render_semaphore_;
-	
+
 	std::vector<Mesh*> meshes_;
 	std::vector<Light*> lights_;
 	std::string texture_directory_;

@@ -55,7 +55,7 @@ public:
 	SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice, VkSurfaceKHR);
 
 	VkCommandBuffer BeginSingleTimeCommands();
-	void EndSingleTimeCommands(VkCommandBuffer);
+	void EndSingleTimeCommands(VkCommandBuffer, VkSemaphore = VK_NULL_HANDLE);
 
 protected:
 	void CreateCopyCommandPool();

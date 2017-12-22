@@ -2,11 +2,13 @@
 #include <stdexcept>
 #include <algorithm>
 #include <array>
+#include <iostream>
 
 void VulkanSwapChain::Init(GLFWwindow* window, VkInstance instance)
 {
 	instance_ = instance;
 	window_ = window;
+	swap_chain_ = VK_NULL_HANDLE;
 	CreateSurface();
 }
 
@@ -147,7 +149,7 @@ void VulkanSwapChain::FinalizeIntermediateImage()
 	vkCmdBlitImage(blit_buffer, intermediate_image_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swap_chain_images_[current_image_index_], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit, VK_FILTER_LINEAR);
 
 	// submit the blit command buffer
-	devices_->EndSingleTimeCommands(blit_buffer);
+	devices_->EndSingleTimeCommands(blit_buffer, image_available_semaphore_);
 
 	// transition images back to correct layouts
 	devices_->TransitionImageLayout(swap_chain_images_[current_image_index_], swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);

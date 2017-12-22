@@ -136,14 +136,13 @@
     <ClCompile Include="primitive_buffer.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="render_target.cpp" />
-    <ClCompile Include="sampler.cpp" />
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="shadow_map_pipeline.cpp" />
     <ClCompile Include="shape.cpp" />
+    <ClCompile Include="skybox.cpp" />
     <ClCompile Include="swap_chain.cpp" />
     <ClCompile Include="texture.cpp" />
     <ClCompile Include="texture_cache.cpp" />
-    <ClCompile Include="uniform_buffer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h" />
@@ -165,12 +164,11 @@
     <ClInclude Include="pipeline.h" />
     <ClInclude Include="primitive_buffer.h" />
     <ClInclude Include="renderer.h" />
-    <ClInclude Include="sampler.h" />
     <ClInclude Include="shader.h" />
+    <ClInclude Include="skybox.h" />
     <ClInclude Include="swap_chain.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="texture_cache.h" />
-    <ClInclude Include="uniform_buffer.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\shaders\buffer_visualisation.frag" />
@@ -184,6 +182,8 @@
     <None Include="..\res\shaders\g_buffer.vert" />
     <None Include="..\res\shaders\shadow_map.frag" />
     <None Include="..\res\shaders\shadow_map.vert" />
+    <None Include="..\res\shaders\skybox.frag" />
+    <None Include="..\res\shaders\skybox.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

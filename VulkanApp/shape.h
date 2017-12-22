@@ -42,5 +42,7 @@ protected:
 
 	uint32_t vertex_buffer_offset_;
 	uint32_t index_buffer_offset_;
+
+	bool standalone_shape_;
 };
 #endif

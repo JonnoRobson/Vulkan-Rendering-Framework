@@ -26,7 +26,7 @@ VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCa
 void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
 
 #ifdef NDEBUG
-#define ENABLE_VALIDATION_LAYERS true
+#define ENABLE_VALIDATION_LAYERS false
 #else
 #define ENABLE_VALIDATION_LAYERS true
 #endif

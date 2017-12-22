@@ -51,15 +51,8 @@ void VulkanRenderer::RenderScene()
 		UniformBufferObject ubo = {};
 		ubo.model = glm::mat4(1.0f);
 		ubo.view = render_camera_->GetViewMatrix();
-
-		glm::mat4 clip =
-			glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, -1.0f, 0.0f, 0.0f,
-				0.0f, 0.0f, 0.5f, 0.0f,
-				0.0f, 0.0f, 0.5f, 1.0f);
-
-		ubo.proj = clip * glm::infinitePerspective(glm::radians(45.0f), swap_extent.width / (float)swap_extent.height, 0.1f);
-
+		ubo.proj = render_camera_->GetProjectionMatrix();
+		
 		void* mapped_data;
 		vkMapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, 0, sizeof(UniformBufferObject), 0, &mapped_data);
 		memcpy(mapped_data, &ubo, sizeof(UniformBufferObject));
@@ -74,13 +67,17 @@ void VulkanRenderer::RenderScene()
 		memcpy(mapped_data, &scene_data, sizeof(SceneLightData));
 		vkUnmapMemory(devices_->GetLogicalDevice(), light_buffer_memory_);
 
-		//render_mode_ = RenderMode::DEFERRED;
-
 		for (Light* light : lights_)
 		{
 			// send the light data to the gpu
 			light->SendLightData(devices_, light_buffer_memory_);
 		}
+		
+		// transition the intermediate image to color write optimal layout
+		devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetSwapChainImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+		// render the skybox
+		skybox_->Render(render_camera_);
 
 		if (render_mode_ == RenderMode::FORWARD)
 		{
@@ -103,14 +100,15 @@ void VulkanRenderer::RenderScene()
 void VulkanRenderer::RenderForward(uint32_t image_index)
 {
 	VkSemaphore wait_semaphore = swap_chain_->GetImageAvailableSemaphore();
+	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
 
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore wait_semaphores[] = { wait_semaphore };
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submit_info.waitSemaphoreCount = 1;
+	VkSemaphore wait_semaphores[] = { wait_semaphore, skybox_semaphore };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submit_info.waitSemaphoreCount = 2;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
@@ -119,7 +117,6 @@ void VulkanRenderer::RenderForward(uint32_t image_index)
 	VkSemaphore signal_semaphores[] = { render_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
-
 
 	VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
 	if (result != VK_SUCCESS)
@@ -130,17 +127,12 @@ void VulkanRenderer::RenderForward(uint32_t image_index)
 
 void VulkanRenderer::RenderGBuffer(uint32_t image_index)
 {
-	VkSemaphore wait_semaphore = swap_chain_->GetImageAvailableSemaphore();
-
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-	VkSemaphore wait_semaphores[] = { wait_semaphore };
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submit_info.waitSemaphoreCount = 1;
-	submit_info.pWaitSemaphores = wait_semaphores;
-	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.waitSemaphoreCount = 0;
+	submit_info.pWaitSemaphores = nullptr;
+	submit_info.pWaitDstStageMask = nullptr;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &g_buffer_command_buffers_[0];
 
@@ -157,6 +149,8 @@ void VulkanRenderer::RenderGBuffer(uint32_t image_index)
 
 void VulkanRenderer::RenderDeferred(uint32_t image_index)
 {
+	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
+
 	//  transition the intermediate image to color write optimal layout
 	devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetSwapChainImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -164,9 +158,9 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_ };
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submit_info.waitSemaphoreCount = 1;
+	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submit_info.waitSemaphoreCount = 2;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
@@ -187,14 +181,16 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 }
 
 void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
-{	
+{
+	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
+
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_ };
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submit_info.waitSemaphoreCount = 1;
+	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submit_info.waitSemaphoreCount = 2;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
@@ -246,6 +242,14 @@ void VulkanRenderer::Cleanup()
 {
 	// clean up command and descriptor pools
 	vkDestroyCommandPool(devices_->GetLogicalDevice(), command_pool_, nullptr);
+
+
+	// clean up the buffer
+	vkDestroyBuffer(devices_->GetLogicalDevice(), matrix_buffer_, nullptr);
+	vkFreeMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, nullptr);
+
+	vkDestroyBuffer(devices_->GetLogicalDevice(), light_buffer_, nullptr);
+	vkFreeMemory(devices_->GetLogicalDevice(), light_buffer_memory_, nullptr);
 
 	// clean up shaders
 	material_shader_->Cleanup();
@@ -315,6 +319,11 @@ void VulkanRenderer::Cleanup()
 	delete g_buffer_;
 	g_buffer_ = nullptr;
 
+	// clean up the skybox
+	skybox_->Cleanup();
+	delete skybox_;
+	skybox_ = nullptr;
+
 	// clean up default texture
 	default_texture_->Cleanup();
 	delete default_texture_;
@@ -329,7 +338,7 @@ void VulkanRenderer::Cleanup()
 	vkDestroySemaphore(devices_->GetLogicalDevice(), render_semaphore_, nullptr);
 }
 
-void VulkanRenderer::InitPipeline()
+void VulkanRenderer::InitPipelines()
 {
 	rendering_pipeline_ = new VulkanPipeline();
 
@@ -390,6 +399,9 @@ void VulkanRenderer::InitPipeline()
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
+	// initialize the skybox
+	skybox_ = new Skybox();
+	skybox_->Init(devices_, swap_chain_, command_pool_);
 }
 
 void VulkanRenderer::InitDeferredPipeline()
@@ -825,14 +837,13 @@ void VulkanRenderer::RemoveLight(Light* remove_light)
 	}
 }
 
-
 void VulkanRenderer::CreateSemaphores()
 {
-	VkSemaphoreCreateInfo semaphoreInfo = {};
-	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	VkSemaphoreCreateInfo semaphore_info = {};
+	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	if (vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphoreInfo, nullptr, &render_semaphore_) != VK_SUCCESS ||
-		vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphoreInfo, nullptr, &g_buffer_semaphore_) != VK_SUCCESS) {
+	if (vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &render_semaphore_) != VK_SUCCESS ||
+		vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &g_buffer_semaphore_) != VK_SUCCESS) {
 
 		throw std::runtime_error("failed to create semaphores!");
 	}

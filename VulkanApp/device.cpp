@@ -477,7 +477,7 @@ VkCommandBuffer VulkanDevices::BeginSingleTimeCommands()
 	return command_buffer;
 }
 
-void VulkanDevices::EndSingleTimeCommands(VkCommandBuffer command_buffer)
+void VulkanDevices::EndSingleTimeCommands(VkCommandBuffer command_buffer, VkSemaphore wait_semaphore)
 {
 	vkEndCommandBuffer(command_buffer);
 
@@ -485,6 +485,14 @@ void VulkanDevices::EndSingleTimeCommands(VkCommandBuffer command_buffer)
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &command_buffer;
+
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_TRANSFER_BIT };
+	if (wait_semaphore != VK_NULL_HANDLE)
+	{
+		submit_info.pWaitSemaphores = &wait_semaphore;
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitDstStageMask = wait_stages;
+	}
 
 	vkQueueSubmit(copy_queue_, 1, &submit_info, VK_NULL_HANDLE);
 	vkQueueWaitIdle(copy_queue_);
