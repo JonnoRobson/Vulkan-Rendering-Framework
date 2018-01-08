@@ -16,6 +16,12 @@
     <Filter Include="Shader Files">
       <UniqueIdentifier>{4a8d4937-3403-4a92-944a-210ac4336c5b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\pipelines">
+      <UniqueIdentifier>{83c0dfc7-846a-4678-b852-4eedeaa48d4c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\pipelines">
+      <UniqueIdentifier>{a9e409ab-4f44-439d-ad5f-aa6924bcf828}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -54,9 +60,6 @@
     <ClCompile Include="material.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="shape.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -66,22 +69,7 @@
     <ClCompile Include="render_target.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="shadow_map_pipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="buffer_visualisation_pipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="deferred_pipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="g_buffer_pipeline.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="texture_cache.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="deferred_compute_pipeline.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="compute_shader.cpp">
@@ -89,6 +77,33 @@
     </ClCompile>
     <ClCompile Include="skybox.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="buffer_visualisation_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="deferred_compute_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="deferred_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="g_buffer_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="shadow_map_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="gaussian_blur_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="tonemap_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="ldr_suppress_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -128,9 +143,6 @@
     <ClInclude Include="material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="shape.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -140,29 +152,41 @@
     <ClInclude Include="render_target.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="shadow_map_pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="buffer_visualisation_pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="g_buffer_pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="deferred_pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="texture_cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="compute_shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="deferred_compute_pipeline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="skybox.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="buffer_visualisation_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="deferred_compute_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="deferred_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="g_buffer_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="shadow_map_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="gaussian_blur_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="tonemap_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="ldr_suppress_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -203,6 +227,18 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\skybox.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\screen_space.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\gaussian_blur.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\tonemap.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\ldr_suppress.frag">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

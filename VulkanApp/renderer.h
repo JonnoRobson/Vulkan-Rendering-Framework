@@ -19,6 +19,9 @@
 #include "g_buffer_pipeline.h"
 #include "deferred_compute_pipeline.h"
 #include "deferred_pipeline.h"
+#include "ldr_suppress_pipeline.h"
+#include "gaussian_blur_pipeline.h"
+#include "tonemap_pipeline.h"
 #include "skybox.h"
 
 struct UniformBufferObject
@@ -97,7 +100,10 @@ protected:
 	void RenderGBuffer(uint32_t frame_index);
 	void RenderDeferred(uint32_t frame_index);
 	void RenderDeferredCompute(uint32_t frame_index);
+	void RenderHDR();
+
 	void InitDeferredPipeline();
+	void InitHDRPipeline();
 
 protected:
 	VulkanDevices* devices_;
@@ -113,16 +119,26 @@ protected:
 	BufferVisualisationPipeline* buffer_visualisation_pipeline_;
 	
 	// deferred shading components
-	VulkanShader* g_buffer_shader_;
-	VulkanShader* deferred_shader_;
+	VulkanShader *g_buffer_shader_, *deferred_shader_;
 	VulkanComputeShader* deferred_compute_shader_;
-	VkSampler g_buffer_unnormalized_sampler_;
-	VkSampler g_buffer_normalized_sampler_;
-	VkSampler shadow_map_sampler_;
+	VkSampler g_buffer_unnormalized_sampler_, g_buffer_normalized_sampler_, shadow_map_sampler_;
 	GBufferPipeline* g_buffer_pipeline_;
 	DeferredPipeline* deferred_pipeline_;
 	DeferredComputePipeline* deferred_compute_pipeline_;
 	VulkanRenderTarget* g_buffer_;
+	std::vector<VkCommandBuffer> g_buffer_command_buffers_;
+	VkCommandBuffer deferred_command_buffer_;
+	VkCommandBuffer deferred_compute_command_buffer_;
+
+	// hdr rendering components
+	VulkanShader *ldr_suppress_shader_, *gaussian_blur_shader_, *tonemap_shader_;
+	LDRSuppressPipeline* ldr_suppress_pipeline_;
+	GaussianBlurPipeline* gaussian_blur_pipeline_[2];
+	TonemapPipeline* tonemap_pipeline_;
+	VulkanRenderTarget *ldr_supress_scene_, *blur_scene_;
+	VkBuffer gaussian_blur_factors_buffer_, tonemap_factors_buffer_;
+	VkDeviceMemory gaussian_blur_factors_buffer_memory_, tonemmap_factors_buffer_memory_;
+	VkCommandBuffer ldr_suppress_command_buffer_, gaussian_blur_command_buffers_[2], tonemap_command_buffer_;
 
 	Skybox* skybox_;
 
@@ -140,9 +156,6 @@ protected:
 	VkCommandPool command_pool_;
 	std::vector<VkCommandBuffer> command_buffers_;
 	std::vector<VkCommandBuffer> buffer_visualisation_command_buffers_;
-	std::vector<VkCommandBuffer> g_buffer_command_buffers_;
-	VkCommandBuffer deferred_command_buffer_;
-	VkCommandBuffer deferred_compute_command_buffer_;
 
 	VkSemaphore g_buffer_semaphore_;
 	VkSemaphore render_semaphore_;

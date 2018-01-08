@@ -126,9 +126,13 @@ glm::mat4 Light::GetProjectionMatrix()
 
 void Light::CalculateViewMatrix()
 {
-	if (type_ != 1.0f)
+	if (type_ == 0.0f)
 	{
 		view_matrix_ = glm::lookAt(glm::vec3(direction_ * -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	}
+	else if (type_ == 2.0f)
+	{
+		view_matrix_ = glm::lookAt(glm::vec3(position_), glm::vec3(position_) + glm::vec3(direction_), glm::vec3(0.0f, 0.0f, 1.0f));
 	}
 }
 

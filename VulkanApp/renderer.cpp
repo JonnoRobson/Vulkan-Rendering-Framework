@@ -514,6 +514,11 @@ void VulkanRenderer::InitDeferredPipeline()
 	CreateDeferredComputeCommandBuffers();
 }
 
+void VulkanRenderer::InitHDRPipeline()
+{
+
+}
+
 void VulkanRenderer::RecreateSwapChainFeatures()
 {
 }

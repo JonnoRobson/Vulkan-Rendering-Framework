@@ -78,7 +78,8 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 		attenuation = max(0, 1.0f - (dist / lightRange));
 	}
 
-	if(lightType == 2.0f)
+	
+	if(lightType == 2.0f && attenuation > 0)
 	{
 		// add in spotlight attenuation factor
 		vec3 lightVector2 = lightDirection.xyz;
@@ -87,8 +88,11 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 		if(degrees(acos(rho)) > 45.0f)
 		{
 			attenuation *= pow(rho, 8);
+			if(attenuation < 0)
+				attenuation = 0;
 		}
 	}
+	
 
 	return attenuation;
 }
@@ -181,7 +185,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	{
 		rayDir = -lightDirection.xyz;
 	}
-
+	
 	// calculate light power and return black if it is zero or less
 	float lightPower = clamp(dot(worldNormal, rayDir), 0.0f, 1.0f);
 	if(lightPower <= 0.0f)
@@ -189,14 +193,13 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 
-
 	// calculate attenuation and return black if fully attenuated
 	float attenuation = CalculateAttenuation(rayDir, lightDirection, dist, lightRange, lightType);
 	if(attenuation <= 0.0f)
 	{
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
-
+	
 	// calculate specular lighting
 	vec4 specularColor = material_data.materials[matIndex].specular;
 	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
@@ -229,7 +232,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	{
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
-		
+			
 	vec3 color = (lightColor.xyz + specularColor.xyz) * lightPower * lightIntensity * attenuation * (1.0f - occlusion);
 
 	return vec4(color, 1.0f);
