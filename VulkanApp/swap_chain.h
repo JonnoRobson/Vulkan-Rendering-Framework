@@ -17,22 +17,23 @@ public:
 
 	VkResult PreRender();
 	VkResult PostRender(VkSemaphore signal_semaphore);
+	void CopyToIntermediateImage(VkImage image, VkImageLayout image_layout);
 	void FinalizeIntermediateImage();
 
 	VkFormat FindDepthFormat();
 
-	VkSemaphore GetImageAvailableSemaphore() { return image_available_semaphore_; }
-	uint32_t GetCurrentSwapChainImage() { return current_image_index_; }
-	VkSurfaceKHR GetSurface() { return surface_; }
-	VkSwapchainKHR GetSwapChain() { return swap_chain_; }
-	std::vector<VkImage>& GetSwapChainImages() { return swap_chain_images_; }
-	std::vector<VkImageView>& GetSwapChainImageViews() { return swap_chain_image_views_; }
-	VkImage GetIntermediateImage() { return intermediate_image_; }
-	VkImageView GetIntermediateImageView() { return intermediate_image_view_; }
-	VkFormat GetSwapChainImageFormat() { return swap_chain_image_format_; }
-	VkExtent2D GetSwapChainExtent() { return swap_chain_extent_; }
-	VkImage GetDepthImage() { return depth_image_; }
-	VkImageView GetDepthImageView() { return depth_image_view_; }
+	inline VkSemaphore GetImageAvailableSemaphore() { return image_available_semaphore_; }
+	inline uint32_t GetCurrentSwapChainImage() { return current_image_index_; }
+	inline VkSurfaceKHR GetSurface() { return surface_; }
+	inline VkSwapchainKHR GetSwapChain() { return swap_chain_; }
+	inline std::vector<VkImage>& GetSwapChainImages() { return swap_chain_images_; }
+	inline std::vector<VkImageView>& GetSwapChainImageViews() { return swap_chain_image_views_; }
+	inline VkImage GetIntermediateImage() { return intermediate_image_; }
+	inline VkImageView GetIntermediateImageView() { return intermediate_image_view_; }
+	inline VkFormat GetSwapChainImageFormat() { return swap_chain_image_format_; }
+	inline VkExtent2D GetSwapChainExtent() { return swap_chain_extent_; }
+	inline VkImage GetDepthImage() { return depth_image_; }
+	inline VkImageView GetDepthImageView() { return depth_image_view_; }
 
 protected:
 	void CreateSurface();

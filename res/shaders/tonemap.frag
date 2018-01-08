@@ -11,7 +11,7 @@ layout(binding = 0) uniform TonemapFactors
 	float exposure_level;
 	float gamma_level;
 	float padding;
-} tonemap_factors;
+};
 
 // textures
 layout(binding = 1) uniform sampler bufferSampler;
@@ -26,16 +26,16 @@ void main()
 	vec4 original = texture(sampler2D(originalTexture, bufferSampler), fragTexCoord);
 	vec4 blurred = texture(sampler2D(blurTexture, bufferSampler), fragTexCoord);
 
-	vec4 color = lerp(original, blur, 0.4f);
+	vec4 color = mix(original, blurred, 0.4f);
 
 	vec2 inTex = fragTexCoord - 0.5f;
 	float vignette = 1.0f - dot(inTex, inTex);
 
-	color *= pow(vignette, tonemap_factors.vignette_strength);
+	color *= pow(vignette, vignette_strength);
 
-	color = pow(color, tonemap_factors.exposure_level);
+	color = pow(color, vec4(exposure_level));
 
-	color = pow(color, tonemap_factors.gamma_level);
+	color = pow(color, vec4(gamma_level));
 
 	outColor = color;
 }

@@ -40,6 +40,7 @@ public:
 
 	void CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size, VkDeviceSize offset = 0);
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+	void CopyDataToBuffer(VkDeviceMemory dst_buffer_memory, void* data, VkDeviceSize size, VkDeviceSize offset = 0);
 
 	void TransitionImageLayout(VkImage, VkFormat, VkImageLayout, VkImageLayout);
 

@@ -213,10 +213,7 @@ void Skybox::Render(Camera* camera)
 	ubo.view = camera->GetViewMatrix();
 	ubo.proj = camera->GetProjectionMatrix();
 
-	void* mapped_data;
-	vkMapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, 0, sizeof(UniformBufferObject), 0, &mapped_data);
-	memcpy(mapped_data, &ubo, sizeof(UniformBufferObject));
-	vkUnmapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_);
+	devices_->CopyDataToBuffer(matrix_buffer_memory_, &ubo, sizeof(UniformBufferObject));
 
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};

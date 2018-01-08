@@ -59,12 +59,8 @@ void Light::GenerateShadowMap()
 	ubo.model = glm::mat4(1.0f);
 	ubo.view = GetViewMatrix();
 	ubo.proj = GetProjectionMatrix();
-	//ubo.proj[1][1] *= -1;
-	
-	void* mapped_data;
-	vkMapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, 0, sizeof(UniformBufferObject), 0, &mapped_data);
-	memcpy(mapped_data, &ubo, sizeof(UniformBufferObject));
-	vkUnmapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_);
+
+	devices_->CopyDataToBuffer(matrix_buffer_memory_, &ubo, sizeof(UniformBufferObject));
 	
 	// submit the shadow map command buffer
 	VkSubmitInfo submit_info = {};
@@ -105,11 +101,7 @@ void Light::SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_me
 
 	VkDeviceSize offset = sizeof(SceneLightData) + (light_buffer_index_ * sizeof(LightData));
 
-	void* mapped_data;
-	vkMapMemory(devices->GetLogicalDevice(), light_buffer_memory, offset, sizeof(LightData), 0, &mapped_data);
-	memcpy(mapped_data, &light_data, sizeof(LightData));
-	vkUnmapMemory(devices->GetLogicalDevice(), light_buffer_memory);
-
+	devices_->CopyDataToBuffer(light_buffer_memory, &light_data, sizeof(LightData), offset);
 }
 
 glm::mat4 Light::GetViewMatrix()

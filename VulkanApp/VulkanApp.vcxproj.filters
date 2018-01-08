@@ -105,6 +105,9 @@
     <ClCompile Include="ldr_suppress_pipeline.cpp">
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
+    <ClCompile Include="HDR.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -187,6 +190,9 @@
     </ClInclude>
     <ClInclude Include="ldr_suppress_pipeline.h">
       <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="HDR.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

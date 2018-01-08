@@ -32,10 +32,7 @@ void VulkanMaterialBuffer::AddMaterialData(void* material_data, uint32_t materia
 	devices_->CreateBuffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
 	// copy the data to the staging buffer
-	void* mapped_data;
-	vkMapMemory(devices_->GetLogicalDevice(), staging_buffer_memory, 0, buffer_size, 0, &mapped_data);
-	memcpy(mapped_data, material_data, buffer_size);
-	vkUnmapMemory(devices_->GetLogicalDevice(), staging_buffer_memory);
+	devices_->CopyDataToBuffer(staging_buffer_memory, material_data, buffer_size, 0);
 
 	// copy the staging buffer to the material buffer
 	devices_->CopyBuffer(staging_buffer, material_buffer_, buffer_size, material_count_ * material_size_);

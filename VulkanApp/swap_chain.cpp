@@ -146,7 +146,7 @@ void VulkanSwapChain::FinalizeIntermediateImage()
 	image_blit.dstSubresource.layerCount = 1;
 	image_blit.dstSubresource.mipLevel = 0;
 
-	vkCmdBlitImage(blit_buffer, intermediate_image_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swap_chain_images_[current_image_index_], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit, VK_FILTER_LINEAR);
+	vkCmdBlitImage(blit_buffer, intermediate_image_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swap_chain_images_[current_image_index_], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit, VK_FILTER_NEAREST);
 
 	// submit the blit command buffer
 	devices_->EndSingleTimeCommands(blit_buffer, image_available_semaphore_);
@@ -154,6 +154,37 @@ void VulkanSwapChain::FinalizeIntermediateImage()
 	// transition images back to correct layouts
 	devices_->TransitionImageLayout(swap_chain_images_[current_image_index_], swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+}
+
+void VulkanSwapChain::CopyToIntermediateImage(VkImage image, VkImageLayout image_layout)
+{
+	// transition the images to the correct layouts
+	devices_->TransitionImageLayout(image, swap_chain_image_format_, image_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+	// start the copy command buffer
+	VkCommandBuffer blit_buffer = devices_->BeginSingleTimeCommands();
+
+	VkImageBlit image_blit = {};
+	image_blit.srcOffsets[0] = { 0, 0, 0 };
+	image_blit.srcOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_blit.srcSubresource.baseArrayLayer = 0;
+	image_blit.srcSubresource.layerCount = 1;
+	image_blit.srcSubresource.mipLevel = 0;
+
+	image_blit.dstOffsets[0] = { 0, 0, 0 };
+	image_blit.dstOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_blit.dstSubresource.baseArrayLayer = 0;
+	image_blit.dstSubresource.layerCount = 1;
+	image_blit.dstSubresource.mipLevel = 0;
+
+	vkCmdBlitImage(blit_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, intermediate_image_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &image_blit, VK_FILTER_NEAREST);
+
+	// transition images back to correct layouts
+	devices_->TransitionImageLayout(image, swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image_layout);
+	devices_->TransitionImageLayout(intermediate_image_, swap_chain_image_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
 }
 
 void VulkanSwapChain::CreateSurface()

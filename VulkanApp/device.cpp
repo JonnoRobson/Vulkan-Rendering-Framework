@@ -457,6 +457,14 @@ void VulkanDevices::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t w
 	EndSingleTimeCommands(command_buffer);
 }
 
+void VulkanDevices::CopyDataToBuffer(VkDeviceMemory dst_buffer_memory, void* data, VkDeviceSize size, VkDeviceSize offset)
+{
+	void* mapped_data; 
+	vkMapMemory(logical_device_, dst_buffer_memory, offset, size, 0, &mapped_data);
+	memcpy(mapped_data, data, size);
+	vkUnmapMemory(logical_device_, dst_buffer_memory);
+}
+
 VkCommandBuffer VulkanDevices::BeginSingleTimeCommands()
 {
 	VkCommandBufferAllocateInfo alloc_info = {};

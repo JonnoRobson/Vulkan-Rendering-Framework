@@ -128,6 +128,7 @@
     <ClCompile Include="device.cpp" />
     <ClCompile Include="gaussian_blur_pipeline.cpp" />
     <ClCompile Include="g_buffer_pipeline.cpp" />
+    <ClCompile Include="HDR.cpp" />
     <ClCompile Include="ldr_suppress_pipeline.cpp" />
     <ClCompile Include="light.cpp" />
     <ClCompile Include="main.cpp" />
@@ -157,6 +158,7 @@
     <ClInclude Include="camera.h" />
     <ClInclude Include="gaussian_blur_pipeline.h" />
     <ClInclude Include="g_buffer_pipeline.h" />
+    <ClInclude Include="HDR.h" />
     <ClInclude Include="ldr_suppress_pipeline.h" />
     <ClInclude Include="material_buffer.h" />
     <ClInclude Include="render_target.h" />

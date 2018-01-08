@@ -14,6 +14,7 @@ void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t 
 	{
 		devices->CreateImage(width, height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, render_target_images_[i], render_target_image_memories_[i]);
 		render_target_image_views_[i] = devices->CreateImageView(render_target_images_[i], format, VK_IMAGE_ASPECT_COLOR_BIT);
+		devices->TransitionImageLayout(render_target_images_[i], format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	}
 
 	// if depth is enabled create depth buffer
@@ -53,7 +54,7 @@ void VulkanRenderTarget::ClearImage(int index)
 	{
 		// clear the image
 		// transition the buffers to the correct format for clearing
-		devices_->TransitionImageLayout(render_target_images_[index], render_target_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		devices_->TransitionImageLayout(render_target_images_[index], render_target_format_, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 		// clear the buffers
 		VkCommandBuffer clear_buffer = devices_->BeginSingleTimeCommands();
@@ -69,14 +70,14 @@ void VulkanRenderTarget::ClearImage(int index)
 		devices_->EndSingleTimeCommands(clear_buffer);
 
 		// transition buffers back to the correct format
-		devices_->TransitionImageLayout(render_target_images_[index], render_target_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_UNDEFINED);
+		devices_->TransitionImageLayout(render_target_images_[index], render_target_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	}
 	else
 	{
 		for (int i = 0; i < render_target_images_.size(); i++)
 		{
 			// transition the buffers to the correct format for clearing
-			devices_->TransitionImageLayout(render_target_images_[i], render_target_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+			devices_->TransitionImageLayout(render_target_images_[i], render_target_format_, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 			// clear the buffers
 			VkCommandBuffer clear_buffer = devices_->BeginSingleTimeCommands();
@@ -92,7 +93,7 @@ void VulkanRenderTarget::ClearImage(int index)
 			devices_->EndSingleTimeCommands(clear_buffer);
 
 			// transition buffers back to the correct format
-			devices_->TransitionImageLayout(render_target_images_[i], render_target_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_UNDEFINED);
+			devices_->TransitionImageLayout(render_target_images_[i], render_target_format_, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		}
 	}
 }

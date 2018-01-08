@@ -53,19 +53,13 @@ void VulkanRenderer::RenderScene()
 		ubo.view = render_camera_->GetViewMatrix();
 		ubo.proj = render_camera_->GetProjectionMatrix();
 		
-		void* mapped_data;
-		vkMapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, 0, sizeof(UniformBufferObject), 0, &mapped_data);
-		memcpy(mapped_data, &ubo, sizeof(UniformBufferObject));
-		vkUnmapMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_);
+		devices_->CopyDataToBuffer(matrix_buffer_memory_, &ubo, sizeof(UniformBufferObject));
 
 		// send camera data to the gpu
 		SceneLightData scene_data = {};
 		scene_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
 		scene_data.camera_pos = glm::vec4(render_camera_->GetPosition(), 1.0f);
-
-		vkMapMemory(devices_->GetLogicalDevice(), light_buffer_memory_, 0, sizeof(SceneLightData), 0, &mapped_data);
-		memcpy(mapped_data, &scene_data, sizeof(SceneLightData));
-		vkUnmapMemory(devices_->GetLogicalDevice(), light_buffer_memory_);
+		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
 
 		for (Light* light : lights_)
 		{
@@ -92,6 +86,12 @@ void VulkanRenderer::RenderScene()
 		{
 			RenderGBuffer(image_index);
 			RenderDeferred(image_index);
+		}
+
+		if (render_mode_ == RenderMode::DEFERRED || render_mode_ == RenderMode::DEFERRED_COMPUTE)
+		{
+			hdr_->Render(swap_chain_, &render_semaphore_);
+			swap_chain_->FinalizeIntermediateImage();
 		}
 	}
 
@@ -175,9 +175,6 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	{
 		throw std::runtime_error("failed to submit deferred command buffer!");
 	}
-
-	// copy the intermediate image to the swap chain
-	swap_chain_->FinalizeIntermediateImage();
 }
 
 void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
@@ -205,9 +202,6 @@ void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
 	{
 		throw std::runtime_error("failed to submit deferred compute command buffer!");
 	}
-	
-	// copy the intermediate image to the swap chain
-	swap_chain_->FinalizeIntermediateImage();
 }
 
 void VulkanRenderer::RenderVisualisation(uint32_t image_index)
@@ -324,6 +318,11 @@ void VulkanRenderer::Cleanup()
 	delete skybox_;
 	skybox_ = nullptr;
 
+	// clean up the hdr renderer
+	hdr_->Cleanup();
+	delete hdr_;
+	hdr_ = nullptr;
+
 	// clean up default texture
 	default_texture_->Cleanup();
 	delete default_texture_;
@@ -402,6 +401,10 @@ void VulkanRenderer::InitPipelines()
 	// initialize the skybox
 	skybox_ = new Skybox();
 	skybox_->Init(devices_, swap_chain_, command_pool_);
+
+	// initialize the hdr renderer
+	hdr_ = new HDR();
+	hdr_->Init(devices_, swap_chain_, command_pool_);
 }
 
 void VulkanRenderer::InitDeferredPipeline()
@@ -512,11 +515,6 @@ void VulkanRenderer::InitDeferredPipeline()
 
 	// create the deferred compute command buffers
 	CreateDeferredComputeCommandBuffers();
-}
-
-void VulkanRenderer::InitHDRPipeline()
-{
-
 }
 
 void VulkanRenderer::RecreateSwapChainFeatures()
@@ -870,10 +868,7 @@ void VulkanRenderer::CreateLightBuffer()
 	light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
 	light_data.camera_pos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
-	void* mapped_data;
-	vkMapMemory(devices_->GetLogicalDevice(), light_buffer_memory_, 0, buffer_size, 0, &mapped_data);
-	memcpy(mapped_data, &light_data, sizeof(SceneLightData));
-	vkUnmapMemory(devices_->GetLogicalDevice(), light_buffer_memory_);
+	devices_->CopyDataToBuffer(light_buffer_memory_, &light_data, sizeof(SceneLightData));
 
 	rendering_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
 
