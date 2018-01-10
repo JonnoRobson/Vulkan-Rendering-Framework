@@ -16,9 +16,10 @@ Shape::Shape()
 	standalone_shape_ = true;
 }
 
-void Shape::InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices)
+void Shape::InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool transparency_enabled)
 {
 	devices_ = devices;
+	transparency_enabled_ = transparency_enabled;
 
 	if (renderer)
 		standalone_shape_ = false;

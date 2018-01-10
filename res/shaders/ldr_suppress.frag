@@ -16,7 +16,7 @@ void main()
 {
 	vec4 color = texture(sampler2D(sourceTexture, bufferSampler), fragTexCoord);
 	
-	if(color.r > 1.0f || color.g > 1.0f || color.b > 1.0f)
+	if(color.r > 1.0f || color.g >= 1.0f || color.b >= 1.0f)
 		outColor = color;
 	else
 		outColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);

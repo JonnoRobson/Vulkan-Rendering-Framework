@@ -132,6 +132,7 @@ bool App::InitResources()
 	test_light->SetType(0.0f);
 	test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	test_light->SetDirection(glm::vec4(0.0f, -0.15f, -1.0f, 1.0f));
+	//test_light->SetColor(glm::vec4(0.23f, 0.19f, 0.34f, 1.0f));
 	test_light->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
 	test_light->SetIntensity(1.0f);
 	test_light->SetRange(1.0f);
@@ -139,18 +140,18 @@ bool App::InitResources()
 	test_light->Init(devices_, renderer_);
 	lights_.push_back(test_light);
 	
-	
 	Light* test_light_b = new Light();
 	test_light_b->SetType(0.0f);
 	test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	test_light_b->SetDirection(glm::vec4(0.0f, 0.15f, -1.0f, 1.0f));
 	test_light_b->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+	//test_light_b->SetColor(glm::vec4(0.11f, 0.24f, 0.89f, 1.0f));
 	test_light_b->SetIntensity(1.0f);
 	test_light_b->SetRange(1.0f);
 	test_light_b->SetShadowsEnabled(true);
 	test_light_b->Init(devices_, renderer_);
 	lights_.push_back(test_light_b);
-	
+
 	/*
 	Light* test_light_c = new Light();
 	test_light_c->SetType(2.0f);
@@ -314,6 +315,13 @@ void App::Update()
 	{
 		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED_COMPUTE);
 		input_->SetKeyUp(GLFW_KEY_LEFT_CONTROL);
+	}
+
+	// hdr toggle
+	if (input_->IsKeyPressed(GLFW_KEY_H))
+	{
+		renderer_->GetHDR()->CycleHDRMode();
+		input_->SetKeyUp(GLFW_KEY_H);
 	}
 }
 
@@ -501,6 +509,7 @@ void App::InitDevices()
 	VkPhysicalDeviceFeatures device_features = {};
 	device_features.samplerAnisotropy = VK_TRUE;
 	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
+	device_features.independentBlend = VK_TRUE;
 
 	// create the physical device
 	devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);

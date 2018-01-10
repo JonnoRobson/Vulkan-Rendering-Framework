@@ -116,14 +116,14 @@ void DeferredPipeline::CreateRenderPass()
 {
 	// setup the color buffer attachment
 	VkAttachmentDescription color_attachment = {};
-	color_attachment.format = swap_chain_->GetSwapChainImageFormat();
+	color_attachment.format = swap_chain_->GetIntermediateImageFormat();
 	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	color_attachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// setup the subpass attachment description
 	VkAttachmentReference color_attachment_ref = {};

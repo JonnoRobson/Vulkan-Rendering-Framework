@@ -19,6 +19,8 @@
 #include "g_buffer_pipeline.h"
 #include "deferred_compute_pipeline.h"
 #include "deferred_pipeline.h"
+#include "weighted_blended_transparency_pipeline.h"
+#include "transparency_composite_pipeline.h"
 #include "HDR.h"
 #include "skybox.h"
 
@@ -65,7 +67,7 @@ public:
 	void GetMatrixBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory) { buffer = matrix_buffer_; buffer_memory = matrix_buffer_memory_; }
 	void GetLightBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory) { buffer = light_buffer_; buffer_memory = light_buffer_memory_; }
 
-	VkSemaphore GetSignalSemaphore() { return render_semaphore_; }
+	VkSemaphore GetSignalSemaphore() { return current_signal_semaphore_; }
 	Texture* GetDefaultTexture() { return default_texture_; }
 
 	uint32_t AddTextureMap(Texture* texture, Texture::MapType map_type);
@@ -75,7 +77,8 @@ public:
 	inline void SetTextureDirectory(std::string dir) { texture_directory_ = dir; }
 	inline std::string GetTextureDirectory() { return texture_directory_; }
 
-	VulkanTextureCache*	GetTextureCache() { return texture_cache_; }
+	inline VulkanTextureCache*	GetTextureCache() { return texture_cache_; }
+	inline HDR* GetHDR() { return hdr_; }
 
 protected:
 	void CreateBuffers();
@@ -86,6 +89,7 @@ protected:
 	void CreateGBufferCommandBuffers();
 	void CreateDeferredCommandBuffers();
 	void CreateDeferredComputeCommandBuffers();
+	void CreateTransparencyCommandBuffers();
 
 	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
 	void CreateShaders();
@@ -98,8 +102,10 @@ protected:
 	void RenderGBuffer(uint32_t frame_index);
 	void RenderDeferred(uint32_t frame_index);
 	void RenderDeferredCompute(uint32_t frame_index);
+	void RenderTransparency();
 
 	void InitDeferredPipeline();
+	void InitTransparencyPipeline();
 
 protected:
 	VulkanDevices* devices_;
@@ -126,6 +132,14 @@ protected:
 	VkCommandBuffer deferred_command_buffer_;
 	VkCommandBuffer deferred_compute_command_buffer_;
 
+	// transparency shading components
+	VulkanShader *transparency_shader_, *transparency_composite_shader_;
+	WeightedBlendedTransparencyPipeline* transparency_pipeline_;
+	TransparencyCompositePipeline* transparency_composite_pipeline_;
+	VulkanRenderTarget *accumulation_buffer_, *revealage_buffer_;
+	VkCommandBuffer transparency_command_buffer_, transparency_composite_command_buffer_;
+	VkSemaphore transparency_semaphore_, transparency_composite_semaphore_;
+
 	HDR* hdr_;
 	Skybox* skybox_;
 
@@ -146,6 +160,7 @@ protected:
 
 	VkSemaphore g_buffer_semaphore_;
 	VkSemaphore render_semaphore_;
+	VkSemaphore current_signal_semaphore_;
 
 	std::vector<Mesh*> meshes_;
 	std::vector<Light*> lights_;

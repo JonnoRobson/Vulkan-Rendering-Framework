@@ -6,6 +6,13 @@
 
 typedef bool(*check_function)(void);
 
+enum class RenderStage
+{
+	GENERIC,
+	OPAQUE,
+	TRANSPARENT
+};
+
 struct QueueFamilyIndices
 {
 	int graphics_family = -1;

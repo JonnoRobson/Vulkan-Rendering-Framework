@@ -39,7 +39,8 @@ public:
 	virtual void InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::material_t& material, std::string texture_path = "");	// init material from tinyobj material struct (virtual to allow pbr extension)
 	virtual void CleanUp();
 
-	uint32_t GetMaterialIndex() { return material_buffer_index_; }
+	inline uint32_t GetMaterialIndex() { return material_buffer_index_; }
+	inline bool GetTransparencyEnabled() { return transparency_enabled_; }
 
 protected:
 	// material name
@@ -67,6 +68,8 @@ protected:
 	Texture* displacement_texture_;
 	Texture* alpha_texture_;
 	Texture* reflection_texture_;
+
+	bool transparency_enabled_;
 };
 
 #endif

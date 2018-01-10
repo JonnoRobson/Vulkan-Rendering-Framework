@@ -34,6 +34,7 @@ Material::Material()
 	reflection_texture_ = nullptr;
 
 	material_buffer_index_ = 0;
+	transparency_enabled_ = false;
 }
 
 void Material::CleanUp()
@@ -104,6 +105,9 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 	material_properties_.ior = material.ior;
 	material_properties_.dissolve = material.dissolve;
 	material_properties_.illum = material.illum;
+
+	if (material.dissolve < 1.0f)
+		transparency_enabled_ = true;
 
 	std::string tex_dir = texture_path;
 
@@ -181,6 +185,7 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 	{
 		alpha_texture_ = texture_cache_->LoadTexture(tex_dir + material.alpha_texname);
 		material_properties_.alpha_map_index = renderer->AddTextureMap(alpha_texture_, Texture::MapType::ALPHA);
+		transparency_enabled_ = true;
 	}
 	else
 	{

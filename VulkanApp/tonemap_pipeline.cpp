@@ -122,7 +122,7 @@ void TonemapPipeline::CreateRenderPass()
 	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	color_attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	color_attachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// setup the subpass attachment description
 	VkAttachmentReference color_attachment_ref = {};

@@ -1,14 +1,14 @@
-#include "gaussian_blur_pipeline.h"
+#include "transparency_composite_pipeline.h"
 #include <array>
 
-void GaussianBlurPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
+void TransparencyCompositePipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
 {
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	render_pass_info.renderPass = render_pass_;
 	render_pass_info.framebuffer = framebuffers_[0];
 	render_pass_info.renderArea.offset = { 0, 0 };
-	render_pass_info.renderArea.extent = { output_width_, output_height_ };
+	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
 	render_pass_info.clearValueCount = 0;
 	render_pass_info.pClearValues = nullptr;
 
@@ -20,8 +20,8 @@ void GaussianBlurPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint3
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)output_width_;
-	viewport.height = (float)output_height_;
+	viewport.width = (float)(swap_chain_->GetSwapChainExtent().width);
+	viewport.height = (float)(swap_chain_->GetSwapChainExtent().height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
@@ -40,7 +40,7 @@ void GaussianBlurPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint3
 }
 
 
-void GaussianBlurPipeline::CreatePipeline()
+void TransparencyCompositePipeline::CreatePipeline()
 {
 	// setup pipeline layout creation info
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
@@ -56,12 +56,38 @@ void GaussianBlurPipeline::CreatePipeline()
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
+	// setup vertex input info
 	VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
 	vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	vertex_input_info.vertexBindingDescriptionCount = 0;
 	vertex_input_info.pVertexBindingDescriptions = nullptr;
 	vertex_input_info.vertexAttributeDescriptionCount = 0;
 	vertex_input_info.pVertexAttributeDescriptions = nullptr;
+
+	// setup color blend creation info
+	VkPipelineColorBlendAttachmentState composite_blend_attachment = {};
+	composite_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	composite_blend_attachment.blendEnable = VK_TRUE;
+	composite_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	composite_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	composite_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+	composite_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	composite_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	composite_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	std::array<VkPipelineColorBlendAttachmentState, 1> attachment_blend_states = { composite_blend_attachment };
+
+	// setup global color blend creation info
+	VkPipelineColorBlendStateCreateInfo blend_state = {};
+	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	blend_state.logicOpEnable = VK_FALSE;
+	blend_state.logicOp = VK_LOGIC_OP_COPY;
+	blend_state.attachmentCount = static_cast<uint32_t>(attachment_blend_states.size());
+	blend_state.pAttachments = attachment_blend_states.data();
+	blend_state.blendConstants[0] = 0.0f;
+	blend_state.blendConstants[1] = 0.0f;
+	blend_state.blendConstants[2] = 0.0f;
+	blend_state.blendConstants[3] = 0.0f;
 
 	// setup pipeline creation info
 	VkGraphicsPipelineCreateInfo pipeline_info = {};
@@ -74,7 +100,7 @@ void GaussianBlurPipeline::CreatePipeline()
 	pipeline_info.pRasterizationState = &shader_->GetRasterizerStateDescription();
 	pipeline_info.pMultisampleState = &shader_->GetMultisampleStateDescription();
 	pipeline_info.pDepthStencilState = nullptr;
-	pipeline_info.pColorBlendState = &shader_->GetBlendStateDescription();
+	pipeline_info.pColorBlendState = &blend_state;
 	pipeline_info.pDynamicState = &shader_->GetDynamicStateDescription();
 	pipeline_info.layout = pipeline_layout_;
 	pipeline_info.renderPass = render_pass_;
@@ -90,19 +116,20 @@ void GaussianBlurPipeline::CreatePipeline()
 }
 
 
-void GaussianBlurPipeline::CreateFramebuffers()
+void TransparencyCompositePipeline::CreateFramebuffers()
 {
+	VkImageView image_view = swap_chain_->GetIntermediateImageView();
 	framebuffers_.resize(1);
 
-	std::array<VkImageView, 1> attachments = { output_image_view_ };
+	std::array<VkImageView, 1> attachments = { image_view };
 
 	VkFramebufferCreateInfo framebuffer_info = {};
 	framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebuffer_info.renderPass = render_pass_;
 	framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 	framebuffer_info.pAttachments = attachments.data();
-	framebuffer_info.width = output_width_;
-	framebuffer_info.height = output_height_;
+	framebuffer_info.width = swap_chain_->GetSwapChainExtent().width;
+	framebuffer_info.height = swap_chain_->GetSwapChainExtent().height;
 	framebuffer_info.layers = 1;
 
 	if (vkCreateFramebuffer(devices_->GetLogicalDevice(), &framebuffer_info, nullptr, &framebuffers_[0]) != VK_SUCCESS)
@@ -111,11 +138,11 @@ void GaussianBlurPipeline::CreateFramebuffers()
 	}
 }
 
-void GaussianBlurPipeline::CreateRenderPass()
+void TransparencyCompositePipeline::CreateRenderPass()
 {
 	// setup the color buffer attachment
 	VkAttachmentDescription color_attachment = {};
-	color_attachment.format = output_image_format_;
+	color_attachment.format = swap_chain_->GetIntermediateImageFormat();
 	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -161,12 +188,4 @@ void GaussianBlurPipeline::CreateRenderPass()
 	{
 		throw std::runtime_error("failed to create render pass!");
 	}
-}
-
-void GaussianBlurPipeline::SetOutputImage(VkImageView output_image_view, VkFormat output_image_format, uint32_t output_width, uint32_t output_height)
-{
-	output_image_view_ = output_image_view;
-	output_image_format_ = output_image_format;
-	output_width_ = output_width;
-	output_height_ = output_height;
 }

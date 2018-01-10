@@ -23,7 +23,7 @@ public:
 		float vignette_strength;
 		float exposure_level;
 		float gamma_level;
-		float padding;
+		float special_hdr;
 	};
 
 public:
@@ -32,6 +32,10 @@ public:
 	void Render(VulkanSwapChain* swap_chain, VkSemaphore* wait_semaphore);
 
 	inline VkSemaphore GetHDRSemaphore() { return hdr_semaphore_; }
+	inline VulkanRenderTarget* DebugBuffer() { return ldr_suppress_scene_; }
+
+	void CycleHDRMode();
+	inline int GetHDRMode() { return hdr_mode_; }
 
 protected:
 	void InitPipelines(VulkanSwapChain* swap_chain);
@@ -52,6 +56,9 @@ protected:
 	VkDeviceMemory gaussian_blur_factors_buffer_memory_, tonemap_factors_buffer_memory_;
 	VkCommandBuffer ldr_suppress_command_buffer_, gaussian_blur_command_buffers_[2], tonemap_command_buffer_;
 	VkSemaphore ldr_suppress_semaphore_, gaussian_blur_semaphore_[2], hdr_semaphore_;
+
+	int hdr_mode_;
+	TonemapFactors tonemap_factors_;
 };
 
 #endif

@@ -31,6 +31,7 @@ public:
 	inline VkImage GetIntermediateImage() { return intermediate_image_; }
 	inline VkImageView GetIntermediateImageView() { return intermediate_image_view_; }
 	inline VkFormat GetSwapChainImageFormat() { return swap_chain_image_format_; }
+	inline VkFormat GetIntermediateImageFormat() { return intermediate_image_format_; }
 	inline VkExtent2D GetSwapChainExtent() { return swap_chain_extent_; }
 	inline VkImage GetDepthImage() { return depth_image_; }
 	inline VkImageView GetDepthImageView() { return depth_image_view_; }
@@ -62,6 +63,7 @@ protected:
 	VkDeviceMemory intermediate_image_memory_;
 	VkImageView intermediate_image_view_;
 	VkFormat swap_chain_image_format_;
+	VkFormat intermediate_image_format_;
 	VkExtent2D swap_chain_extent_;
 
 	// depth buffer components

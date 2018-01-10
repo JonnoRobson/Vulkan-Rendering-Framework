@@ -18,10 +18,12 @@ class Shape
 public:
 	Shape();
 
-	void InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+	void InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool transparency_enabled);
 	void RecordRenderCommands(VkCommandBuffer& command_buffer);
 	void CleanUp();
 	
+	inline bool GetTransparencyEnabled() { return transparency_enabled_; }
+
 protected:
 	
 	void CreateVertexBuffer(std::vector<Vertex>& vertices);
@@ -44,5 +46,6 @@ protected:
 	uint32_t index_buffer_offset_;
 
 	bool standalone_shape_;
+	bool transparency_enabled_;
 };
 #endif

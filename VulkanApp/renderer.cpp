@@ -29,6 +29,11 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, s
 
 void VulkanRenderer::RenderScene()
 {
+	render_mode_ = RenderMode::DEFERRED;
+
+	// set the render semaphore as the signal semaphore
+	current_signal_semaphore_ = render_semaphore_;
+
 	// regenerate the shadow map for any moving light
 	for (Light* light : lights_)
 	{
@@ -58,6 +63,7 @@ void VulkanRenderer::RenderScene()
 		// send camera data to the gpu
 		SceneLightData scene_data = {};
 		scene_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
+		//scene_data.scene_data = glm::vec4(glm::vec3(0.85f * 0.5f, 0.68f * 0.5f, 0.92f * 0.5f), lights_.size());
 		scene_data.camera_pos = glm::vec4(render_camera_->GetPosition(), 1.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
 
@@ -67,9 +73,6 @@ void VulkanRenderer::RenderScene()
 			light->SendLightData(devices_, light_buffer_memory_);
 		}
 		
-		// transition the intermediate image to color write optimal layout
-		devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetSwapChainImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
 		// render the skybox
 		skybox_->Render(render_camera_);
 
@@ -88,9 +91,16 @@ void VulkanRenderer::RenderScene()
 			RenderDeferred(image_index);
 		}
 
-		if (render_mode_ == RenderMode::DEFERRED || render_mode_ == RenderMode::DEFERRED_COMPUTE)
+		if (render_mode_ == RenderMode::DEFERRED)
 		{
-			hdr_->Render(swap_chain_, &render_semaphore_);
+			current_signal_semaphore_ = transparency_composite_semaphore_;
+			RenderTransparency();
+
+			if (hdr_->GetHDRMode() > 0)
+			{
+				hdr_->Render(swap_chain_, &current_signal_semaphore_);
+				current_signal_semaphore_ = hdr_->GetHDRSemaphore();
+			}
 			swap_chain_->FinalizeIntermediateImage();
 		}
 	}
@@ -152,12 +162,11 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
 
 	//  transition the intermediate image to color write optimal layout
-	devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetSwapChainImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetIntermediateImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
 	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submit_info.waitSemaphoreCount = 2;
@@ -185,9 +194,9 @@ void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
-	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submit_info.waitSemaphoreCount = 2;
+	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore, swap_chain_->GetImageAvailableSemaphore() };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submit_info.waitSemaphoreCount = 3;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
@@ -201,6 +210,55 @@ void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
 	if (result != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to submit deferred compute command buffer!");
+	}
+}
+
+void VulkanRenderer::RenderTransparency()
+{
+	VkSemaphore wait_semaphores[] = { render_semaphore_ };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+	// clear the transparency buffers
+	accumulation_buffer_->ClearImage();
+	revealage_buffer_->ClearImage();
+
+	// submit the transparency render command buffer
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = wait_semaphores;
+	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &transparency_command_buffer_;
+
+	VkSemaphore signal_semaphores[] = { transparency_semaphore_ };
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = signal_semaphores;
+
+	VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to submit transparency command buffer!");
+	}
+
+	// submit the transparency composite command buffer
+	wait_semaphores[0] = transparency_semaphore_;
+	submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.waitSemaphoreCount = 1;
+	submit_info.pWaitSemaphores = wait_semaphores;
+	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &transparency_composite_command_buffer_;
+
+	signal_semaphores[0] = transparency_composite_semaphore_;
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = signal_semaphores;
+
+	result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to submit transparency composite command buffer!");
 	}
 }
 
@@ -270,6 +328,14 @@ void VulkanRenderer::Cleanup()
 	delete deferred_compute_shader_;
 	deferred_compute_shader_ = nullptr;
 
+	transparency_shader_->Cleanup();
+	delete transparency_shader_;
+	transparency_shader_ = nullptr;
+
+	transparency_composite_shader_->Cleanup();
+	delete transparency_composite_shader_;
+	transparency_composite_shader_ = nullptr;
+
 	// clean up primitive buffer
 	primitive_buffer_->Cleanup();
 	delete primitive_buffer_;
@@ -308,10 +374,28 @@ void VulkanRenderer::Cleanup()
 	delete deferred_compute_pipeline_;
 	deferred_compute_pipeline_ = nullptr;
 
+	// clean up transparency pipelines
+	transparency_pipeline_->CleanUp();
+	delete transparency_pipeline_;
+	transparency_pipeline_ = nullptr;
+
+	transparency_composite_pipeline_->CleanUp();
+	delete transparency_composite_pipeline_;
+	transparency_composite_pipeline_ = nullptr;
+
 	// clean up g buffer
 	g_buffer_->Cleanup();
 	delete g_buffer_;
 	g_buffer_ = nullptr;
+
+	// clean up transparency buffers
+	accumulation_buffer_->Cleanup();
+	delete accumulation_buffer_;
+	accumulation_buffer_ = nullptr;
+
+	revealage_buffer_->Cleanup();
+	delete revealage_buffer_;
+	revealage_buffer_ = nullptr;
 
 	// clean up the skybox
 	skybox_->Cleanup();
@@ -335,6 +419,9 @@ void VulkanRenderer::Cleanup()
 
 	// clean up semaphores
 	vkDestroySemaphore(devices_->GetLogicalDevice(), render_semaphore_, nullptr);
+	vkDestroySemaphore(devices_->GetLogicalDevice(), transparency_semaphore_, nullptr);
+	vkDestroySemaphore(devices_->GetLogicalDevice(), g_buffer_semaphore_, nullptr);
+	vkDestroySemaphore(devices_->GetLogicalDevice(), transparency_composite_semaphore_, nullptr);
 }
 
 void VulkanRenderer::InitPipelines()
@@ -389,14 +476,7 @@ void VulkanRenderer::InitPipelines()
 	rendering_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 	InitDeferredPipeline();
-
-	// initialize a buffer visualisation pipeline
-	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
-	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
-	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
-	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, lights_[0]->GetShadowMap()->GetImageViews()[0]);
-
-	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+	InitTransparencyPipeline();
 
 	// initialize the skybox
 	skybox_ = new Skybox();
@@ -405,6 +485,15 @@ void VulkanRenderer::InitPipelines()
 	// initialize the hdr renderer
 	hdr_ = new HDR();
 	hdr_->Init(devices_, swap_chain_, command_pool_);
+
+	// initialize a buffer visualisation pipeline
+	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
+	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
+	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
+	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, hdr_->DebugBuffer()->GetImageViews()[0]);
+
+	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
 }
 
 void VulkanRenderer::InitDeferredPipeline()
@@ -515,6 +604,64 @@ void VulkanRenderer::InitDeferredPipeline()
 
 	// create the deferred compute command buffers
 	CreateDeferredComputeCommandBuffers();
+}
+
+void VulkanRenderer::InitTransparencyPipeline()
+{
+	VkExtent2D image_extent = swap_chain_->GetSwapChainExtent();
+
+	// calculate size of the light buffer
+	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
+
+	// setup the shadow map descriptor
+	std::vector<VkImageView> shadow_maps;
+	for (Light* light : lights_)
+	{
+		shadow_maps.push_back(light->GetShadowMap()->GetImageViews()[0]);
+	}
+
+	// create the transparency buffers
+	accumulation_buffer_ = new VulkanRenderTarget();
+	accumulation_buffer_->Init(devices_, VK_FORMAT_R16G16B16A16_SFLOAT, image_extent.width, image_extent.height, 1, false);
+	revealage_buffer_ = new VulkanRenderTarget();
+	revealage_buffer_->Init(devices_, VK_FORMAT_R8_UNORM, image_extent.width, image_extent.height, 1, false);
+
+	// create the transparency pipeline
+	transparency_pipeline_ = new WeightedBlendedTransparencyPipeline();
+	transparency_pipeline_->SetShader(transparency_shader_);
+	transparency_pipeline_->SetRenderTargets(accumulation_buffer_, revealage_buffer_);
+
+	// add resources to the pipeline
+	transparency_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	transparency_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
+	transparency_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+	transparency_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, ambient_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, diffuse_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, specular_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, specular_highlight_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, emissive_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, normal_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps);
+
+	// initialize the transparency pipeline
+	transparency_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
+	// create the composite pipeline
+	transparency_composite_pipeline_ = new TransparencyCompositePipeline();
+	transparency_composite_pipeline_->SetShader(transparency_composite_shader_);
+
+	// add resources to the pipeline
+	transparency_composite_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_unnormalized_sampler_);
+	transparency_composite_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, accumulation_buffer_->GetImageViews()[0]);
+	transparency_composite_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 2, revealage_buffer_->GetImageViews()[0]);
+
+	// initialize the transparency composite pipeline
+	transparency_composite_pipeline_->Init(devices_, swap_chain_, nullptr);
+
+	CreateTransparencyCommandBuffers();
 }
 
 void VulkanRenderer::RecreateSwapChainFeatures()
@@ -668,8 +815,6 @@ void VulkanRenderer::CreateGBufferCommandBuffers()
 
 void VulkanRenderer::CreateDeferredComputeCommandBuffers()
 {
-	int buffer_count = swap_chain_->GetSwapChainImages().size();
-
 	// create rendering command buffers
 	VkCommandBufferAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -703,8 +848,6 @@ void VulkanRenderer::CreateDeferredComputeCommandBuffers()
 
 void VulkanRenderer::CreateDeferredCommandBuffers()
 {
-	int buffer_count = swap_chain_->GetSwapChainImages().size();
-
 	// create rendering command buffers
 	VkCommandBufferAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -738,6 +881,78 @@ void VulkanRenderer::CreateDeferredCommandBuffers()
 	}	
 }
 
+void VulkanRenderer::CreateTransparencyCommandBuffers()
+{
+	// create transparency command buffers
+	VkCommandBufferAllocateInfo allocate_info = {};
+	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocate_info.commandPool = command_pool_;
+	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocate_info.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &transparency_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to allocate transparent render command buffers!");
+	}
+
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(transparency_command_buffer_, &begin_info);
+
+	if (transparency_pipeline_)
+	{
+		// bind pipeline
+		transparency_pipeline_->RecordCommands(transparency_command_buffer_, 0);
+
+		for (Mesh* mesh : meshes_)
+		{
+			mesh->RecordRenderCommands(transparency_command_buffer_, RenderStage::TRANSPARENT);
+		}
+
+		vkCmdEndRenderPass(transparency_command_buffer_);
+	}
+
+	if (vkEndCommandBuffer(transparency_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record transparent render command buffer!");
+	}
+
+	// create tranparent composite commands
+	allocate_info = {};
+	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocate_info.commandPool = command_pool_;
+	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocate_info.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &transparency_composite_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to allocate transparency composite command buffers!");
+	}
+
+	begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(transparency_composite_command_buffer_, &begin_info);
+
+	if (transparency_composite_pipeline_)
+	{
+		// bind pipeline
+		transparency_composite_pipeline_->RecordCommands(transparency_composite_command_buffer_, 0);
+
+		vkCmdEndRenderPass(transparency_composite_command_buffer_);
+	}
+
+	if (vkEndCommandBuffer(transparency_composite_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record transparency composite command buffer!");
+	}
+}
+
 void VulkanRenderer::CreateMaterialShader(std::string vs_filename, std::string ps_filename)
 {
 	material_shader_ = new VulkanShader();
@@ -752,6 +967,7 @@ void VulkanRenderer::CreateShaders()
 	buffer_visualisation_shader_ = new VulkanShader();
 	buffer_visualisation_shader_->Init(devices_, swap_chain_, "../res/shaders/buffer_visualisation.vert.spv", "", "", "../res/shaders/buffer_visualisation.frag.spv");
 
+	// deferred rendering shaders
 	g_buffer_shader_ = new VulkanShader();
 	g_buffer_shader_->Init(devices_, swap_chain_, "../res/shaders/g_buffer.vert.spv", "", "", "../res/shaders/g_buffer.frag.spv");
 	
@@ -760,6 +976,14 @@ void VulkanRenderer::CreateShaders()
 
 	deferred_compute_shader_ = new VulkanComputeShader();
 	deferred_compute_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.comp.spv");
+
+	// tranparency rendering shaders
+	transparency_shader_ = new VulkanShader();
+	transparency_shader_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "", "", "../res/shaders/weighted_blended_transparency.frag.spv");
+
+	transparency_composite_shader_ = new VulkanShader();
+	transparency_composite_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/transparency_composite.frag.spv");
+
 }
 
 void VulkanRenderer::CreatePrimitiveBuffer()
@@ -846,7 +1070,9 @@ void VulkanRenderer::CreateSemaphores()
 	semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
 	if (vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &render_semaphore_) != VK_SUCCESS ||
-		vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &g_buffer_semaphore_) != VK_SUCCESS) {
+		vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &g_buffer_semaphore_) != VK_SUCCESS ||
+		vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &transparency_semaphore_) != VK_SUCCESS ||
+		vkCreateSemaphore(devices_->GetLogicalDevice(), &semaphore_info, nullptr, &transparency_composite_semaphore_) != VK_SUCCESS) {
 
 		throw std::runtime_error("failed to create semaphores!");
 	}
@@ -865,7 +1091,8 @@ void VulkanRenderer::CreateLightBuffer()
 	devices_->CreateBuffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, light_buffer_, light_buffer_memory_);
 
 	SceneLightData light_data = {};
-	light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
+	//light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
+	light_data.scene_data = glm::vec4(glm::vec3(0.85f * 10.0f, 0.68f * 10.0f, 0.92f * 10.0f), lights_.size());
 	light_data.camera_pos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
 	devices_->CopyDataToBuffer(light_buffer_memory_, &light_data, sizeof(SceneLightData));

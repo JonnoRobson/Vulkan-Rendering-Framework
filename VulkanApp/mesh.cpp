@@ -141,11 +141,11 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 		Shape* mesh_shape = new Shape();
 
 		int face_index = 0;
+		bool transparency_enabled = false;
 
 		for (const auto& index : shape->mesh.indices)
 		{
 			Vertex vertex = {};
-
 
 			if (index.vertex_index >= 0)
 			{
@@ -193,7 +193,11 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 				if (face_material)
 				{
 					if (face_material->GetMaterialIndex() >= 0)
+					{
 						vertex.mat_index = face_material->GetMaterialIndex();
+						if (!transparency_enabled)
+							transparency_enabled = face_material->GetTransparencyEnabled();
+					}
 				}
 			}
 
@@ -226,16 +230,42 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 		}
 
 		std::unique_lock<std::mutex> shape_lock(*shape_mutex);
-		mesh_shape->InitShape(devices, renderer, vertices, indices);
+		mesh_shape->InitShape(devices, renderer, vertices, indices, transparency_enabled);
 		mesh_shapes_.push_back(mesh_shape);
 		shape_lock.unlock();
 	}
 }
 
-void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer)
+void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage render_stage)
 {
-	for (Shape* shape : mesh_shapes_)
+	switch (render_stage)
 	{
-		shape->RecordRenderCommands(command_buffer);
+	case RenderStage::OPAQUE:
+	{
+		for (Shape* shape : mesh_shapes_)
+		{
+			if(shape->GetTransparencyEnabled() == false)
+				shape->RecordRenderCommands(command_buffer);
+		}
+		break;
 	}
+	case RenderStage::TRANSPARENT:
+	{
+		for (Shape* shape : mesh_shapes_)
+		{
+			if (shape->GetTransparencyEnabled() == true)
+				shape->RecordRenderCommands(command_buffer);
+		}
+		break;
+	}
+	case RenderStage::GENERIC:
+	{
+		for (Shape* shape : mesh_shapes_)
+		{
+			shape->RecordRenderCommands(command_buffer);
+		}
+		break;
+	}
+	}
+
 }

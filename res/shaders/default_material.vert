@@ -13,8 +13,6 @@ layout(binding = 0) uniform UniformBufferObject
 	mat4 proj;
 } ubo;
 
-//layout(binding = 1) uniform sampler2D displacementSampler;
-
 out gl_PerVertex
 {
 	vec4 gl_Position;

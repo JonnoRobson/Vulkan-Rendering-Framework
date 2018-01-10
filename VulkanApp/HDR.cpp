@@ -157,6 +157,9 @@ void HDR::Render(VulkanSwapChain* swap_chain, VkSemaphore* wait_semaphore)
 	}
 
 	// tonemap the blurred image with the original
+	// update tonemapping data
+	devices_->CopyDataToBuffer(tonemap_factors_buffer_memory_, &tonemap_factors_, sizeof(TonemapFactors));
+
 	// submit the draw command buffer
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.waitSemaphoreCount = 1;
@@ -188,18 +191,18 @@ void HDR::InitPipelines(VulkanSwapChain* swap_chain)
 
 	// initialize the HDR render targets
 	ldr_suppress_scene_ = new VulkanRenderTarget();
-	ldr_suppress_scene_->Init(devices_, swap_chain->GetSwapChainImageFormat(), swap_chain_dimensions.width / 2, swap_chain_dimensions.height / 2, 1, false);
+	ldr_suppress_scene_->Init(devices_, swap_chain->GetIntermediateImageFormat(), swap_chain_dimensions.width / 2, swap_chain_dimensions.height / 2, 1, false);
 
 	blur_scene_ = new VulkanRenderTarget();
-	blur_scene_->Init(devices_, swap_chain->GetSwapChainImageFormat(), swap_chain_dimensions.width / 2, swap_chain_dimensions.height / 2, 2, false);
+	blur_scene_->Init(devices_, swap_chain->GetIntermediateImageFormat(), swap_chain_dimensions.width / 2, swap_chain_dimensions.height / 2, 2, false);
 
 	tonemap_scene_ = new VulkanRenderTarget();
-	tonemap_scene_->Init(devices_, swap_chain->GetSwapChainImageFormat(), swap_chain_dimensions.width, swap_chain_dimensions.height, 1, false);
+	tonemap_scene_->Init(devices_, swap_chain->GetIntermediateImageFormat(), swap_chain_dimensions.width, swap_chain_dimensions.height, 1, false);
 
 	// initialize the ldr suppresssion pipeline
 	ldr_suppress_pipeline_ = new LDRSuppressPipeline();
 	ldr_suppress_pipeline_->SetShader(ldr_suppress_shader_);
-	ldr_suppress_pipeline_->SetOutputImage(ldr_suppress_scene_->GetImageViews()[0], ldr_suppress_scene_->GetRenderTargetFormat(), swap_chain_dimensions.width, swap_chain_dimensions.height);
+	ldr_suppress_pipeline_->SetOutputImage(ldr_suppress_scene_->GetImageViews()[0], ldr_suppress_scene_->GetRenderTargetFormat(), swap_chain_dimensions.width / 2, swap_chain_dimensions.height / 2);
 	ldr_suppress_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, buffer_sampler_);
 	ldr_suppress_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, swap_chain->GetIntermediateImageView());
 	ldr_suppress_pipeline_->Init(devices_, swap_chain, nullptr);
@@ -228,6 +231,7 @@ void HDR::InitPipelines(VulkanSwapChain* swap_chain)
 	tonemap_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 0, tonemap_factors_buffer_, sizeof(TonemapFactors));
 	tonemap_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 1, buffer_sampler_);
 	tonemap_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 2, swap_chain->GetIntermediateImageView());
+	tonemap_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 3, blur_scene_->GetImageViews()[1]);
 	tonemap_pipeline_->Init(devices_, swap_chain, nullptr);
 }
 
@@ -245,6 +249,9 @@ void HDR::InitShaders(VulkanSwapChain* swap_chain)
 
 void HDR::InitResources()
 {
+	// start as hdr on normal
+	hdr_mode_ = 1;
+
 	// initialize the sampler that will be used for buffers
 	// initialize the g buffer sampler
 	VkSamplerCreateInfo sampler_info = {};
@@ -273,15 +280,15 @@ void HDR::InitResources()
 	devices_->CreateBuffer(sizeof(TonemapFactors), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, tonemap_factors_buffer_, tonemap_factors_buffer_memory_);
 
 	// send the tonemap factors to the buffer
-	TonemapFactors tonemap_factors =
+	tonemap_factors_ =
 	{
-		4.0f,	// vignette strength
+		1.0f,	// vignette strength
 		2.5f,	// exposure level
-		0.55f,	// gamma_level
-		0.0f	// padding
+		0.75f,	// gamma_level
+		0.0f	// use special hdr
 	};
 
-	devices_->CopyDataToBuffer(tonemap_factors_buffer_memory_, &tonemap_factors, sizeof(TonemapFactors));
+	devices_->CopyDataToBuffer(tonemap_factors_buffer_memory_, &tonemap_factors_, sizeof(TonemapFactors));
 
 	// initialize semaphores
 	VkSemaphoreCreateInfo semaphore_info = {};
@@ -362,12 +369,30 @@ void HDR::InitCommandBuffers(VkCommandPool command_pool)
 
 	vkBeginCommandBuffer(tonemap_command_buffer_, &begin_info);
 
-	ldr_suppress_pipeline_->RecordCommands(tonemap_command_buffer_, 0);
+	tonemap_pipeline_->RecordCommands(tonemap_command_buffer_, 0);
 
 	vkCmdEndRenderPass(tonemap_command_buffer_);
 
 	if (vkEndCommandBuffer(tonemap_command_buffer_) != VK_SUCCESS)
 	{
 		throw std::runtime_error("failed to record tonemap command buffer!");
+	}
+}
+
+void HDR::CycleHDRMode()
+{
+	if (hdr_mode_ == 0)
+	{
+		hdr_mode_ = 1;
+		tonemap_factors_.special_hdr = 0;
+	}
+	else if (hdr_mode_ == 1)
+	{
+		hdr_mode_ = 2;
+		tonemap_factors_.special_hdr = 1;
+	}
+	else if (hdr_mode_ == 2)
+	{
+		hdr_mode_ = 0;
 	}
 }

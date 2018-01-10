@@ -90,8 +90,8 @@ public:
 
 	void UpdateWorldMatrix(glm::mat4 world_matrix);
 	
-	void RecordRenderCommands(VkCommandBuffer& command_buffer);
-	
+	void RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage render_stage = RenderStage::OPAQUE);
+
 	inline glm::vec3 GetMinVertex() { return min_vertex_; }
 	inline glm::vec3 GetMaxVertex() { return max_vertex_;}
 

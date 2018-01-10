@@ -10,7 +10,7 @@ layout(binding = 0) uniform TonemapFactors
 	float vignette_strength;
 	float exposure_level;
 	float gamma_level;
-	float padding;
+	float special_hdr;
 };
 
 // textures
@@ -33,7 +33,10 @@ void main()
 
 	color *= pow(vignette, vignette_strength);
 
-	color = pow(color, vec4(exposure_level));
+	if(special_hdr > 0)
+		color = pow(color, vec4(exposure_level));
+	else
+		color *= exposure_level;
 
 	color = pow(color, vec4(gamma_level));
 
