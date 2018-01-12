@@ -24,7 +24,6 @@ void main()
 
 	// retrieve accumulation
 	vec4 accum = texelFetch(sampler2D(accumulationTexture, bufferSampler), coord, 0);
-	// suppress overflow
 	if(isinf(max(max(abs(accum.x), abs(accum.y)), abs(accum.z))))
 	{
         accum.rgb = vec3(accum.a);

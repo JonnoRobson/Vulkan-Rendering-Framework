@@ -134,7 +134,7 @@ bool App::InitResources()
 	test_light->SetDirection(glm::vec4(0.0f, -0.15f, -1.0f, 1.0f));
 	//test_light->SetColor(glm::vec4(0.23f, 0.19f, 0.34f, 1.0f));
 	test_light->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light->SetIntensity(1.0f);
+	test_light->SetIntensity(0.5f);
 	test_light->SetRange(1.0f);
 	test_light->SetShadowsEnabled(true);
 	test_light->Init(devices_, renderer_);
@@ -146,7 +146,7 @@ bool App::InitResources()
 	test_light_b->SetDirection(glm::vec4(0.0f, 0.15f, -1.0f, 1.0f));
 	test_light_b->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
 	//test_light_b->SetColor(glm::vec4(0.11f, 0.24f, 0.89f, 1.0f));
-	test_light_b->SetIntensity(1.0f);
+	test_light_b->SetIntensity(0.5f);
 	test_light_b->SetRange(1.0f);
 	test_light_b->SetShadowsEnabled(true);
 	test_light_b->Init(devices_, renderer_);
@@ -298,7 +298,7 @@ void App::Update()
 	// render mode switch
 	if (input_->IsKeyPressed(GLFW_KEY_TAB))
 	{
-		renderer_->SetRenderMode(VulkanRenderer::RenderMode::FORWARD);
+		//renderer_->SetRenderMode(VulkanRenderer::RenderMode::FORWARD);
 		input_->SetKeyUp(GLFW_KEY_TAB);
 	}
 	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
@@ -313,7 +313,7 @@ void App::Update()
 	}
 	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
 	{
-		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED_COMPUTE);
+		//renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED_COMPUTE);
 		input_->SetKeyUp(GLFW_KEY_LEFT_CONTROL);
 	}
 

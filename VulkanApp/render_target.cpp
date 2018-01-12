@@ -48,7 +48,7 @@ void VulkanRenderTarget::Cleanup()
 	vkFreeMemory(devices_->GetLogicalDevice(), render_target_depth_image_memory_, nullptr);
 }
 
-void VulkanRenderTarget::ClearImage(int index)
+void VulkanRenderTarget::ClearImage(VkClearColorValue clear_color, int index)
 {
 	if (index >= 0)
 	{
@@ -59,7 +59,6 @@ void VulkanRenderTarget::ClearImage(int index)
 		// clear the buffers
 		VkCommandBuffer clear_buffer = devices_->BeginSingleTimeCommands();
 
-		VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 1.0f };
 		VkImageSubresourceRange image_range = {};
 		image_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		image_range.levelCount = 1;
@@ -82,7 +81,6 @@ void VulkanRenderTarget::ClearImage(int index)
 			// clear the buffers
 			VkCommandBuffer clear_buffer = devices_->BeginSingleTimeCommands();
 
-			VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 1.0f };
 			VkImageSubresourceRange image_range = {};
 			image_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			image_range.levelCount = 1;

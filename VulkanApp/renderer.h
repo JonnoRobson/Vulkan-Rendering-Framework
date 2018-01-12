@@ -89,7 +89,8 @@ protected:
 	void CreateGBufferCommandBuffers();
 	void CreateDeferredCommandBuffers();
 	void CreateDeferredComputeCommandBuffers();
-	void CreateTransparencyCommandBuffers();
+	void CreateTransparencyCommandBuffer();
+	void CreateTransparencyCompositeCommandBuffer();
 
 	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
 	void CreateShaders();

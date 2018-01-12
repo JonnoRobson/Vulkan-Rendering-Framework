@@ -265,15 +265,25 @@ vec3 PerturbNormal(vec3 normal, vec3 view, vec2 texCoord, uint normal_map_index)
 
 void AccumulationRevealage(vec4 color, vec4 transmit)
 {
+	/*
 	// modulate coverage by the transmission factor
-	color.w *= 1.0f - clamp((transmit.r + transmit.g + transmit.b) * (1.0f / 3.0f), 0, 1);
+	//color.w *= 1.0f - clamp((transmit.r + transmit.g + transmit.b) * (1.0f / 3.0f), 0, 1);
 
 	// apply weighting function
-	float a = min(1.0f, color.a) * 8.0f + 0.01f;
-	float b = -gl_FragCoord.z * 0.95f + 1.0f;
+	float a = min(1.0f, color.w) * 8.0f + 0.01f;
+	float b = -(gl_FragCoord.z * 2.0 - 1.0) * 0.95f + 1.0f;
+	//b /= sqrt(1e4 * abs(gl_FragCoord.z));
 	float w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
 	accumulation = color * w;
 	revealage = color.w;
+	*/
+
+	// calculate weight
+	float viewDepth = abs(1.0 / gl_FragCoord.w) * 0.5f;
+	float weight = clamp(0.03 / (1e-5 + pow(viewDepth, 4.0)), 1e-2, 3e3);
+
+    accumulation = vec4(color.xyz * color.w, color.w) * weight;
+    revealage = color.w;
 }
 
 void main()
@@ -319,11 +329,15 @@ void main()
 	uint alpha_map_index = material_data.materials[matIndex].alpha_map_index;
 	if(alpha_map_index > 0)
 	{
-		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord).x;
+		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord, 0).r;
 	}
 
 	// set transimittance value from material
 	vec4 transmittance = material_data.materials[matIndex].transmittance;
 
-	AccumulationRevealage(color, transmittance);
+	// discard pixels that are not partially transparent
+	if(color.w == 1.0f || color.w == 0.0f)
+		discard;
+	else
+		AccumulationRevealage(color, transmittance);
 }

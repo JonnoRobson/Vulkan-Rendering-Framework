@@ -422,14 +422,6 @@ void main()
 		color = color + (diffuse * lighting);
 	}
 
-	// set alpha to material dissolve/alpha map value
-	color.w = material_data.materials[matIndex].dissolve;
-	uint alpha_map_index = material_data.materials[matIndex].alpha_map_index;
-	if(alpha_map_index > 0)
-	{
-		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord).x;
-	}
-
 	color.w = 1.0f;
 
 	imageStore(screenImage, ivec2(gl_GlobalInvocationID.xy), color);

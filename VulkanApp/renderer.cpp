@@ -29,7 +29,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, s
 
 void VulkanRenderer::RenderScene()
 {
-	render_mode_ = RenderMode::DEFERRED;
+	//render_mode_ = RenderMode::DEFERRED;
 
 	// set the render semaphore as the signal semaphore
 	current_signal_semaphore_ = render_semaphore_;
@@ -219,8 +219,9 @@ void VulkanRenderer::RenderTransparency()
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 
 	// clear the transparency buffers
+	VkClearColorValue revealage_clear = { 1.f, 1.f, 1.f, 1.f };
 	accumulation_buffer_->ClearImage();
-	revealage_buffer_->ClearImage();
+	revealage_buffer_->ClearImage(revealage_clear);
 
 	// submit the transparency render command buffer
 	VkSubmitInfo submit_info = {};
@@ -490,7 +491,7 @@ void VulkanRenderer::InitPipelines()
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
 	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
-	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, hdr_->DebugBuffer()->GetImageViews()[0]);
+	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, accumulation_buffer_->GetImageViews()[0]);
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
@@ -532,9 +533,13 @@ void VulkanRenderer::InitDeferredPipeline()
 
 	// initialize the g buffer pipeline
 	g_buffer_pipeline_ = new GBufferPipeline();
-	g_buffer_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
 	g_buffer_pipeline_->SetShader(g_buffer_shader_);
 	g_buffer_pipeline_->SetGBuffer(g_buffer_);
+	g_buffer_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	// material buffer and alpha maps are required to test for transparent pixels
+	g_buffer_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+	g_buffer_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	g_buffer_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
 	g_buffer_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 	// calculate size of the light buffer
@@ -624,7 +629,7 @@ void VulkanRenderer::InitTransparencyPipeline()
 	accumulation_buffer_ = new VulkanRenderTarget();
 	accumulation_buffer_->Init(devices_, VK_FORMAT_R16G16B16A16_SFLOAT, image_extent.width, image_extent.height, 1, false);
 	revealage_buffer_ = new VulkanRenderTarget();
-	revealage_buffer_->Init(devices_, VK_FORMAT_R8_UNORM, image_extent.width, image_extent.height, 1, false);
+	revealage_buffer_->Init(devices_, VK_FORMAT_R16_SFLOAT, image_extent.width, image_extent.height, 1, false);
 
 	// create the transparency pipeline
 	transparency_pipeline_ = new WeightedBlendedTransparencyPipeline();
@@ -661,7 +666,7 @@ void VulkanRenderer::InitTransparencyPipeline()
 	// initialize the transparency composite pipeline
 	transparency_composite_pipeline_->Init(devices_, swap_chain_, nullptr);
 
-	CreateTransparencyCommandBuffers();
+	CreateTransparencyCompositeCommandBuffer();
 }
 
 void VulkanRenderer::RecreateSwapChainFeatures()
@@ -766,6 +771,7 @@ void VulkanRenderer::CreateCommandBuffers()
 	}
 
 	CreateGBufferCommandBuffers();
+	CreateTransparencyCommandBuffer();
 }
 
 void VulkanRenderer::CreateGBufferCommandBuffers()
@@ -800,7 +806,7 @@ void VulkanRenderer::CreateGBufferCommandBuffers()
 
 			for (Mesh* mesh : meshes_)
 			{
-				mesh->RecordRenderCommands(g_buffer_command_buffers_[i]);
+				mesh->RecordRenderCommands(g_buffer_command_buffers_[i], RenderStage::GENERIC);
 			}
 
 			vkCmdEndRenderPass(g_buffer_command_buffers_[i]);
@@ -881,7 +887,7 @@ void VulkanRenderer::CreateDeferredCommandBuffers()
 	}	
 }
 
-void VulkanRenderer::CreateTransparencyCommandBuffers()
+void VulkanRenderer::CreateTransparencyCommandBuffer()
 {
 	// create transparency command buffers
 	VkCommandBufferAllocateInfo allocate_info = {};
@@ -919,9 +925,12 @@ void VulkanRenderer::CreateTransparencyCommandBuffers()
 	{
 		throw std::runtime_error("failed to record transparent render command buffer!");
 	}
+}
 
+void VulkanRenderer::CreateTransparencyCompositeCommandBuffer()
+{
 	// create tranparent composite commands
-	allocate_info = {};
+	VkCommandBufferAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocate_info.commandPool = command_pool_;
 	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -932,7 +941,7 @@ void VulkanRenderer::CreateTransparencyCommandBuffers()
 		throw std::runtime_error("failed to allocate transparency composite command buffers!");
 	}
 
-	begin_info = {};
+	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 	begin_info.pInheritanceInfo = nullptr;
@@ -1007,6 +1016,7 @@ void VulkanRenderer::AddMesh(Mesh* mesh)
 	vkFreeCommandBuffers(devices_->GetLogicalDevice(), command_pool_, command_buffers_.size(), command_buffers_.data());
 	vkFreeCommandBuffers(devices_->GetLogicalDevice(), command_pool_, buffer_visualisation_command_buffers_.size(), buffer_visualisation_command_buffers_.data());
 	vkFreeCommandBuffers(devices_->GetLogicalDevice(), command_pool_, g_buffer_command_buffers_.size(), g_buffer_command_buffers_.data());
+	vkFreeCommandBuffers(devices_->GetLogicalDevice(), command_pool_, 1, &transparency_command_buffer_);
 	CreateCommandBuffers();
 
 	// recreate shadow map command buffers

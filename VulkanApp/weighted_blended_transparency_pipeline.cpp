@@ -78,7 +78,7 @@ void WeightedBlendedTransparencyPipeline::CreatePipeline()
 	revealage_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
 	revealage_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
 	revealage_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	revealage_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	revealage_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
 	revealage_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 	std::array<VkPipelineColorBlendAttachmentState, 2> attachment_blend_states = { accumulation_blend_attachment, revealage_blend_attachment };

@@ -307,5 +307,10 @@ void main()
 		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord).x;
 	}
 
+	if(color.w < 1.0f)
+	{
+		discard;
+	}
+
 	outColor = color;
 }

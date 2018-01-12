@@ -12,7 +12,7 @@ public:
 	void Init(VulkanDevices* devices, VkFormat format, uint32_t width, uint32_t height, uint32_t count, bool depth_enabled);
 	void Cleanup();
 	
-	void ClearImage(int image_index = -1);
+	void ClearImage(VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 0.0f }, int image_index = -1);
 	void ClearDepth();
 
 	inline std::vector<VkImage>& GetImages() { return render_target_images_; }
