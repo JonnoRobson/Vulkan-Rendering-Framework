@@ -62,7 +62,7 @@ void VulkanRenderer::RenderScene()
 
 		// send camera data to the gpu
 		SceneLightData scene_data = {};
-		scene_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
+		scene_data.scene_data = glm::vec4(glm::vec3(0.01f, 0.01f, 0.01f), lights_.size());
 		//scene_data.scene_data = glm::vec4(glm::vec3(0.85f * 0.5f, 0.68f * 0.5f, 0.92f * 0.5f), lights_.size());
 		scene_data.camera_pos = glm::vec4(render_camera_->GetPosition(), 1.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
@@ -469,7 +469,8 @@ void VulkanRenderer::InitPipelines()
 	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, normal_textures_);
 	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
 	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
-
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps_);
+	
 	// set the pipeline material shader
 	rendering_pipeline_->SetShader(material_shader_);
 
@@ -491,7 +492,7 @@ void VulkanRenderer::InitPipelines()
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
 	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
-	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, accumulation_buffer_->GetImageViews()[0]);
+	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, shadow_maps_[0]);
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
@@ -544,14 +545,7 @@ void VulkanRenderer::InitDeferredPipeline()
 
 	// calculate size of the light buffer
 	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
-
-	// setup the shadow map descriptor
-	std::vector<VkImageView> shadow_maps;
-	for (Light* light : lights_)
-	{
-		shadow_maps.push_back(light->GetShadowMap()->GetImageViews()[0]);
-	}
-
+	
 	// initialize the deferred pipeline
 	deferred_pipeline_ = new DeferredPipeline();
 	deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 0, light_buffer_, buffer_size);
@@ -567,7 +561,7 @@ void VulkanRenderer::InitDeferredPipeline()
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, normal_textures_);
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, alpha_textures_);
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, reflection_textures_);
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
 
 	// add the g buffer to the pipeline
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
@@ -595,7 +589,7 @@ void VulkanRenderer::InitDeferredPipeline()
 	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 9, normal_textures_);
 	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 10, alpha_textures_);
 	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 11, reflection_textures_);
-	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 12, shadow_maps);
+	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 12, shadow_maps_);
 
 	// add the g buffer to the pipeline
 	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 13, g_buffer_->GetImageViews());
@@ -617,13 +611,6 @@ void VulkanRenderer::InitTransparencyPipeline()
 
 	// calculate size of the light buffer
 	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
-
-	// setup the shadow map descriptor
-	std::vector<VkImageView> shadow_maps;
-	for (Light* light : lights_)
-	{
-		shadow_maps.push_back(light->GetShadowMap()->GetImageViews()[0]);
-	}
 
 	// create the transparency buffers
 	accumulation_buffer_ = new VulkanRenderTarget();
@@ -649,7 +636,7 @@ void VulkanRenderer::InitTransparencyPipeline()
 	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, normal_textures_);
 	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
 	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
-	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps);
+	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps_);
 
 	// initialize the transparency pipeline
 	transparency_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
@@ -722,7 +709,7 @@ void VulkanRenderer::CreateCommandBuffers()
 			
 			for (Mesh* mesh : meshes_)
 			{
-				mesh->RecordRenderCommands(command_buffers_[i]);
+				mesh->RecordRenderCommands(command_buffers_[i], RenderStage::GENERIC);
 			}
 
 			vkCmdEndRenderPass(command_buffers_[i]);
@@ -1053,6 +1040,11 @@ void VulkanRenderer::AddLight(Light* light)
 {
 	light->SetLightBufferIndex(lights_.size());
 	lights_.push_back(light);
+
+	// store the shadow map image views for this light
+	light->SetShadowMapIndex(shadow_maps_.size());
+	for (VkImageView shadow_map : light->GetShadowMap()->GetImageViews())
+		shadow_maps_.push_back(shadow_map);
 }
 
 void VulkanRenderer::RemoveLight(Light* remove_light)
@@ -1108,15 +1100,6 @@ void VulkanRenderer::CreateLightBuffer()
 	devices_->CopyDataToBuffer(light_buffer_memory_, &light_data, sizeof(SceneLightData));
 
 	rendering_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
-
-	// setup the shadow map descriptor
-	std::vector<VkImageView> shadow_maps;
-	for (Light* light : lights_)
-	{
-		shadow_maps.push_back(light->GetShadowMap()->GetImageViews()[0]);
-	}
-
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps);
 }
 
 uint32_t VulkanRenderer::AddTextureMap(Texture* texture, Texture::MapType map_type)

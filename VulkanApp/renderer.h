@@ -165,6 +165,7 @@ protected:
 
 	std::vector<Mesh*> meshes_;
 	std::vector<Light*> lights_;
+	std::vector<VkImageView> shadow_maps_;
 	std::string texture_directory_;
 
 	RenderMode render_mode_;

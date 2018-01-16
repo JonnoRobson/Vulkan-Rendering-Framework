@@ -11,6 +11,8 @@
 class VulkanDevices;
 class VulkanRenderer;
 
+#define SHADOW_MAP_RESOLUTION 1024.0
+
 struct SceneLightData
 {
 	glm::vec4 scene_data; // xyz - ambient color, w - light count
@@ -27,7 +29,9 @@ struct LightData
 	float intensity;
 	float light_type;
 	float shadows_enabled;
-	glm::mat4 view_proj_matrix;
+	glm::mat4 view_proj_matrices[6];
+	uint32_t shadow_map_index;
+	uint32_t padding[3];
 };
 
 class Light
@@ -61,10 +65,12 @@ public:
 	
 	inline void SetLightStationary(bool stationary) { stationary_ = stationary; }
 	inline bool GetLightStationary() { return stationary_; }
-	
+
+	inline void SetShadowMapIndex(uint32_t index) { shadow_map_index_ = index; }
+
 	void SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_memory);
 
-	glm::mat4 GetViewMatrix();
+	glm::mat4 GetViewMatrix(int index = 0);
 	glm::mat4 GetProjectionMatrix();
 
 	void SetLightBufferIndex(uint16_t index) { light_buffer_index_ = index; }
@@ -75,8 +81,9 @@ public:
 
 	void RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh*>& meshes);
 
+
 protected:
-	void CalculateViewMatrix();
+	void CalculateViewMatrices();
 	void CalculateProjectionMatrix();
 
 protected:
@@ -86,7 +93,7 @@ protected:
 	glm::vec4 direction_;
 	glm::vec4 color_;
 
-	glm::mat4 view_matrix_;
+	glm::mat4 view_matrices_[6];
 	glm::mat4 proj_matrix_;
 
 	float range_;
@@ -96,9 +103,11 @@ protected:
 	bool stationary_;
 
 	// shadow mapping data
-	ShadowMapPipeline* shadow_map_pipeline_;
+	std::vector<ShadowMapPipeline*> shadow_map_pipelines_;
 	VulkanRenderTarget* shadow_map_;
-	VkCommandBuffer shadow_map_commands_;
+	uint32_t shadow_map_index_;
+
+	std::vector<VkCommandBuffer> shadow_map_command_buffers_;
 	VkDeviceMemory matrix_buffer_memory_;
 	glm::vec3 scene_min_vertex_;
 	glm::vec3 scene_max_vertex_;

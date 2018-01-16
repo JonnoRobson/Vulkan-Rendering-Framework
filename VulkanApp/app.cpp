@@ -127,44 +127,43 @@ bool App::InitResources()
 		loaded_meshes_.push_back(loaded_mesh);
 	}
 
-	
 	Light* test_light = new Light();
 	test_light->SetType(0.0f);
 	test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	test_light->SetDirection(glm::vec4(0.0f, -0.15f, -1.0f, 1.0f));
 	//test_light->SetColor(glm::vec4(0.23f, 0.19f, 0.34f, 1.0f));
 	test_light->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light->SetIntensity(0.5f);
+	test_light->SetIntensity(1.0f);
 	test_light->SetRange(1.0f);
 	test_light->SetShadowsEnabled(true);
 	test_light->Init(devices_, renderer_);
 	lights_.push_back(test_light);
 	
+	/*
 	Light* test_light_b = new Light();
 	test_light_b->SetType(0.0f);
 	test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 	test_light_b->SetDirection(glm::vec4(0.0f, 0.15f, -1.0f, 1.0f));
 	test_light_b->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
 	//test_light_b->SetColor(glm::vec4(0.11f, 0.24f, 0.89f, 1.0f));
-	test_light_b->SetIntensity(0.5f);
+	test_light_b->SetIntensity(1.0f);
 	test_light_b->SetRange(1.0f);
 	test_light_b->SetShadowsEnabled(true);
 	test_light_b->Init(devices_, renderer_);
 	lights_.push_back(test_light_b);
+	*/
 
-	/*
 	Light* test_light_c = new Light();
-	test_light_c->SetType(2.0f);
-	test_light_c->SetPosition(glm::vec4(0.0f, 100.0f, 10.0f, 1.0f));
+	test_light_c->SetType(1.0f);
+	test_light_c->SetPosition(glm::vec4(800.0f, -150.0f, 300.0f, 1.0f));
 	test_light_c->SetDirection(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 	test_light_c->SetColor(glm::vec4(0.95f, 0.95f, 0.95f, 1.0f));
-	test_light_c->SetIntensity(2.0f);
-	test_light_c->SetRange(10000.0f);
+	test_light_c->SetIntensity(1.0f);
+	test_light_c->SetRange(1000.0f);
 	test_light_c->SetShadowsEnabled(true);
 	test_light_c->Init(devices_, renderer_);
 	lights_.push_back(test_light_c);
-	*/
-
+	
 	camera_.SetViewDimensions(swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
@@ -265,6 +264,7 @@ void App::Update()
 	else if (input_->IsKeyPressed(GLFW_KEY_D))
 		camera_.MoveRight(frame_time_);
 
+
 	// camera turning
 	if (input_->IsKeyPressed(GLFW_KEY_UP))
 		camera_.TurnUp(frame_time_ * 100.0f);
@@ -274,6 +274,7 @@ void App::Update()
 		camera_.TurnLeft(frame_time_ * 100.0f);
 	else if (input_->IsKeyPressed(GLFW_KEY_RIGHT))
 		camera_.TurnRight(frame_time_ * 100.0f);
+	
 
 	// camera speed
 	if (input_->IsKeyPressed(GLFW_KEY_Q))

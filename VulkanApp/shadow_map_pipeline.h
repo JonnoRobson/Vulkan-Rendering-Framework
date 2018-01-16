@@ -3,8 +3,6 @@
 
 #include "pipeline.h"
 
-const uint32_t shadow_map_resolution = 2048;
-
 class ShadowMapPipeline : public VulkanPipeline
 {
 public:

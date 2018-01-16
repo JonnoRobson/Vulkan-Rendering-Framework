@@ -28,7 +28,7 @@ void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t 
 
 		devices_->CreateImage(width, height, render_target_depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, render_target_depth_image_, render_target_depth_image_memory_);
 		render_target_depth_image_view_ = devices_->CreateImageView(render_target_depth_image_, render_target_depth_format_, VK_IMAGE_ASPECT_DEPTH_BIT);
-
+		devices_->TransitionImageLayout(render_target_depth_image_, render_target_depth_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	}
 }
 

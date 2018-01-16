@@ -1,4 +1,5 @@
 #include "shadow_map_pipeline.h"
+#include "light.h"
 #include <array>
 
 void ShadowMapPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
@@ -8,7 +9,7 @@ void ShadowMapPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t
 	render_pass_info.renderPass = render_pass_;
 	render_pass_info.framebuffer = framebuffers_[buffer_index];
 	render_pass_info.renderArea.offset = { 0, 0 };
-	render_pass_info.renderArea.extent = { shadow_map_resolution, shadow_map_resolution };
+	render_pass_info.renderArea.extent = { (uint32_t)SHADOW_MAP_RESOLUTION, (uint32_t)SHADOW_MAP_RESOLUTION };
 
 	std::array<VkClearValue, 2> clear_values = {};
 	clear_values[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -27,8 +28,8 @@ void ShadowMapPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = shadow_map_resolution;
-	viewport.height = shadow_map_resolution;
+	viewport.width = SHADOW_MAP_RESOLUTION;
+	viewport.height = SHADOW_MAP_RESOLUTION;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
@@ -36,7 +37,7 @@ void ShadowMapPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t
 	// set the dynamic scissor data
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = { shadow_map_resolution, shadow_map_resolution };
+	scissor.extent = { (uint32_t)SHADOW_MAP_RESOLUTION, (uint32_t)SHADOW_MAP_RESOLUTION };
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
 	// bind the descriptor set to the pipeline
@@ -54,8 +55,8 @@ void ShadowMapPipeline::CreateFramebuffers()
 	framebuffer_info.renderPass = render_pass_;
 	framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 	framebuffer_info.pAttachments = attachments.data();
-	framebuffer_info.width = shadow_map_resolution;
-	framebuffer_info.height = shadow_map_resolution;
+	framebuffer_info.width = SHADOW_MAP_RESOLUTION;
+	framebuffer_info.height = SHADOW_MAP_RESOLUTION;
 	framebuffer_info.layers = 1;
 
 	if (vkCreateFramebuffer(devices_->GetLogicalDevice(), &framebuffer_info, nullptr, &framebuffers_[0]) != VK_SUCCESS)

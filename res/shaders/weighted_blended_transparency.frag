@@ -16,7 +16,9 @@ struct LightData
 	float lightIntensity;
 	float lightType;
 	float shadowsEnabled;
-	mat4 viewProjMatrix;
+	mat4 viewProjMatrices[6];
+	uint shadowMapIndex;
+	uint padding[3];
 };
 
 // uniform buffers
@@ -79,25 +81,73 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 		attenuation = max(0, 1.0f - (dist / lightRange));
 	}
 
-	if(lightType == 2.0f)
+	
+	if(lightType == 2.0f && attenuation > 0)
 	{
 		// add in spotlight attenuation factor
 		vec3 lightVector2 = lightDirection.xyz;
 		float rho = dot(lightVector, lightVector2);
-		attenuation *= pow(rho, 8);
+
+		if(degrees(acos(rho)) > 45.0f)
+		{
+			attenuation *= pow(rho, 8);
+			if(attenuation < 0)
+				attenuation = 0;
+		}
 	}
+	
 
 	return attenuation;
 }
 
-float CalculateShadowOcclusion(vec4 worldPosition, uint lightIndex, uint pcfSize)
+float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex, uint pcfSize)
 {
 	LightData light = light_data.lights[lightIndex];
 	float shadowsEnabled = light.shadowsEnabled;
-	mat4 lightViewProj = light.viewProjMatrix;
 
 	if(shadowsEnabled > 0)
 	{
+		// determine the correct shadow map and matrices to use
+		uint shadowMapIndex = 0;
+		mat4 lightViewProj;
+		if(light.lightType != 1.0f)
+		{
+			lightViewProj = light.viewProjMatrices[0];
+			shadowMapIndex = light.shadowMapIndex;
+		}
+		else
+		{
+			// use the incoming ray dir to determine which shadow map to use
+			float dir = max(max(abs(rayDir.y), abs(rayDir.z)), abs(rayDir.x));
+
+			int indexOffset = 0;
+
+			if(dir == abs(rayDir.x))
+			{
+				if(rayDir.x > 0)
+					indexOffset= 0;
+				else
+					indexOffset = 1;	
+			}
+			else if (dir == abs(rayDir.y))
+			{
+				if(rayDir.y > 0)
+					indexOffset= 2;
+				else
+					indexOffset = 3;	
+			}
+			else
+			{
+				if(rayDir.z > 0)
+					indexOffset= 4;
+				else
+					indexOffset = 5;	
+			}
+
+			lightViewProj = light.viewProjMatrices[indexOffset];
+			shadowMapIndex = light.shadowMapIndex + indexOffset;
+		}
+
 		// calculate pixel position in light space
 		vec4 lightSpacePos = lightViewProj * worldPosition;
 		lightSpacePos = lightSpacePos / lightSpacePos.w; 
@@ -105,39 +155,36 @@ float CalculateShadowOcclusion(vec4 worldPosition, uint lightIndex, uint pcfSize
 		// calculate shadow map tex coords
 		vec2 projTexCoord = lightSpacePos.xy * 0.5 + 0.5;
 
-		// test if the pixel falls inside the light map
-		if((clamp(projTexCoord.x, 0, 1) == projTexCoord.x) && (clamp(projTexCoord.y, 0, 1) == projTexCoord.y))
+		// compute total number of samples to take from shadow map
+		int pcfSizeMinus1 = int(pcfSize - 1);
+		float kernelSize = 2.0 * pcfSizeMinus1 + 1.0;
+		float numSamples = kernelSize * kernelSize;
+
+		// counter for shadow map samples not in shadow
+		float lightCount = 0.0;
+
+		// sample the shadow map
+		ivec2 textureDims = textureSize(sampler2D(shadowMaps[shadowMapIndex], mapSampler), 0);
+		float shadowMapTexelSize = 1.0 / textureDims.x;
+		for(int x = -pcfSizeMinus1; x <= pcfSizeMinus1; x++)
 		{
-			// compute total number of samples to take from shadow map
-			int pcfSizeMinus1 = int(pcfSize - 1);
-			float kernelSize = 2.0 * pcfSizeMinus1 + 1.0;
-			float numSamples = kernelSize * kernelSize;
-
-			// counter for shadow map samples not in shadow
-			float lightCount = 0.0;
-
-			// sample the shadow map
-			float shadowMapTexelSize = 1.0 / 2048.0;
-			for(int x = -pcfSizeMinus1; x <= pcfSizeMinus1; x++)
+			for(int y = -pcfSizeMinus1; y <= pcfSizeMinus1; y++)
 			{
-				for(int y = -pcfSizeMinus1; y <= pcfSizeMinus1; y++)
-				{
-					// compute coordinate for this pcf sample
-					vec2 pcfCoord = projTexCoord + vec2(x, y) * shadowMapTexelSize;
+				// compute coordinate for this pcf sample
+				vec2 pcfCoord = projTexCoord + vec2(x, y) * shadowMapTexelSize;
 
+				// test if the pixel falls inside the light map
+				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
+				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[lightIndex], mapSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], mapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
-						lightCount  += 1.0;
+						lightCount += 1.0;
 				}
 			}
+		}
 
-			return 1.0 - (lightCount / numSamples);
-		}
-		else
-		{
-			return 1.0f;
-		}
+		return 1.0 - (lightCount / numSamples);
 	}
 	else
 	{
@@ -166,6 +213,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	vec3 rayDir = vec3(0.0f, 0.0f, 0.0f);
 	float dist = 0.0f;
 
+
 	// calculate incoming light direction
 	if(lightType == 1.0f || lightType == 2.0f)
 	{
@@ -178,7 +226,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	{
 		rayDir = -lightDirection.xyz;
 	}
-
+	
 	// calculate light power and return black if it is zero or less
 	float lightPower = clamp(dot(worldNormal, rayDir), 0.0f, 1.0f);
 	if(lightPower <= 0.0f)
@@ -186,14 +234,13 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 
-
 	// calculate attenuation and return black if fully attenuated
 	float attenuation = CalculateAttenuation(rayDir, lightDirection, dist, lightRange, lightType);
 	if(attenuation <= 0.0f)
 	{
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
-
+	
 	// calculate specular lighting
 	vec4 specularColor = material_data.materials[matIndex].specular;
 	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
@@ -216,18 +263,29 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		specularExponent = specularExponent * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
 	}
 
-	float specularPower = pow(clamp(dot(eyeVec, reflectLight), 0, 1), specularExponent);
+	float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularExponent);
+	if(specularPower < 0.0f)
+		specularPower = 0.0f;
 
 	specularColor = specularColor * specularPower;
 	
 	// calculate shadow occlusion and return black if fully occluded
-	float occlusion = CalculateShadowOcclusion(worldPosition, lightIndex, 8);
+	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, 8);
 	if(occlusion >= 1.0f)
 	{
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
-		
+			
 	vec3 color = (lightColor.xyz + specularColor.xyz) * lightPower * lightIntensity * attenuation * (1.0f - occlusion);
+	
+	if(color.x < 0.0f)
+		color.x = 0.0f;
+
+	if(color.y < 0.0f)
+		color.y = 0.0f;
+
+	if(color.z < 0.0f)
+		color.z = 0.0f;
 
 	return vec4(color, 1.0f);
 }
@@ -288,6 +346,18 @@ void AccumulationRevealage(vec4 color, vec4 transmit)
 
 void main()
 {
+	// set alpha to material dissolve/alpha map value
+	float alpha = material_data.materials[matIndex].dissolve;
+	uint alpha_map_index = material_data.materials[matIndex].alpha_map_index;
+	if(alpha_map_index > 0)
+	{
+		alpha = alpha * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord, 0).r;
+	}
+	
+	// discard pixels that are not partially transparent
+	if(alpha == 1.0f || alpha == 0.0f)
+		discard;
+
 	vec4 diffuse = material_data.materials[matIndex].diffuse;
 	
 	// if diffuse map index is non-zero sample the diffuse map
@@ -322,22 +392,12 @@ void main()
 		vec4 lighting = CalculateLighting(worldPosition, normal, fragTexCoord, matIndex, i);
 		color = color + (diffuse * lighting);
 	}
-
-	// 
-	// set alpha to material dissolve/alpha map value
-	color.w = material_data.materials[matIndex].dissolve;
-	uint alpha_map_index = material_data.materials[matIndex].alpha_map_index;
-	if(alpha_map_index > 0)
-	{
-		color.w = color.w * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord, 0).r;
-	}
-
+	
 	// set transimittance value from material
 	vec4 transmittance = material_data.materials[matIndex].transmittance;
 
-	// discard pixels that are not partially transparent
-	if(color.w == 1.0f || color.w == 0.0f)
-		discard;
-	else
-		AccumulationRevealage(color, transmittance);
+	// set the fragments alpha component
+	color.w = alpha;
+
+	AccumulationRevealage(color, transmittance);
 }

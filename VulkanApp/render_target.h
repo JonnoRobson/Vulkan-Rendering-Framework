@@ -26,6 +26,8 @@ public:
 	inline VkFormat GetRenderTargetFormat() { return render_target_format_; }
 	inline VkFormat GetRenderTargetDepthFormat() { return render_target_depth_format_; }
 
+	inline int GetRenderTargetCount() { return render_target_images_.size(); }
+
 protected:
 	VulkanDevices* devices_;
 
@@ -33,6 +35,7 @@ protected:
 	std::vector<VkImage> render_target_images_;
 	std::vector<VkDeviceMemory> render_target_image_memories_;
 	std::vector<VkImageView> render_target_image_views_;
+
 
 	VkFormat render_target_depth_format_;
 	VkImage render_target_depth_image_;
