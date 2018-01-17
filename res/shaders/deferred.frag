@@ -77,7 +77,8 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 
 	if(lightType == 1.0f || lightType == 2.0f)
 	{
-		attenuation = max(0, 1.0f - (dist / lightRange));
+		float dSquared = dot(lightVector, lightVector);
+		attenuation = max(0, 1.0f - (dSquared / (lightRange * lightRange)));
 	}
 
 	
@@ -248,26 +249,29 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
 	}
 
-	// calculate eye vector
-	vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
-
-	// calculate reflected light vector
-	vec3 reflectLight = reflect(rayDir, worldNormal);
-
-	// calculate specular power
-	float specularExponent = material_data.materials[matIndex].shininess;
-	uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
-	if(exponent_map_index > 0)
+	if(specularColor.x + specularColor.y + specularColor.z > 0)
 	{
-		specularExponent = specularExponent * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
+		// calculate eye vector
+		vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
+
+		// calculate reflected light vector
+		vec3 reflectLight = reflect(rayDir, worldNormal);
+
+		// calculate specular power
+		float specularExponent = material_data.materials[matIndex].shininess;
+		uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
+		if(exponent_map_index > 0)
+		{
+			specularExponent = specularExponent * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
+		}
+
+		float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularExponent);
+		if(specularPower < 0.0f)
+			specularPower = 0.0f;
+
+		specularColor = specularColor * specularPower;
 	}
 
-	float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularExponent);
-	if(specularPower < 0.0f)
-		specularPower = 0.0f;
-
-	specularColor = specularColor * specularPower;
-	
 	// calculate shadow occlusion and return black if fully occluded
 	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, 8);
 	if(occlusion >= 1.0f)

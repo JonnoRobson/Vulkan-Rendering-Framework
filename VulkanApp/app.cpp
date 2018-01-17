@@ -127,6 +127,7 @@ bool App::InitResources()
 		loaded_meshes_.push_back(loaded_mesh);
 	}
 
+	/*
 	Light* test_light = new Light();
 	test_light->SetType(0.0f);
 	test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -139,7 +140,7 @@ bool App::InitResources()
 	test_light->Init(devices_, renderer_);
 	lights_.push_back(test_light);
 	
-	/*
+
 	Light* test_light_b = new Light();
 	test_light_b->SetType(0.0f);
 	test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -152,10 +153,11 @@ bool App::InitResources()
 	test_light_b->Init(devices_, renderer_);
 	lights_.push_back(test_light_b);
 	*/
-
+	
 	Light* test_light_c = new Light();
 	test_light_c->SetType(1.0f);
-	test_light_c->SetPosition(glm::vec4(800.0f, -150.0f, 300.0f, 1.0f));
+	//test_light_c->SetPosition(glm::vec4(800.0f, -150.0f, 300.0f, 1.0f));
+	test_light_c->SetPosition(glm::vec4(0.0f, 0.0f, 300.0f, 1.0f));
 	test_light_c->SetDirection(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 	test_light_c->SetColor(glm::vec4(0.95f, 0.95f, 0.95f, 1.0f));
 	test_light_c->SetIntensity(1.0f);
@@ -164,6 +166,7 @@ bool App::InitResources()
 	test_light_c->Init(devices_, renderer_);
 	lights_.push_back(test_light_c);
 	
+
 	camera_.SetViewDimensions(swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
