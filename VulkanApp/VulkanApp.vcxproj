@@ -201,6 +201,8 @@
     <None Include="..\res\shaders\skybox.vert" />
     <None Include="..\res\shaders\tonemap.frag" />
     <None Include="..\res\shaders\transparency_composite.frag" />
+    <None Include="..\res\shaders\visibility.frag" />
+    <None Include="..\res\shaders\visibility.vert" />
     <None Include="..\res\shaders\weighted_blended_transparency.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

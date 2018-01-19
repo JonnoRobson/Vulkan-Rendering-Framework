@@ -265,5 +265,11 @@
     <None Include="..\res\shaders\transparency_composite.frag">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="..\res\shaders\visibility.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility.vert">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

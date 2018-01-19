@@ -73,7 +73,7 @@ bool App::InitVulkan()
 
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
-	renderer_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "../res/shaders/default_material.frag.spv");
+	renderer_->Init(devices_, swap_chain_);
 
 	return true;
 }
