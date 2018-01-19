@@ -216,7 +216,7 @@ void Light::CalculateProjectionMatrix()
 				0.0f, 0.0f, 0.5f, 0.0f,
 				0.0f, 0.0f, 0.5f, 1.0f);
 
-		proj_matrix_ = clip * glm::perspectiveFov<float>(glm::radians(91.0), SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, 1.0f, range_);
+		proj_matrix_ = clip * glm::perspectiveFov<float>(glm::radians(91.0), SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, 1.0f, 1000.0f);
 	}
 }
 

@@ -29,8 +29,6 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, s
 
 void VulkanRenderer::RenderScene()
 {
-	//render_mode_ = RenderMode::DEFERRED;
-
 	// set the render semaphore as the signal semaphore
 	current_signal_semaphore_ = render_semaphore_;
 
@@ -50,7 +48,7 @@ void VulkanRenderer::RenderScene()
 	{
 		RenderVisualisation(image_index);
 	}
-	else if (render_mode_ == RenderMode::FORWARD || render_mode_ == RenderMode::DEFERRED || render_mode_ == RenderMode::DEFERRED_COMPUTE)
+	else if (render_mode_ == RenderMode::DEFERRED)
 	{
 		// send matrix data to the gpu
 		UniformBufferObject ubo = {};
@@ -64,7 +62,7 @@ void VulkanRenderer::RenderScene()
 		SceneLightData scene_data = {};
 		scene_data.scene_data = glm::vec4(glm::vec3(0.01f, 0.01f, 0.01f), lights_.size());
 		//scene_data.scene_data = glm::vec4(glm::vec3(0.85f * 0.5f, 0.68f * 0.5f, 0.92f * 0.5f), lights_.size());
-		scene_data.camera_pos = glm::vec4(render_camera_->GetPosition(), 1.0f);
+		scene_data.camera_data = glm::vec4(render_camera_->GetPosition(), 1000.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
 
 		for (Light* light : lights_)
@@ -76,33 +74,21 @@ void VulkanRenderer::RenderScene()
 		// render the skybox
 		skybox_->Render(render_camera_);
 
-		if (render_mode_ == RenderMode::FORWARD)
-		{
-			RenderForward(image_index);
-		}
-		else if (render_mode_ == RenderMode::DEFERRED_COMPUTE)
-		{
-			RenderGBuffer(image_index);
-			RenderDeferredCompute(image_index);
-		}
-		else if (render_mode_ == RenderMode::DEFERRED)
-		{
-			RenderGBuffer(image_index);
-			RenderDeferred(image_index);
-		}
+		// render the scene
+		RenderGBuffer(image_index);
+		RenderDeferred(image_index);
 
-		if (render_mode_ == RenderMode::DEFERRED)
+		// render transparency
+		current_signal_semaphore_ = transparency_composite_semaphore_;
+		RenderTransparency();
+		
+		if (hdr_->GetHDRMode() > 0)
 		{
-			current_signal_semaphore_ = transparency_composite_semaphore_;
-			RenderTransparency();
-
-			if (hdr_->GetHDRMode() > 0)
-			{
-				hdr_->Render(swap_chain_, &current_signal_semaphore_);
+			hdr_->Render(swap_chain_, &current_signal_semaphore_);
 				current_signal_semaphore_ = hdr_->GetHDRSemaphore();
-			}
-			swap_chain_->FinalizeIntermediateImage();
 		}
+		
+		swap_chain_->FinalizeIntermediateImage();
 	}
 
 }
@@ -325,10 +311,6 @@ void VulkanRenderer::Cleanup()
 	delete deferred_shader_;
 	deferred_shader_ = nullptr;
 
-	deferred_compute_shader_->Cleanup();
-	delete deferred_compute_shader_;
-	deferred_compute_shader_ = nullptr;
-
 	transparency_shader_->Cleanup();
 	delete transparency_shader_;
 	transparency_shader_ = nullptr;
@@ -352,10 +334,6 @@ void VulkanRenderer::Cleanup()
 	delete texture_cache_;
 	texture_cache_ = nullptr;
 
-	// clean up the pipeline
-	rendering_pipeline_->CleanUp();
-	delete rendering_pipeline_;
-	rendering_pipeline_ = nullptr;
 
 	// clean up the buffer visualisation pipeline
 	buffer_visualisation_pipeline_->CleanUp();
@@ -370,10 +348,6 @@ void VulkanRenderer::Cleanup()
 	deferred_pipeline_->CleanUp();
 	delete deferred_pipeline_;
 	deferred_pipeline_ = nullptr;
-
-	deferred_compute_pipeline_->CleanUp();
-	delete deferred_compute_pipeline_;
-	deferred_compute_pipeline_ = nullptr;
 
 	// clean up transparency pipelines
 	transparency_pipeline_->CleanUp();
@@ -427,12 +401,7 @@ void VulkanRenderer::Cleanup()
 
 void VulkanRenderer::InitPipelines()
 {
-	rendering_pipeline_ = new VulkanPipeline();
-
-	// add the material buffers to the pipeline
-	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
 	CreateLightBuffer();
-	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
 
 	// fill out any empty texture arrays using the default texture
 	if (ambient_textures_.empty())
@@ -459,24 +428,7 @@ void VulkanRenderer::InitPipelines()
 	if (reflection_textures_.empty())
 		reflection_textures_.push_back(default_texture_);
 
-	// add the material textures to the pipeline
-	rendering_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, ambient_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, diffuse_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, specular_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, specular_highlight_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, emissive_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, normal_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
-	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps_);
-	
-	// set the pipeline material shader
-	rendering_pipeline_->SetShader(material_shader_);
-
-	// create the material pipeline
-	rendering_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
-
+	// init rendering pipelines
 	InitDeferredPipeline();
 	InitTransparencyPipeline();
 
@@ -495,6 +447,37 @@ void VulkanRenderer::InitPipelines()
 	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, shadow_maps_[0]);
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
+}
+
+void VulkanRenderer::InitForwardPipeline()
+{
+	// calculate size of the light buffer
+	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
+
+	// add the material buffers to the pipeline
+	rendering_pipeline_ = new VulkanPipeline();
+	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	rendering_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
+	rendering_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 3, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+
+	// add the material textures to the pipeline
+	rendering_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 4, default_texture_->GetSampler());
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, ambient_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, diffuse_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, specular_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, specular_highlight_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, emissive_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, normal_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
+	rendering_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps_);
+
+	// set the pipeline material shader
+	rendering_pipeline_->SetShader(material_shader_);
+
+	// create the material pipeline
+	rendering_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 }
 
@@ -573,6 +556,12 @@ void VulkanRenderer::InitDeferredPipeline()
 
 	// create the deferred command buffers
 	CreateDeferredCommandBuffers();
+}
+
+void VulkanRenderer::InitDeferredComputePipeline()
+{
+	// calculate size of the light buffer
+	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
 
 	// initialize the deferred compute pipeline
 	deferred_compute_pipeline_ = new DeferredComputePipeline();
@@ -604,6 +593,7 @@ void VulkanRenderer::InitDeferredPipeline()
 	// create the deferred compute command buffers
 	CreateDeferredComputeCommandBuffers();
 }
+
 
 void VulkanRenderer::InitTransparencyPipeline()
 {
@@ -1095,11 +1085,9 @@ void VulkanRenderer::CreateLightBuffer()
 	SceneLightData light_data = {};
 	//light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
 	light_data.scene_data = glm::vec4(glm::vec3(0.85f * 10.0f, 0.68f * 10.0f, 0.92f * 10.0f), lights_.size());
-	light_data.camera_pos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	light_data.camera_data = glm::vec4(0.0f, 0.0f, 0.0f, 1000.0f);
 
 	devices_->CopyDataToBuffer(light_buffer_memory_, &light_data, sizeof(SceneLightData));
-
-	rendering_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 2, light_buffer_, buffer_size);
 }
 
 uint32_t VulkanRenderer::AddTextureMap(Texture* texture, Texture::MapType map_type)

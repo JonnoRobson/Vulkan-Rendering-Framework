@@ -86,6 +86,7 @@ protected:
 
 	void CreateCommandPool();
 	void CreateCommandBuffers();
+	void CreateForwardCommandBuffers();
 	void CreateGBufferCommandBuffers();
 	void CreateDeferredCommandBuffers();
 	void CreateDeferredComputeCommandBuffers();
@@ -105,7 +106,9 @@ protected:
 	void RenderDeferredCompute(uint32_t frame_index);
 	void RenderTransparency();
 
+	void InitForwardPipeline();
 	void InitDeferredPipeline();
+	void InitDeferredComputePipeline();
 	void InitTransparencyPipeline();
 
 protected:

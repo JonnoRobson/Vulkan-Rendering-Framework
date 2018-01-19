@@ -140,7 +140,7 @@ bool App::InitResources()
 	test_light->Init(devices_, renderer_);
 	lights_.push_back(test_light);
 	
-
+	
 	Light* test_light_b = new Light();
 	test_light_b->SetType(0.0f);
 	test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -153,11 +153,11 @@ bool App::InitResources()
 	test_light_b->Init(devices_, renderer_);
 	lights_.push_back(test_light_b);
 	*/
-	
+	/*
 	Light* test_light_c = new Light();
 	test_light_c->SetType(1.0f);
-	//test_light_c->SetPosition(glm::vec4(800.0f, -150.0f, 300.0f, 1.0f));
-	test_light_c->SetPosition(glm::vec4(0.0f, 0.0f, 300.0f, 1.0f));
+	test_light_c->SetPosition(glm::vec4(800.0f, -150.0f, 300.0f, 1.0f));
+	//test_light_c->SetPosition(glm::vec4(0.0f, 0.0f, 300.0f, 1.0f));
 	test_light_c->SetDirection(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 	test_light_c->SetColor(glm::vec4(0.95f, 0.95f, 0.95f, 1.0f));
 	test_light_c->SetIntensity(1.0f);
@@ -165,7 +165,22 @@ bool App::InitResources()
 	test_light_c->SetShadowsEnabled(true);
 	test_light_c->Init(devices_, renderer_);
 	lights_.push_back(test_light_c);
-	
+	*/
+
+	// light test
+	float light_count = 16;
+	for (int i = 0; i < 16; i++)
+	{
+		Light* light = new Light();
+		light->SetType(1.0f);
+		light->SetPosition(glm::vec4((-light_count + (i * 2)) * 100.0f, 0.0f, 10.0f, 1.0f));
+		light->SetColor(glm::vec4((float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, 1));
+		light->SetIntensity(1.0f);
+		light->SetRange(1000.0f);
+		light->SetShadowsEnabled(true);
+		light->Init(devices_, renderer_);
+		lights_.push_back(light);
+	}
 
 	camera_.SetViewDimensions(swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
@@ -300,12 +315,7 @@ void App::Update()
 	}
 
 	// render mode switch
-	if (input_->IsKeyPressed(GLFW_KEY_TAB))
-	{
-		//renderer_->SetRenderMode(VulkanRenderer::RenderMode::FORWARD);
-		input_->SetKeyUp(GLFW_KEY_TAB);
-	}
-	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
+	if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
 	{
 		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED);
 		input_->SetKeyUp(GLFW_KEY_LEFT_SHIFT);
@@ -314,11 +324,6 @@ void App::Update()
 	{
 		renderer_->SetRenderMode(VulkanRenderer::RenderMode::BUFFER_VIS);
 		input_->SetKeyUp(GLFW_KEY_LEFT_ALT);
-	}
-	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_CONTROL))
-	{
-		//renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED_COMPUTE);
-		input_->SetKeyUp(GLFW_KEY_LEFT_CONTROL);
 	}
 
 	// hdr toggle

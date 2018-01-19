@@ -15,8 +15,8 @@ class VulkanRenderer;
 
 struct SceneLightData
 {
-	glm::vec4 scene_data; // xyz - ambient color, w - light count
-	glm::vec4 camera_pos;
+	glm::vec4 scene_data;	// xyz - ambient color, w - light count
+	glm::vec4 camera_data;	// xyz - camera pos, w - quality falloff distance
 };
 
 

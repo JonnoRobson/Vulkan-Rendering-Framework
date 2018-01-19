@@ -22,7 +22,7 @@ struct LightData
 layout(binding = 0) buffer LightingBuffer
 {
 	vec4 scene_data;
-	vec4 camera_pos;
+	vec4 camera_data;
 	LightData lights[];
 } light_data;
 
@@ -77,8 +77,7 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 
 	if(lightType == 1.0f || lightType == 2.0f)
 	{
-		float dSquared = dot(lightVector, lightVector);
-		attenuation = max(0, 1.0f - (dSquared / (lightRange * lightRange)));
+		attenuation = max(0, 1.0f - (dist / lightRange));
 	}
 
 	
@@ -192,7 +191,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 	}
 }
 
-vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, uint matIndex, uint lightIndex)
+vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, vec4 specularColor, uint matIndex, uint lightIndex)
 {
 	MaterialData mat = material_data.materials[matIndex];
 	LightData light = light_data.lights[lightIndex];
@@ -203,6 +202,10 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	float lightRange = light.lightRange;
 	float lightIntensity = light.lightIntensity;
 	float lightType = light.lightType;
+		
+	// calculate distance to the pixel from the camera and quality level
+	float cameraDist = length(worldPosition.xyz - light_data.camera_data.xyz);
+	float qualityLevel = light_data.camera_data.w / cameraDist;
 
 	// immediatly return black if light intensity is zero or less
 	if(lightIntensity <= 0.0f)
@@ -241,39 +244,29 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 	
-	// calculate specular lighting
-	vec4 specularColor = material_data.materials[matIndex].specular;
-	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
-	if(specular_map_index > 0)
+	// don't bother with specular lighting if quality level is low
+	if(qualityLevel < 0.25f)
 	{
-		specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
-	}
-
-	if(specularColor.x + specularColor.y + specularColor.z > 0)
-	{
-		// calculate eye vector
-		vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
-
-		// calculate reflected light vector
-		vec3 reflectLight = reflect(rayDir, worldNormal);
-
-		// calculate specular power
-		float specularExponent = material_data.materials[matIndex].shininess;
-		uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
-		if(exponent_map_index > 0)
+		if(specularColor.x + specularColor.y + specularColor.z > 0)
 		{
-			specularExponent = specularExponent * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
+			// calculate eye vector
+			vec3 eyeVec = worldPosition.xyz - light_data.camera_data.xyz;
+
+			// calculate reflected light vector
+			vec3 reflectLight = reflect(rayDir, worldNormal);
+
+			float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularColor.w);
+			if(specularPower < 0.0f)
+				specularPower = 0.0f;
+
+			specularColor.xyz = specularColor.xyz * specularPower;
 		}
-
-		float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularExponent);
-		if(specularPower < 0.0f)
-			specularPower = 0.0f;
-
-		specularColor = specularColor * specularPower;
 	}
 
+	uint shadowQuality = uint(max(1, min(8 * qualityLevel, 8)));
+	
 	// calculate shadow occlusion and return black if fully occluded
-	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, 8);
+	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, shadowQuality);
 	if(occlusion >= 1.0f)
 	{
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -381,7 +374,7 @@ void main()
 	uint normal_map_index = material_data.materials[matIndex].bump_map_index;
 	if(normal_map_index > 0)
 	{
-		vec3 cameraVec = worldPosition.xyz - light_data.camera_pos.xyz;
+		vec3 cameraVec = worldPosition.xyz - light_data.camera_data.xyz;
 		normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
 	}
 
@@ -395,14 +388,30 @@ void main()
 		
 	vec4 color = ambient * vec4(light_data.scene_data.xyz, 1.0f);
 
+	// calculate specular color
+	vec4 specularColor = material_data.materials[matIndex].specular;
+	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
+	if(specular_map_index > 0)
+	{
+		specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
+	}
+	
+	// calculate specular power
+	specularColor.w = material_data.materials[matIndex].shininess;
+	uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
+	if(exponent_map_index > 0)
+	{
+		specularColor.w = specularColor.w * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
+	}
+
 	// calculate lighting for all lights
 	for(uint i = 0; i < light_data.scene_data.w; i++)
 	{
-		vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, matIndex, i);
+		vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, specularColor, matIndex, i);
 		color = color + (diffuse * lighting);
 	}
 
 	color.w = 1.0f;
-
+	
 	outColor = color;
 }
