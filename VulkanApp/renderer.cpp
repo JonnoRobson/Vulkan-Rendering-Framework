@@ -2,7 +2,7 @@
 #include <array>
 #include <map>
 
-void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, std::string vs_filename, std::string ps_filename)
+void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain)
 {
 	devices_ = devices;
 	swap_chain_ = swap_chain;
@@ -15,7 +15,6 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, s
 	// create the texture cache
 	texture_cache_ = new VulkanTextureCache(devices);
 
-	CreateMaterialShader(vs_filename, ps_filename);
 	CreateShaders();
 	CreatePrimitiveBuffer();
 	CreateMaterialBuffer();
@@ -75,8 +74,8 @@ void VulkanRenderer::RenderScene()
 		skybox_->Render(render_camera_);
 
 		// render the scene
-		RenderGBuffer(image_index);
-		RenderDeferred(image_index);
+		RenderGBuffer();
+		RenderDeferred();
 
 		// render transparency
 		current_signal_semaphore_ = transparency_composite_semaphore_;
@@ -121,7 +120,7 @@ void VulkanRenderer::RenderForward(uint32_t image_index)
 	}
 }
 
-void VulkanRenderer::RenderGBuffer(uint32_t image_index)
+void VulkanRenderer::RenderGBuffer()
 {
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
@@ -143,7 +142,7 @@ void VulkanRenderer::RenderGBuffer(uint32_t image_index)
 	}
 }
 
-void VulkanRenderer::RenderDeferred(uint32_t image_index)
+void VulkanRenderer::RenderDeferred()
 {
 	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
 
@@ -172,7 +171,7 @@ void VulkanRenderer::RenderDeferred(uint32_t image_index)
 	}
 }
 
-void VulkanRenderer::RenderDeferredCompute(uint32_t image_index)
+void VulkanRenderer::RenderDeferredCompute()
 {
 	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
 
@@ -444,7 +443,7 @@ void VulkanRenderer::InitPipelines()
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
 	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
-	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, shadow_maps_[0]);
+	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, g_buffer_->GetImageViews()[1]);
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
@@ -667,22 +666,20 @@ void VulkanRenderer::CreateCommandPool()
 
 void VulkanRenderer::CreateCommandBuffers()
 {
+	CreateGBufferCommandBuffers();
+	CreateTransparencyCommandBuffer();
+	CreateBufferVisualisationCommandBuffers();
+}
+
+void VulkanRenderer::CreateForwardCommandBuffers()
+{
 	int buffer_count = swap_chain_->GetSwapChainImages().size();
 
 	// create rendering command buffers
 	command_buffers_.resize(buffer_count);
+	devices_->CreateCommandBuffers(command_pool_, command_buffers_.data(), buffer_count);
 
-	VkCommandBufferAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = (uint32_t)command_buffers_.size();
-
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, command_buffers_.data()) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate render command buffers!");
-	}
-
+	// record the command buffers
 	for (size_t i = 0; i < command_buffers_.size(); i++)
 	{
 		VkCommandBufferBeginInfo begin_info = {};
@@ -696,7 +693,7 @@ void VulkanRenderer::CreateCommandBuffers()
 		{
 			// bind pipeline
 			rendering_pipeline_->RecordCommands(command_buffers_[i], i);
-			
+
 			for (Mesh* mesh : meshes_)
 			{
 				mesh->RecordRenderCommands(command_buffers_[i], RenderStage::GENERIC);
@@ -710,63 +707,15 @@ void VulkanRenderer::CreateCommandBuffers()
 			throw std::runtime_error("failed to record render command buffer!");
 		}
 	}
-
-	// create buffer visualisation command buffers
-	buffer_visualisation_command_buffers_.resize(buffer_count);
-
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = (uint32_t)buffer_visualisation_command_buffers_.size();
-
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, buffer_visualisation_command_buffers_.data()) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate render command buffers!");
-	}
-
-	for (size_t i = 0; i < buffer_visualisation_command_buffers_.size(); i++)
-	{
-		VkCommandBufferBeginInfo begin_info = {};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-		begin_info.pInheritanceInfo = nullptr;
-
-		vkBeginCommandBuffer(buffer_visualisation_command_buffers_[i], &begin_info);
-
-		if (buffer_visualisation_pipeline_)
-		{
-			// bind pipeline
-			buffer_visualisation_pipeline_->RecordCommands(buffer_visualisation_command_buffers_[i], i);
-
-			vkCmdEndRenderPass(buffer_visualisation_command_buffers_[i]);
-		}
-
-		if (vkEndCommandBuffer(buffer_visualisation_command_buffers_[i]) != VK_SUCCESS)
-		{
-			throw std::runtime_error("failed to record render command buffer!");
-		}
-	}
-
-	CreateGBufferCommandBuffers();
-	CreateTransparencyCommandBuffer();
 }
 
 void VulkanRenderer::CreateGBufferCommandBuffers()
 {
 	// create g buffer command buffers
 	g_buffer_command_buffers_.resize(1);
+	devices_->CreateCommandBuffers(command_pool_, g_buffer_command_buffers_.data(), g_buffer_command_buffers_.size());
 
-	VkCommandBufferAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = (uint32_t)g_buffer_command_buffers_.size();
-
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, g_buffer_command_buffers_.data()) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate render command buffers!");
-	}
-
+	// record the command buffers
 	for (size_t i = 0; i < g_buffer_command_buffers_.size(); i++)
 	{
 		VkCommandBufferBeginInfo begin_info = {};
@@ -799,17 +748,9 @@ void VulkanRenderer::CreateGBufferCommandBuffers()
 void VulkanRenderer::CreateDeferredComputeCommandBuffers()
 {
 	// create rendering command buffers
-	VkCommandBufferAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = 1;
+	devices_->CreateCommandBuffers(command_pool_, &deferred_compute_command_buffer_);
 
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &deferred_compute_command_buffer_) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate render command buffers!");
-	}
-
+	// record the command buffer
 	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
@@ -832,17 +773,9 @@ void VulkanRenderer::CreateDeferredComputeCommandBuffers()
 void VulkanRenderer::CreateDeferredCommandBuffers()
 {
 	// create rendering command buffers
-	VkCommandBufferAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = 1;
+	devices_->CreateCommandBuffers(command_pool_, &deferred_command_buffer_);
 
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &deferred_command_buffer_) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate render command buffers!");
-	}
-
+	// record  the command buffer
 	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
@@ -867,17 +800,9 @@ void VulkanRenderer::CreateDeferredCommandBuffers()
 void VulkanRenderer::CreateTransparencyCommandBuffer()
 {
 	// create transparency command buffers
-	VkCommandBufferAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = 1;
+	devices_->CreateCommandBuffers(command_pool_, &transparency_command_buffer_);
 
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &transparency_command_buffer_) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate transparent render command buffers!");
-	}
-
+	// record the command buffer
 	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
@@ -907,16 +832,7 @@ void VulkanRenderer::CreateTransparencyCommandBuffer()
 void VulkanRenderer::CreateTransparencyCompositeCommandBuffer()
 {
 	// create tranparent composite commands
-	VkCommandBufferAllocateInfo allocate_info = {};
-	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocate_info.commandPool = command_pool_;
-	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocate_info.commandBufferCount = 1;
-
-	if (vkAllocateCommandBuffers(devices_->GetLogicalDevice(), &allocate_info, &transparency_composite_command_buffer_) != VK_SUCCESS)
-	{
-		throw std::runtime_error("failed to allocate transparency composite command buffers!");
-	}
+	devices_->CreateCommandBuffers(command_pool_, &transparency_composite_command_buffer_);
 
 	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -939,14 +855,45 @@ void VulkanRenderer::CreateTransparencyCompositeCommandBuffer()
 	}
 }
 
-void VulkanRenderer::CreateMaterialShader(std::string vs_filename, std::string ps_filename)
+void VulkanRenderer::CreateBufferVisualisationCommandBuffers()
 {
-	material_shader_ = new VulkanShader();
-	material_shader_->Init(devices_, swap_chain_, vs_filename, "", "", ps_filename);
+	int buffer_count = swap_chain_->GetSwapChainImages().size();
+
+	// create buffer visualisation command buffers
+	buffer_visualisation_command_buffers_.resize(buffer_count);
+	devices_->CreateCommandBuffers(command_pool_, buffer_visualisation_command_buffers_.data(), buffer_count);
+
+	// record the command buffers
+	for (size_t i = 0; i < buffer_visualisation_command_buffers_.size(); i++)
+	{
+		VkCommandBufferBeginInfo begin_info = {};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+		begin_info.pInheritanceInfo = nullptr;
+
+		vkBeginCommandBuffer(buffer_visualisation_command_buffers_[i], &begin_info);
+
+		if (buffer_visualisation_pipeline_)
+		{
+			// bind pipeline
+			buffer_visualisation_pipeline_->RecordCommands(buffer_visualisation_command_buffers_[i], i);
+
+			vkCmdEndRenderPass(buffer_visualisation_command_buffers_[i]);
+		}
+
+		if (vkEndCommandBuffer(buffer_visualisation_command_buffers_[i]) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to record render command buffer!");
+		}
+	}
+
 }
 
 void VulkanRenderer::CreateShaders()
 {
+	material_shader_ = new VulkanShader();
+	material_shader_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "", "", "../res/shaders/default_material.frag.spv");
+
 	shadow_map_shader_ = new VulkanShader();
 	shadow_map_shader_->Init(devices_, swap_chain_, "../res/shaders/shadow_map.vert.spv", "", "", "../res/shaders/shadow_map.frag.spv");
 

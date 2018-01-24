@@ -63,7 +63,7 @@ layout(binding = 7) uniform texture2D emissiveMaps[512];
 layout(binding = 8) uniform texture2D normalMaps[512];
 layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
-layout(binding = 11) uniform texture2D shadowMaps[16];
+layout(binding = 11) uniform texture2D shadowMaps[96];
 
 layout(binding = 12) uniform texture2D gBuffer[2];
 layout(binding = 13) uniform sampler gBufferSampler;
@@ -76,8 +76,9 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 	float attenuation = 1.0f;
 
 	if(lightType == 1.0f || lightType == 2.0f)
-	{
-		attenuation = max(0, 1.0f - (dist / lightRange));
+	{	
+		float dSquared = dot(lightVector * dist, lightVector * dist);
+		attenuation = max(0, 1.0f - (dSquared / (lightRange * lightRange)));
 	}
 
 	
@@ -87,12 +88,7 @@ float CalculateAttenuation(vec3 lightVector, vec4 lightDirection, float dist, fl
 		vec3 lightVector2 = lightDirection.xyz;
 		float rho = dot(lightVector, lightVector2);
 
-		if(degrees(acos(rho)) > 45.0f)
-		{
-			attenuation *= pow(rho, 8);
-			if(attenuation < 0)
-				attenuation = 0;
-		}
+		attenuation = max(0, attenuation * pow(rho, 8));
 	}
 	
 
@@ -374,7 +370,7 @@ void main()
 	uint normal_map_index = material_data.materials[matIndex].bump_map_index;
 	if(normal_map_index > 0)
 	{
-		vec3 cameraVec = worldPosition.xyz - light_data.camera_data.xyz;
+		vec3 cameraVec = light_data.camera_data.xyz - worldPosition.xyz;
 		normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
 	}
 

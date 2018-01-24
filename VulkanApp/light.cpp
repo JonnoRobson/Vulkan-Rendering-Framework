@@ -64,9 +64,9 @@ void Light::Cleanup()
 	// clean up the shadow map pipeline
 	for (int i = 0; i < shadow_map_pipelines_.size(); i++)
 	{
-		shadow_map_pipelines_[0]->CleanUp();
-		delete shadow_map_pipelines_[0];
-		shadow_map_pipelines_[0] = nullptr;
+		shadow_map_pipelines_[i]->CleanUp();
+		delete shadow_map_pipelines_[i];
+		shadow_map_pipelines_[i] = nullptr;
 	}
 	shadow_map_pipelines_.clear();
 }

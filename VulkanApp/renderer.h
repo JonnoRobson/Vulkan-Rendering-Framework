@@ -39,11 +39,12 @@ public:
 		FORWARD,
 		DEFERRED,
 		DEFERRED_COMPUTE,
+		VISBILITY,
 		BUFFER_VIS
 	};
 
 public:
-	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, std::string vs_filename, std::string ps_filename);
+	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain);
 	void InitPipelines();
 	void RenderScene();
 	void Cleanup();
@@ -81,9 +82,13 @@ public:
 	inline HDR* GetHDR() { return hdr_; }
 
 protected:
-	void CreateBuffers();
-	void CreateSemaphores();
+	// pipeline creation functions
+	void InitForwardPipeline();
+	void InitDeferredPipeline();
+	void InitDeferredComputePipeline();
+	void InitTransparencyPipeline();
 
+	// command buffer creation functions
 	void CreateCommandPool();
 	void CreateCommandBuffers();
 	void CreateForwardCommandBuffers();
@@ -92,24 +97,27 @@ protected:
 	void CreateDeferredComputeCommandBuffers();
 	void CreateTransparencyCommandBuffer();
 	void CreateTransparencyCompositeCommandBuffer();
+	void CreateVisibilityCommandBuffer();
+	void CreateVisibilityDeferredCommandBuffer();
+	void CreateBufferVisualisationCommandBuffers();
 
-	void CreateMaterialShader(std::string vs_filename, std::string ps_filename);
+	// resource creation functions
+	void CreateBuffers();
+	void CreateSemaphores();
 	void CreateShaders();
 	void CreatePrimitiveBuffer();
 	void CreateMaterialBuffer();
 	void CreateLightBuffer();
 
+	// rendering functions
 	void RenderForward(uint32_t frame_index);
 	void RenderVisualisation(uint32_t frame_index);
-	void RenderGBuffer(uint32_t frame_index);
-	void RenderDeferred(uint32_t frame_index);
-	void RenderDeferredCompute(uint32_t frame_index);
+	void RenderGBuffer();
+	void RenderDeferred();
+	void RenderDeferredCompute();
+	void RenderVisibility();
+	void RenderVisbilityDeferred();
 	void RenderTransparency();
-
-	void InitForwardPipeline();
-	void InitDeferredPipeline();
-	void InitDeferredComputePipeline();
-	void InitTransparencyPipeline();
 
 protected:
 	VulkanDevices* devices_;
@@ -136,6 +144,11 @@ protected:
 	VkCommandBuffer deferred_command_buffer_;
 	VkCommandBuffer deferred_compute_command_buffer_;
 
+	// visibility buffer shading components
+	VulkanShader *visibility_shader_;
+	VulkanShader *visibility_deferred_shader_;
+	VulkanRenderTarget* visibility_buffer_;
+	
 	// transparency shading components
 	VulkanShader *transparency_shader_, *transparency_composite_shader_;
 	WeightedBlendedTransparencyPipeline* transparency_pipeline_;

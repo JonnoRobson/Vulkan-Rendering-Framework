@@ -1,12 +1,14 @@
 #ifndef _INPUT_H_
 #define _INPUT_H_
 
+#include <GLFW\glfw3.h>
+
 class Input
 {
 public:
 	Input()
 	{
-		for (int i = 0; i < 256; i++)
+		for (int i = 0; i < GLFW_KEY_LAST; i++)
 		{
 			key_states_[i] = false;
 		}
@@ -27,7 +29,7 @@ protected:
 	double cursor_x_pos_;
 	double cursor_y_pos_;
 
-	bool key_states_[256];
+	bool key_states_[GLFW_KEY_LAST];
 	bool mouse_button_states_[4];
 
 };

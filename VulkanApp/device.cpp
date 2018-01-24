@@ -216,6 +216,21 @@ uint32_t VulkanDevices::FindMemoryType(uint32_t type_filter, VkMemoryPropertyFla
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
+void VulkanDevices::CreateCommandBuffers(VkCommandPool command_pool, VkCommandBuffer* buffers, uint8_t count)
+{
+	// create the command buffers
+	VkCommandBufferAllocateInfo allocate_info = {};
+	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocate_info.commandPool = command_pool;
+	allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocate_info.commandBufferCount = count;
+
+	if (vkAllocateCommandBuffers(logical_device_, &allocate_info, buffers) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to allocate command buffers!");
+	}
+}
+
 void VulkanDevices::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory)
 {
 	VkResult result;
