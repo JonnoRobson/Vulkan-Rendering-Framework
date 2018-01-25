@@ -593,6 +593,11 @@ void VulkanRenderer::InitDeferredComputePipeline()
 	CreateDeferredComputeCommandBuffers();
 }
 
+void VulkanRenderer::InitVisibilityPipeline()
+{
+	// initialize the shape buffer now that we know how many there are
+	primitive_buffer_->InitShapeBuffer(devices_);
+}
 
 void VulkanRenderer::InitTransparencyPipeline()
 {

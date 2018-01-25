@@ -105,6 +105,7 @@ protected:
 
 	glm::vec3 min_vertex_;
 	glm::vec3 max_vertex_;
+	uint32_t most_complex_shape_size_;
 
 	std::vector<Shape*> mesh_shapes_;
 	std::map<std::string, Material*> mesh_materials_;

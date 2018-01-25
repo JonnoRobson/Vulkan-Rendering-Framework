@@ -114,6 +114,12 @@
     <ClCompile Include="transparency_composite_pipeline.cpp">
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
+    <ClCompile Include="visibility_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
+    <ClCompile Include="visibility_deferred_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -206,6 +212,12 @@
     <ClInclude Include="transparency_composite_pipeline.h">
       <Filter>Header Files\pipelines</Filter>
     </ClInclude>
+    <ClInclude Include="visibility_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
+    <ClInclude Include="visibility_deferred_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\shaders\default_material.frag">
@@ -269,6 +281,9 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\visibility.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility_deferred.frag">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

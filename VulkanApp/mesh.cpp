@@ -10,6 +10,7 @@ Mesh::Mesh()
 {
 	world_matrix_ = glm::mat4(1.0f);
 	vk_device_handle_ = VK_NULL_HANDLE;
+	most_complex_shape_size_ = 0;
 	min_vertex_ = glm::vec3(1e9f, 1e9f, 1e9f);
 	max_vertex_ = glm::vec3(-1e9f, -1e9f, -1e9f);
 }
@@ -128,6 +129,7 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 		shape_threads[i].join();
 	}
 
+	std::cout << "The most complex shape contains " << most_complex_shape_size_ << " triangles.\n";
 }
 
 void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::attrib_t* attrib, std::vector<tinyobj::material_t>* materials, std::vector<tinyobj::shape_t*> shapes)
@@ -228,6 +230,8 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 			if (indices.size() % 3 == 0)
 				face_index++;
 		}
+
+		most_complex_shape_size_ = std::max(most_complex_shape_size_, (uint32_t)indices.size() / 3);
 
 		std::unique_lock<std::mutex> shape_lock(*shape_mutex);
 		mesh_shape->InitShape(devices, renderer, vertices, indices, transparency_enabled);

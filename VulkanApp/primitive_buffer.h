@@ -9,6 +9,12 @@
 #define MAX_PRIMITIVE_VERTICES 15000000
 #define MAX_PRIMITIVE_INDICES 30000000
 
+struct ShapeOffsets
+{
+	uint32_t vertex_offset;
+	uint32_t index_offset;
+};
+
 class VulkanPrimitiveBuffer
 {
 public:
@@ -16,6 +22,8 @@ public:
 	~VulkanPrimitiveBuffer();
 
 	void Init(VulkanDevices* devices, VkVertexInputBindingDescription binding_description, std::vector<VkVertexInputAttributeDescription> attribute_descriptions);
+	void InitShapeBuffer(VulkanDevices* devices);
+
 	void Cleanup();
 
 	void AddPrimitiveData(VulkanDevices* devices, uint32_t vertex_count, uint32_t index_count, VkBuffer vertices, VkBuffer indices, uint32_t& vertex_offset, uint32_t& index_offset);
@@ -30,6 +38,11 @@ protected:
 
 	VkBuffer index_buffer_;
 	VkDeviceMemory index_buffer_memory_;
+
+	// shape buffer components
+	VkBuffer shape_buffer_;
+	VkDeviceMemory shape_buffer_memory_;
+	std::vector<ShapeOffsets> shape_offsets_;
 
 	uint32_t last_vertex_;
 	uint32_t last_index_;

@@ -25,6 +25,23 @@ void VulkanPrimitiveBuffer::Init(VulkanDevices* devices, VkVertexInputBindingDes
 	devices->CreateBuffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer_, index_buffer_memory_);
 }
 
+void VulkanPrimitiveBuffer::InitShapeBuffer(VulkanDevices* devices)
+{
+	// create the shape buffer
+	VkDeviceSize shape_buffer_size = shape_offsets_.size() * sizeof(ShapeOffsets);
+	devices->CreateBuffer(shape_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, shape_buffer_, shape_buffer_memory_);
+
+	// use a staging buffer to copy shapes to the shape buffer
+	VkBuffer staging_buffer;
+	VkDeviceMemory staging_buffer_memory;
+	devices->CreateBuffer(shape_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+	devices->CopyDataToBuffer(staging_buffer_memory, shape_offsets_.data(), shape_buffer_size);
+
+	// delete the staging buffer now it is no longer needed
+	vkDestroyBuffer(devices->GetLogicalDevice(), staging_buffer, nullptr);
+	vkFreeMemory(devices->GetLogicalDevice(), staging_buffer_memory, nullptr);
+}
+
 void VulkanPrimitiveBuffer::Cleanup()
 {
 	// cleanup vertex buffer
@@ -34,6 +51,10 @@ void VulkanPrimitiveBuffer::Cleanup()
 	// cleanup index buffer
 	vkDestroyBuffer(device_handle_, index_buffer_, nullptr);
 	vkFreeMemory(device_handle_, index_buffer_memory_, nullptr);
+
+	// cleanup shape buffer
+	vkDestroyBuffer(device_handle_, shape_buffer_, nullptr);
+	vkFreeMemory(device_handle_, shape_buffer_memory_, nullptr);
 }
 
 void VulkanPrimitiveBuffer::RecordBindingCommands(VkCommandBuffer& command_buffer)
@@ -52,6 +73,13 @@ void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t ve
 	// return the vertex and index offsets for this primitive
 	vertex_offset = last_vertex_;
 	index_offset = last_index_;
+
+	// store a new entry in the shape buffer for this shape
+	ShapeOffsets shape = {
+		vertex_offset,
+		index_offset
+	};
+	shape_offsets_.push_back(shape);
 
 	// copy the vertex and index buffers
 	devices->CopyBuffer(vertices, vertex_buffer_, vertex_size, last_vertex_ * sizeof(Vertex));

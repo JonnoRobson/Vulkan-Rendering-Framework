@@ -148,6 +148,8 @@
     <ClCompile Include="texture_cache.cpp" />
     <ClCompile Include="tonemap_pipeline.cpp" />
     <ClCompile Include="transparency_composite_pipeline.cpp" />
+    <ClCompile Include="visibility_deferred_pipeline.cpp" />
+    <ClCompile Include="visibility_pipeline.cpp" />
     <ClCompile Include="weighted_blended_transparency_pipeline.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -180,6 +182,8 @@
     <ClInclude Include="texture_cache.h" />
     <ClInclude Include="tonemap_pipeline.h" />
     <ClInclude Include="transparency_composite_pipeline.h" />
+    <ClInclude Include="visibility_deferred_pipeline.h" />
+    <ClInclude Include="visibility_pipeline.h" />
     <ClInclude Include="weighted_blended_transparency_pipeline.h" />
   </ItemGroup>
   <ItemGroup>
@@ -203,6 +207,7 @@
     <None Include="..\res\shaders\transparency_composite.frag" />
     <None Include="..\res\shaders\visibility.frag" />
     <None Include="..\res\shaders\visibility.vert" />
+    <None Include="..\res\shaders\visibility_deferred.frag" />
     <None Include="..\res\shaders\weighted_blended_transparency.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

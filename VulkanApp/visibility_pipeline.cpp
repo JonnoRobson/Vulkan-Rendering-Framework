@@ -1,7 +1,7 @@
-#include "g_buffer_pipeline.h"
+#include "visibility_pipeline.h"
 #include <array>
 
-void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
+void VisibilityPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index)
 {
 	VkRenderPassBeginInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -43,8 +43,7 @@ void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t b
 	vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout_, 0, 1, &descriptor_set_, 0, nullptr);
 }
 
-
-void GBufferPipeline::CreatePipeline()
+void VisibilityPipeline::CreatePipeline()
 {
 	// setup pipeline layout creation info
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
@@ -71,7 +70,7 @@ void GBufferPipeline::CreatePipeline()
 	color_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 	color_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
-	std::array<VkPipelineColorBlendAttachmentState, 2> attachment_blend_states = { color_blend_attachment, color_blend_attachment };
+	std::array<VkPipelineColorBlendAttachmentState, 1> attachment_blend_states = { color_blend_attachment };
 
 	// setup global color blend creation info
 	VkPipelineColorBlendStateCreateInfo blend_state = {};
@@ -111,12 +110,12 @@ void GBufferPipeline::CreatePipeline()
 	}
 }
 
-void GBufferPipeline::CreateFramebuffers()
+void VisibilityPipeline::CreateFramebuffers()
 {
 	framebuffers_.resize(1);
 
-	std::vector<VkImageView> image_views = g_buffer_->GetImageViews();
-	std::array<VkImageView, 3> attachments = { image_views[0], image_views[1], swap_chain_->GetDepthImageView() };
+	std::vector<VkImageView> image_views = visibility_buffer_->GetImageViews();
+	std::array<VkImageView, 3> attachments = { image_views[0], swap_chain_->GetDepthImageView() };
 
 	VkFramebufferCreateInfo framebuffer_info = {};
 	framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -133,39 +132,23 @@ void GBufferPipeline::CreateFramebuffers()
 	}
 }
 
-void GBufferPipeline::CreateRenderPass()
+void VisibilityPipeline::CreateRenderPass()
 {
 	// setup the 1st g buffer attachment
-	VkAttachmentDescription g_buffer_1_attachment = {};
-	g_buffer_1_attachment.format = g_buffer_->GetRenderTargetFormat();
-	g_buffer_1_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	g_buffer_1_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	g_buffer_1_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	g_buffer_1_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	g_buffer_1_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	g_buffer_1_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	g_buffer_1_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	VkAttachmentDescription visibility_attachment = {};
+	visibility_attachment.format = visibility_buffer_->GetRenderTargetFormat();
+	visibility_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	visibility_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	visibility_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	visibility_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	visibility_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	visibility_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	visibility_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 	// setup the subpass attachment description
-	VkAttachmentReference g_buffer_1_attachment_ref = {};
-	g_buffer_1_attachment_ref.attachment = 0;
-	g_buffer_1_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	// setup the 2nd g buffer attachment
-	VkAttachmentDescription g_buffer_2_attachment = {};
-	g_buffer_2_attachment.format = g_buffer_->GetRenderTargetFormat();
-	g_buffer_2_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	g_buffer_2_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	g_buffer_2_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	g_buffer_2_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	g_buffer_2_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	g_buffer_2_attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	g_buffer_2_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	// setup the subpass attachment description
-	VkAttachmentReference g_buffer_2_attachment_ref = {};
-	g_buffer_2_attachment_ref.attachment = 1;
-	g_buffer_2_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	VkAttachmentReference visibility_attachment_ref = {};
+	visibility_attachment_ref.attachment = 0;
+	visibility_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// setup the depth buffer attachment
 	VkAttachmentDescription depth_attachment = {};
@@ -180,11 +163,11 @@ void GBufferPipeline::CreateRenderPass()
 
 	// setup the subpass attachment description
 	VkAttachmentReference depth_attachment_ref = {};
-	depth_attachment_ref.attachment = 2;
+	depth_attachment_ref.attachment = 1;
 	depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	std::array<VkAttachmentReference, 2> color_attachments = { g_buffer_1_attachment_ref, g_buffer_2_attachment_ref };
-	
+	std::array<VkAttachmentReference, 1> color_attachments = { visibility_attachment_ref };
+
 	// setup the subpass description
 	VkSubpassDescription subpass = {};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -202,7 +185,7 @@ void GBufferPipeline::CreateRenderPass()
 	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
 	// setup the render pass description
-	std::array<VkAttachmentDescription, 3> attachments = { g_buffer_1_attachment, g_buffer_2_attachment, depth_attachment };
+	std::array<VkAttachmentDescription, 2> attachments = { visibility_attachment, depth_attachment };
 
 	VkRenderPassCreateInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;

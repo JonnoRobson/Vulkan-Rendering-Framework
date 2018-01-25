@@ -86,6 +86,7 @@ protected:
 	void InitForwardPipeline();
 	void InitDeferredPipeline();
 	void InitDeferredComputePipeline();
+	void InitVisibilityPipeline();
 	void InitTransparencyPipeline();
 
 	// command buffer creation functions
