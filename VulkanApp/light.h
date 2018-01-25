@@ -11,7 +11,7 @@
 class VulkanDevices;
 class VulkanRenderer;
 
-#define SHADOW_MAP_RESOLUTION 1024.0
+#define SHADOW_MAP_RESOLUTION 2048.0
 
 struct SceneLightData
 {

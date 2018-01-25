@@ -70,6 +70,7 @@ protected:
 	VkDebugReportCallbackEXT vk_callback_;
 
 	Camera camera_;
+	std::string mesh_filenames_;
 	std::vector<Mesh*> loaded_meshes_;
 	std::vector<Light*> lights_;
 

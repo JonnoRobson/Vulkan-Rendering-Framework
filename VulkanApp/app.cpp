@@ -18,14 +18,18 @@ void App::Run()
 
 bool App::InitWindow()
 {
+	// read in mesh filenames before creating window as fullscreen workaround
+	std::cout << "Select model to load: ";
+	std::cin >> mesh_filenames_;
+
 	if (glfwInit() == GLFW_FALSE)
 		return false;
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// Don't create an opengl context
 	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// Window should be resizable
 
-	//window_ = glfwCreateWindow(1920, 1080, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
-	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
+	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
+	//window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
 
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetWindowSizeCallback(window_, App::OnWindowResized);
@@ -80,11 +84,7 @@ bool App::InitVulkan()
 
 bool App::InitResources()
 {
-	std::string combined_filepaths;
-
-	std::cout << "Select model to load: ";
-
-	std::cin >> combined_filepaths;
+	std::string combined_filepaths = mesh_filenames_;
 
 	// separate out model filepaths
 	std::vector<std::string> filepaths;
@@ -127,7 +127,7 @@ bool App::InitResources()
 		loaded_meshes_.push_back(loaded_mesh);
 	}
 
-	/*
+	
 	Light* test_light = new Light();
 	test_light->SetType(0.0f);
 	test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -152,7 +152,7 @@ bool App::InitResources()
 	test_light_b->SetShadowsEnabled(true);
 	test_light_b->Init(devices_, renderer_);
 	lights_.push_back(test_light_b);
-	*/
+	
 	/*
 	Light* test_light_c = new Light();
 	test_light_c->SetType(1.0f);
@@ -165,7 +165,7 @@ bool App::InitResources()
 	test_light_c->SetShadowsEnabled(true);
 	test_light_c->Init(devices_, renderer_);
 	lights_.push_back(test_light_c);
-	*/
+	
 
 	// light test
 	float light_count = 16;
@@ -181,7 +181,7 @@ bool App::InitResources()
 		light->Init(devices_, renderer_);
 		lights_.push_back(light);
 	}
-
+	*/
 	camera_.SetViewDimensions(swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
@@ -270,6 +270,10 @@ void App::Update()
 	prev_time_ = current_time_;
 	current_time_ = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 	frame_time_ = current_time_ - prev_time_;
+
+	// quitting
+	if (input_->IsKeyPressed(GLFW_KEY_ESCAPE))
+		glfwSetWindowShouldClose(window_, 1);
 
 	// camera movement
 	if (input_->IsKeyPressed(GLFW_KEY_W))

@@ -59,7 +59,7 @@ void VulkanRenderer::RenderScene()
 
 		// send camera data to the gpu
 		SceneLightData scene_data = {};
-		scene_data.scene_data = glm::vec4(glm::vec3(0.01f, 0.01f, 0.01f), lights_.size());
+		scene_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
 		//scene_data.scene_data = glm::vec4(glm::vec3(0.85f * 0.5f, 0.68f * 0.5f, 0.92f * 0.5f), lights_.size());
 		scene_data.camera_data = glm::vec4(render_camera_->GetPosition(), 1000.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
@@ -1030,8 +1030,8 @@ void VulkanRenderer::CreateLightBuffer()
 	devices_->CreateBuffer(buffer_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, light_buffer_, light_buffer_memory_);
 
 	SceneLightData light_data = {};
-	//light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
-	light_data.scene_data = glm::vec4(glm::vec3(0.85f * 10.0f, 0.68f * 10.0f, 0.92f * 10.0f), lights_.size());
+	light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
+	//light_data.scene_data = glm::vec4(glm::vec3(0.85f * 10.0f, 0.68f * 10.0f, 0.92f * 10.0f), lights_.size());
 	light_data.camera_data = glm::vec4(0.0f, 0.0f, 0.0f, 1000.0f);
 
 	devices_->CopyDataToBuffer(light_buffer_memory_, &light_data, sizeof(SceneLightData));

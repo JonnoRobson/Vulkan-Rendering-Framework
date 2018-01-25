@@ -282,7 +282,7 @@ void HDR::InitResources()
 	// send the tonemap factors to the buffer
 	tonemap_factors_ =
 	{
-		1.0f,	// vignette strength
+		4.0f,	// vignette strength
 		2.5f,	// exposure level
 		0.75f,	// gamma_level
 		0.0f	// use special hdr
