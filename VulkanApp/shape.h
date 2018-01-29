@@ -44,6 +44,7 @@ protected:
 
 	uint32_t vertex_buffer_offset_;
 	uint32_t index_buffer_offset_;
+	uint32_t shape_index_;
 
 	bool standalone_shape_;
 	bool transparency_enabled_;

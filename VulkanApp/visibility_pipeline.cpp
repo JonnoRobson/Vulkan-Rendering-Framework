@@ -45,13 +45,19 @@ void VisibilityPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_
 
 void VisibilityPipeline::CreatePipeline()
 {
+	// setup push constant info
+	VkPushConstantRange push_constant = {};
+	push_constant.size = sizeof(uint32_t);
+	push_constant.offset = 0;
+	push_constant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	// setup pipeline layout creation info
 	VkPipelineLayoutCreateInfo pipeline_layout_info = {};
 	pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipeline_layout_info.setLayoutCount = 1;
 	pipeline_layout_info.pSetLayouts = &descriptor_set_layout_;
-	pipeline_layout_info.pushConstantRangeCount = 0;
-	pipeline_layout_info.pPushConstantRanges = 0;
+	pipeline_layout_info.pushConstantRangeCount = 1;
+	pipeline_layout_info.pPushConstantRanges = &push_constant;
 
 	// create the pipeline layout
 	if (vkCreatePipelineLayout(devices_->GetLogicalDevice(), &pipeline_layout_info, nullptr, &pipeline_layout_) != VK_SUCCESS)

@@ -30,7 +30,7 @@ void Shape::InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vec
 	// add mesh to renderer primitve buffer - standalone meshes do not need to be added
 	if (renderer)
 	{
-		renderer->GetPrimitiveBuffer()->AddPrimitiveData(devices, vertex_count_, index_count_, vertex_buffer_, index_buffer_, vertex_buffer_offset_, index_buffer_offset_);
+		renderer->GetPrimitiveBuffer()->AddPrimitiveData(devices, vertex_count_, index_count_, vertex_buffer_, index_buffer_, vertex_buffer_offset_, index_buffer_offset_, shape_index_);
 
 		// free the vertex and index buffers now that they have been added to the primitive buffer
 		vkDestroyBuffer(devices_->GetLogicalDevice(), vertex_buffer_, nullptr);
@@ -153,6 +153,9 @@ void Shape::RecordRenderCommands(VkCommandBuffer& command_buffer)
 	}
 	else
 	{
+		// push the shape id to the constants buffer - NEEDS ACCESS TO THE PIPELINE THAT IS BEING USED FOR RENDERING
+		vkCmdPushConstants(command_buffer, VK_NULL_HANDLE, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t), &shape_index_);
+
 		// shapes that are added to a primitive buffer simply need to execute their draw command
 		vkCmdDrawIndexed(command_buffer, index_count_, 1, index_buffer_offset_, vertex_buffer_offset_, 0);
 	}

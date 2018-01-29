@@ -595,8 +595,48 @@ void VulkanRenderer::InitDeferredComputePipeline()
 
 void VulkanRenderer::InitVisibilityPipeline()
 {
+	// calculate size of the light buffer
+	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
+
 	// initialize the shape buffer now that we know how many there are
 	primitive_buffer_->InitShapeBuffer(devices_);
+
+	// initialize the visibility buffer generation pipeline
+	visibility_pipeline_ = new VisibilityPipeline();
+	visibility_pipeline_->SetShader(visibility_shader_);
+	visibility_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	visibility_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+	visibility_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	visibility_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
+	visibility_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
+	// initialize the deferred pipeline
+	visibility_deferred_pipeline_ = new VisibilityDeferredPipeline();
+	visibility_deferred_pipeline_->SetShader(visibility_deferred_shader_);
+	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 0, light_buffer_, buffer_size);
+	visibility_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+
+	// add the material textures to the pipeline
+	visibility_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, ambient_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 4, diffuse_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, specular_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, specular_highlight_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, emissive_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, normal_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, alpha_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, reflection_textures_);
+	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
+
+	// add the visibility buffer to the pipeline
+	visibility_deferred_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_buffer_->GetImageViews()[0]);
+	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 13, primitive_buffer_->GetVertexBuffer(), primitive_buffer_->GetVertexCount() * sizeof(Vertex));
+	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 14, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
+	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeOffsets));
+	visibility_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, visibility_data_buffer_, sizeof(VisibilityRenderData));
+
+
+	visibility_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 }
 
 void VulkanRenderer::InitTransparencyPipeline()
@@ -914,6 +954,13 @@ void VulkanRenderer::CreateShaders()
 
 	deferred_compute_shader_ = new VulkanComputeShader();
 	deferred_compute_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.comp.spv");
+
+	// visibility rendering shaders
+	visibility_shader_ = new VulkanShader();
+	visibility_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility.vert.spv", "", "", "../res/shaders/visibility.frag.spv");
+
+	visibility_deferred_shader_ = new VulkanShader();
+	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_deferred.frag.spv");
 
 	// tranparency rendering shaders
 	transparency_shader_ = new VulkanShader();

@@ -21,6 +21,8 @@
 #include "deferred_pipeline.h"
 #include "weighted_blended_transparency_pipeline.h"
 #include "transparency_composite_pipeline.h"
+#include "visibility_pipeline.h"
+#include "visibility_deferred_pipeline.h"
 #include "HDR.h"
 #include "skybox.h"
 
@@ -149,6 +151,8 @@ protected:
 	VulkanShader *visibility_shader_;
 	VulkanShader *visibility_deferred_shader_;
 	VulkanRenderTarget* visibility_buffer_;
+	VisibilityPipeline* visibility_pipeline_;
+	VisibilityDeferredPipeline* visibility_deferred_pipeline_;
 	
 	// transparency shading components
 	VulkanShader *transparency_shader_, *transparency_composite_shader_;
@@ -158,18 +162,16 @@ protected:
 	VkCommandBuffer transparency_command_buffer_, transparency_composite_command_buffer_;
 	VkSemaphore transparency_semaphore_, transparency_composite_semaphore_;
 
+	// buffers
+	VkBuffer matrix_buffer_, light_buffer_, visibility_data_buffer_;
+	VkDeviceMemory matrix_buffer_memory_, light_buffer_memory_, visibility_data_buffer_memory_;
+
 	HDR* hdr_;
 	Skybox* skybox_;
 
 	Camera* render_camera_;
 	Texture* default_texture_;
-
-	VkBuffer matrix_buffer_;
-	VkDeviceMemory matrix_buffer_memory_;
 	
-	VkBuffer light_buffer_;
-	VkDeviceMemory light_buffer_memory_;
-
 	VkQueue graphics_queue_;
 	VkQueue compute_queue_;
 	VkCommandPool command_pool_;

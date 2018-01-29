@@ -65,7 +65,7 @@ void VulkanPrimitiveBuffer::RecordBindingCommands(VkCommandBuffer& command_buffe
 	vkCmdBindIndexBuffer(command_buffer, index_buffer_, 0, VK_INDEX_TYPE_UINT32);
 }
 
-void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t vertex_count, uint32_t index_count, VkBuffer vertices, VkBuffer indices, uint32_t& vertex_offset, uint32_t& index_offset)
+void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t vertex_count, uint32_t index_count, VkBuffer vertices, VkBuffer indices, uint32_t& vertex_offset, uint32_t& index_offset, uint32_t& shape_index)
 {
 	VkDeviceSize vertex_size = vertex_count * sizeof(Vertex);
 	VkDeviceSize index_size = index_count * sizeof(uint32_t);
@@ -73,6 +73,7 @@ void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t ve
 	// return the vertex and index offsets for this primitive
 	vertex_offset = last_vertex_;
 	index_offset = last_index_;
+	shape_index = shape_offsets_.size();
 
 	// store a new entry in the shape buffer for this shape
 	ShapeOffsets shape = {
@@ -80,7 +81,7 @@ void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t ve
 		index_offset
 	};
 	shape_offsets_.push_back(shape);
-
+	
 	// copy the vertex and index buffers
 	devices->CopyBuffer(vertices, vertex_buffer_, vertex_size, last_vertex_ * sizeof(Vertex));
 	devices->CopyBuffer(indices, index_buffer_, index_size, last_index_ * sizeof(uint32_t));
