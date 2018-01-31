@@ -21,8 +21,8 @@ void VulkanPrimitiveBuffer::Init(VulkanDevices* devices, VkVertexInputBindingDes
 	VkDeviceSize vertex_buffer_size = MAX_PRIMITIVE_VERTICES * sizeof(Vertex);
 	VkDeviceSize index_buffer_size = MAX_PRIMITIVE_INDICES * sizeof(uint32_t);
 	
-	devices->CreateBuffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer_, vertex_buffer_memory_);
-	devices->CreateBuffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer_, index_buffer_memory_);
+	devices->CreateBuffer(vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer_, vertex_buffer_memory_);
+	devices->CreateBuffer(index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer_, index_buffer_memory_);
 }
 
 void VulkanPrimitiveBuffer::InitShapeBuffer(VulkanDevices* devices)
@@ -78,7 +78,9 @@ void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t ve
 	// store a new entry in the shape buffer for this shape
 	ShapeOffsets shape = {
 		vertex_offset,
-		index_offset
+		index_offset,
+		0,
+		0
 	};
 	shape_offsets_.push_back(shape);
 	

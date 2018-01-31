@@ -13,6 +13,7 @@ struct ShapeOffsets
 {
 	uint32_t vertex_offset;
 	uint32_t index_offset;
+	uint32_t padding[2];
 };
 
 class VulkanPrimitiveBuffer

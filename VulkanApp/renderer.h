@@ -153,7 +153,9 @@ protected:
 	VulkanRenderTarget* visibility_buffer_;
 	VisibilityPipeline* visibility_pipeline_;
 	VisibilityDeferredPipeline* visibility_deferred_pipeline_;
-	
+	VkCommandBuffer visibility_command_buffer_;
+	VkCommandBuffer visibility_deferred_command_buffer_;
+
 	// transparency shading components
 	VulkanShader *transparency_shader_, *transparency_composite_shader_;
 	WeightedBlendedTransparencyPipeline* transparency_pipeline_;

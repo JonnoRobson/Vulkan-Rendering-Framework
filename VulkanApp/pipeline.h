@@ -37,6 +37,8 @@ public:
 	
 	virtual void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
+	inline VkPipelineLayout GetPipelineLayout() { return pipeline_layout_; }
+
 protected:
 
 	void CreateDescriptorSet();

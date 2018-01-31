@@ -51,6 +51,7 @@ struct Vertex
 struct Shape
 {
 	uvec2 offsets;
+	uvec2 padding;
 };
 
 // uniform buffers
@@ -419,6 +420,9 @@ void main()
 	uint triID = visibilityData >> SHAPE_ID_BITS;
 	uint shapeID = (visibilityData & SHAPE_ID_MASK);
 	uvec2 offsets = _shapes[shapeID].offsets;
+
+	if(visibilityData == 0)
+		discard;
 
 	Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, pixelCoord);
 	worldPosition = vertex.pos;

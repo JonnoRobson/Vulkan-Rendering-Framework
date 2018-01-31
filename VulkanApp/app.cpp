@@ -28,8 +28,8 @@ bool App::InitWindow()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// Don't create an opengl context
 	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// Window should be resizable
 
-	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
-	//window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
+	//window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
+	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
 
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetWindowSizeCallback(window_, App::OnWindowResized);
@@ -187,8 +187,6 @@ bool App::InitResources()
 	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
 	camera_.SetRotation(glm::vec3(-30.0f, 0.0f, 0.0f));
 
-	renderer_->InitPipelines();
-
 	for (Mesh* mesh : loaded_meshes_)
 	{
 		renderer_->AddMesh(mesh);
@@ -200,6 +198,8 @@ bool App::InitResources()
 	{
 		light->GenerateShadowMap();
 	}
+
+	renderer_->InitPipelines();
 
 	return true;
 }
@@ -523,6 +523,7 @@ void App::InitDevices()
 	device_features.samplerAnisotropy = VK_TRUE;
 	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 	device_features.independentBlend = VK_TRUE;
+	device_features.geometryShader = VK_TRUE;
 
 	// create the physical device
 	devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);

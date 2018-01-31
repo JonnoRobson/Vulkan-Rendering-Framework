@@ -19,11 +19,11 @@ public:
 	Shape();
 
 	void InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool transparency_enabled);
-	void RecordRenderCommands(VkCommandBuffer& command_buffer);
+	void RecordRenderCommands(VkCommandBuffer& command_buffer, VkPipelineLayout pipeline_layout = VK_NULL_HANDLE);
 	void CleanUp();
 	
 	inline bool GetTransparencyEnabled() { return transparency_enabled_; }
-
+	inline uint32_t GetShapeIndex() { return shape_index_; }
 protected:
 	
 	void CreateVertexBuffer(std::vector<Vertex>& vertices);

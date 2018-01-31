@@ -302,7 +302,7 @@ void Skybox::InitResources()
 {
 	// init the skybox texture
 	skybox_texture_ = new Texture();
-	skybox_texture_->Init(devices_, "../res/textures/skybox.png");
+	skybox_texture_->Init(devices_, "../res/textures/skybox.png", true);
 
 	// init the skybox mesh
 	skybox_mesh_ = new Mesh();

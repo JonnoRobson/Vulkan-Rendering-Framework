@@ -121,7 +121,7 @@ void VisibilityPipeline::CreateFramebuffers()
 	framebuffers_.resize(1);
 
 	std::vector<VkImageView> image_views = visibility_buffer_->GetImageViews();
-	std::array<VkImageView, 3> attachments = { image_views[0], swap_chain_->GetDepthImageView() };
+	std::array<VkImageView, 2> attachments = { image_views[0], swap_chain_->GetDepthImageView() };
 
 	VkFramebufferCreateInfo framebuffer_info = {};
 	framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

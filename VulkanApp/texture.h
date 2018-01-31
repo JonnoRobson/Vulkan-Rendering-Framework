@@ -27,7 +27,7 @@ public:
 	Texture();
 	~Texture();
 
-	void Init(VulkanDevices* devices, std::string filename);
+	void Init(VulkanDevices* devices, std::string filename, bool sampler = false);
 	void Cleanup();
 
 	VkImageView GetImageView() { return texture_image_view_; }

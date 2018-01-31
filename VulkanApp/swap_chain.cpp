@@ -28,6 +28,8 @@ void VulkanSwapChain::CleanupSwapChain()
 {
 	VkDevice device = devices_->GetLogicalDevice();
 
+	vkDestroySemaphore(device, image_available_semaphore_, nullptr);
+
 	for (size_t i = 0; i < swap_chain_images_.size(); i++)
 	{
 		vkDestroyImageView(device, swap_chain_image_views_[i], nullptr);
@@ -40,6 +42,7 @@ void VulkanSwapChain::CleanupSwapChain()
 	vkDestroyImageView(device, depth_image_view_, nullptr);
 	vkDestroyImage(device, depth_image_, nullptr);
 	vkFreeMemory(device, depth_image_memory_, nullptr);
+	
 }
 
 VkResult VulkanSwapChain::PreRender()

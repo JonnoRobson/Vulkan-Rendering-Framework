@@ -13,7 +13,7 @@ Texture::~Texture()
 
 }
 
-void Texture::Init(VulkanDevices* devices, std::string filename)
+void Texture::Init(VulkanDevices* devices, std::string filename, bool sampler)
 {
 	vk_device_handle_ = devices->GetLogicalDevice();
 	texture_name_ = filename;
@@ -110,7 +110,8 @@ void Texture::Init(VulkanDevices* devices, std::string filename)
 
 	texture_image_view_ = devices->CreateImageView(texture_image_, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
 	
-	InitSampler(devices);
+	if(sampler)
+		InitSampler(devices);
 }
 
 void Texture::Cleanup()
@@ -118,6 +119,7 @@ void Texture::Cleanup()
 	vkDestroyImageView(vk_device_handle_, texture_image_view_, nullptr);
 	vkDestroyImage(vk_device_handle_, texture_image_, nullptr);
 	vkFreeMemory(vk_device_handle_, texture_image_memory_, nullptr);
+	vkDestroySampler(vk_device_handle_, texture_sampler_, nullptr);
 }
 
 void Texture::InitSampler(VulkanDevices* devices)
