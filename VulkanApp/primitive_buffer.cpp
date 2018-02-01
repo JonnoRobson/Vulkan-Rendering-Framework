@@ -36,6 +36,7 @@ void VulkanPrimitiveBuffer::InitShapeBuffer(VulkanDevices* devices)
 	VkDeviceMemory staging_buffer_memory;
 	devices->CreateBuffer(shape_buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 	devices->CopyDataToBuffer(staging_buffer_memory, shape_offsets_.data(), shape_buffer_size);
+	devices->CopyBuffer(staging_buffer, shape_buffer_, shape_buffer_size);
 
 	// delete the staging buffer now it is no longer needed
 	vkDestroyBuffer(devices->GetLogicalDevice(), staging_buffer, nullptr);

@@ -84,7 +84,7 @@ layout(binding = 12, r32ui) uniform uimage2D visibilityBuffer;
 // vertex, index and shape buffers
 layout(binding = 13) buffer VertexBuffer
 {
-	Vertex _vertices[];
+	float _vertexData[];
 };
 
 layout(binding = 14) buffer IndexBuffer
@@ -372,6 +372,20 @@ vec3 Intersect(vec3 p0, vec3 p1, vec3 p2, vec3 o, vec3 d)
 	return vec3(a, b, c);
 }
 
+Vertex LoadVertex(uint index)
+{
+	Vertex vertex;
+
+	uint startIndex = index * 9;
+
+	vertex.pos = vec3(_vertexData[startIndex], _vertexData[startIndex + 1], _vertexData[startIndex + 2]);
+	vertex.tex_coord = vec2(_vertexData[startIndex + 3], _vertexData[startIndex + 4]);
+	vertex.normal = vec3(_vertexData[startIndex + 5], _vertexData[startIndex + 6], _vertexData[startIndex + 7]);
+	vertex.mat_index = uint(_vertexData[startIndex + 8]);
+	
+	return vertex;   
+}
+
 Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID, vec2 pixelCoord)
 {
 	uint vIndices[] = 
@@ -381,10 +395,10 @@ Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID,
 		_indices[indexOffset + (triID * 3) + 2]
 	};
 
-	Vertex v0 = _vertices[vertexOffset + vIndices[0]];
-	Vertex v1 = _vertices[vertexOffset + vIndices[1]];
-	Vertex v2 = _vertices[vertexOffset + vIndices[2]];
-
+	Vertex v0 = LoadVertex(vertexOffset + vIndices[0]);
+	Vertex v1 = LoadVertex(vertexOffset + vIndices[1]);
+	Vertex v2 = LoadVertex(vertexOffset + vIndices[2]);
+	
 	vec4 p0 = vec4(v0.pos, 1.0f);
 	vec4 p1 = vec4(v1.pos, 1.0f);
 	vec4 p2 = vec4(v2.pos, 1.0f);
@@ -483,5 +497,5 @@ void main()
 
 	color.w = 1.0f;
 	
-	outColor = color;
+	outColor = vec4(worldPosition, 1.0f);
 }

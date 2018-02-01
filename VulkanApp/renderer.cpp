@@ -64,6 +64,13 @@ void VulkanRenderer::RenderScene()
 		scene_data.camera_data = glm::vec4(render_camera_->GetPosition(), 1000.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
 
+		// send data to the visibility data buffer
+		VisibilityRenderData visibility_data = {};
+		visibility_data.screen_dimensions = { swap_extent.width, swap_extent.height };
+		visibility_data.padding = { 0, 0 };
+		visibility_data.invViewProj = glm::inverse(render_camera_->GetProjectionMatrix() * render_camera_->GetViewMatrix());
+		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityRenderData));
+
 		for (Light* light : lights_)
 		{
 			// send the light data to the gpu
@@ -74,10 +81,10 @@ void VulkanRenderer::RenderScene()
 		skybox_->Render(render_camera_);
 
 		// render the scene
-		RenderVisibility();
-		RenderVisbilityDeferred();
-		//RenderGBuffer();
-		//RenderDeferred();
+		//RenderVisibility();
+		//RenderVisbilityDeferred();
+		RenderGBuffer();
+		RenderDeferred();
 
 		// render transparency
 		current_signal_semaphore_ = transparency_composite_semaphore_;
