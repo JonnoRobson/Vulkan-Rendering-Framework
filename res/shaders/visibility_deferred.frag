@@ -408,28 +408,32 @@ Vertex LoadVertex(uint index)
 
 Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID, vec2 pixelCoord)
 {
+	uint indexLoc0 = indexOffset + (triID * 3) + 0;
+	uint indexLoc1 = indexOffset + (triID * 3) + 1;
+	uint indexLoc2 = indexOffset + (triID * 3) + 2;
+	
 	uint vIndices[] = 
 	{
-		_indices[indexOffset + (triID * 3) + 0],
-		_indices[indexOffset + (triID * 3) + 1],
-		_indices[indexOffset + (triID * 3) + 2]
+		_indices[indexLoc0] + vertexOffset,
+		_indices[indexLoc1] + vertexOffset,
+		_indices[indexLoc2] + vertexOffset
 	};
-
-	Vertex v0 = LoadVertex(vertexOffset + vIndices[0]);
-	Vertex v1 = LoadVertex(vertexOffset + vIndices[1]);
-	Vertex v2 = LoadVertex(vertexOffset + vIndices[2]);
 	
-	return v0;
-
+	Vertex v0 = LoadVertex(vIndices[0]);
+	Vertex v1 = LoadVertex(vIndices[1]);
+	Vertex v2 = LoadVertex(vIndices[2]);
+	
 	vec4 p0 = vec4(v0.pos, 1.0f);
 	vec4 p1 = vec4(v1.pos, 1.0f);
 	vec4 p2 = vec4(v2.pos, 1.0f);
+
+	return v0;
 
 	// compute barycentric coordinates
 	mat4 invViewProj = matrix_data.invViewProj;
 	vec3 d 
 	= invViewProj[0].xyz * (pixelCoord.x + 0.5f)
-	+ invViewProj[1].xyz * ((1080.0 - pixelCoord.y - 1) + 0.5)
+	+ invViewProj[1].xyz * ((matrix_data.screenDimensions.y - pixelCoord.y - 1) + 0.5)
 	+ invViewProj[3].xyz;
 
 	vec3 weights = Intersect(p0.xyz, p1.xyz, p2.xyz, invViewProj[2].xyz, d);
@@ -439,6 +443,8 @@ Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID,
 	vertex.tex_coord = v0.tex_coord * weights.x + (v1.tex_coord * weights.y + (v2.tex_coord * weights.z));
 	vertex.normal = v0.normal * weights.x + (v1.normal * weights.y + (v2.normal * weights.z));
 	vertex.mat_index = v0.mat_index;
+	vertex.pos = vec3(vertexOffset + vIndices[0], vertexOffset + vIndices[1], vertexOffset + vIndices[2]);
+	vertex.pos = vec3(vIndices[0], vIndices[1], vIndices[2]);
 
 	return vertex;
 }
@@ -519,5 +525,5 @@ void main()
 
 	color.w = 1.0f;
 	
-	outColor = color;
+	outColor = vec4(worldPosition, 1.0f);
 }

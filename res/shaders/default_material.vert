@@ -1,10 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec2 inTexCoord;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in uint inMatIndex;
+layout(location = 0) in vec4 inPositionMatIndex;
+layout(location = 1) in vec4 inEncodedNormalTexCoord;
 
 layout(binding = 0) uniform UniformBufferObject
 {
@@ -23,24 +21,25 @@ layout(location = 1) out vec3 normal;
 layout(location = 2) out vec4 worldPosition;
 layout(location = 3) out uint matIndex;
 
-void ApproximateTangentVectors(in vec3 normal, out vec3 tangent, out vec3 binormal)
+vec3 SphereMapDecode(vec2 encoded_normal)
 {
-	vec3 c1 = cross(normal, vec3(0.0, 0.0, 1.0)); 
-	vec3 c2 = cross(normal, vec3(0.0, 1.0, 0.0)); 
-	if (length(c1) > length(c2))
-		tangent = c1;	
-	else
-		tangent = c2;	
-	
-	tangent = normalize(tangent);
-	binormal = normalize(cross(normal, tangent)); 
+	if(length(encoded_normal) > 128.0f)
+	{
+		return vec3(0, 0, 1);
+	}
+
+	vec4 nn = vec4(encoded_normal, 0, 0) * vec4(2, 2, 0, 0) + vec4(-1, -1, 1, -1);
+	float l = dot(nn.xyz, -nn.xyw);
+	nn.z = l;
+	nn.xy *= sqrt(l);
+	return nn.xyz * 2.0f + vec3(0, 0, -1);
 }
 
 void main()
 {
-	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
-	fragTexCoord = inTexCoord;
-	normal = normalize(inNormal * mat3(ubo.model));
-	worldPosition = ubo.model * vec4(inPosition, 1.0);
-	matIndex = inMatIndex;
+	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPositionMatIndex.xyz, 1.0);
+	fragTexCoord = inEncodedNormalTexCoord.zw;
+	normal = normalize(SphereMapDecode(inEncodedNormalTexCoord.xy) * mat3(ubo.model));
+	worldPosition = ubo.model * vec4(inPositionMatIndex.xyz, 1.0);
+	matIndex = uint(inPositionMatIndex.w);
 }

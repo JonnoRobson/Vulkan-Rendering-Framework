@@ -6,7 +6,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain)
 {
 	devices_ = devices;
 	swap_chain_ = swap_chain;
-	render_mode_ = RenderMode::DEFERRED;
+	render_mode_ = RenderMode::VISIBILITY;
 
 	// load a default texture
 	default_texture_ = new Texture();
@@ -47,7 +47,7 @@ void VulkanRenderer::RenderScene()
 	{
 		RenderVisualisation(image_index);
 	}
-	else if (render_mode_ == RenderMode::DEFERRED)
+	else if (render_mode_ == RenderMode::DEFERRED || render_mode_ == RenderMode::VISIBILITY)
 	{
 		// send matrix data to the gpu
 		UniformBufferObject ubo = {};
@@ -81,10 +81,16 @@ void VulkanRenderer::RenderScene()
 		skybox_->Render(render_camera_);
 
 		// render the scene
-		RenderVisibility();
-		RenderVisbilityDeferred();
-		//RenderGBuffer();
-		//RenderDeferred();
+		if (render_mode_ == RenderMode::VISIBILITY)
+		{
+			RenderVisibility();
+			RenderVisbilityDeferred();
+		}
+		else
+		{
+			RenderGBuffer();
+			RenderDeferred();
+		}
 
 		// render transparency
 		current_signal_semaphore_ = transparency_composite_semaphore_;

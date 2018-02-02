@@ -28,8 +28,8 @@ bool App::InitWindow()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// Don't create an opengl context
 	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// Window should be resizable
 
-	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
-	//window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
+	//window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
+	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
 
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetWindowSizeCallback(window_, App::OnWindowResized);
@@ -319,7 +319,12 @@ void App::Update()
 	}
 
 	// render mode switch
-	if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
+	if (input_->IsKeyPressed(GLFW_KEY_TAB))
+	{
+		renderer_->SetRenderMode(VulkanRenderer::RenderMode::VISIBILITY);
+		input_->SetKeyUp(GLFW_KEY_TAB);
+	}
+	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
 	{
 		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED);
 		input_->SetKeyUp(GLFW_KEY_LEFT_SHIFT);
