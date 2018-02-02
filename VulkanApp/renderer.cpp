@@ -81,10 +81,10 @@ void VulkanRenderer::RenderScene()
 		skybox_->Render(render_camera_);
 
 		// render the scene
-		//RenderVisibility();
-		//RenderVisbilityDeferred();
-		RenderGBuffer();
-		RenderDeferred();
+		RenderVisibility();
+		RenderVisbilityDeferred();
+		//RenderGBuffer();
+		//RenderDeferred();
 
 		// render transparency
 		current_signal_semaphore_ = transparency_composite_semaphore_;

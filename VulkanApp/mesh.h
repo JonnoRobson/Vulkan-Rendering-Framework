@@ -18,10 +18,8 @@
 
 struct Vertex
 {
-	glm::vec3 pos;
-	glm::vec2 tex_coord;
-	glm::vec3 normal;
-	uint32_t mat_index;
+	glm::vec4 pos_mat_index;
+	glm::vec4 encoded_normal_tex;
 
 	static VkVertexInputBindingDescription GetBindingDescription()
 	{
@@ -33,40 +31,28 @@ struct Vertex
 		return binding_description;
 	}
 
-	static std::array<VkVertexInputAttributeDescription, 4> GetAttributeDescriptions()
+	static std::array<VkVertexInputAttributeDescription, 2> GetAttributeDescriptions()
 	{
-		std::array<VkVertexInputAttributeDescription, 4> attribute_descriptions = {};
+		std::array<VkVertexInputAttributeDescription, 2> attribute_descriptions = {};
 
-		// position
+		// position and material index
 		attribute_descriptions[0].binding = 0;
 		attribute_descriptions[0].location = 0;
-		attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attribute_descriptions[0].offset = offsetof(Vertex, pos);
+		attribute_descriptions[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attribute_descriptions[0].offset = offsetof(Vertex, pos_mat_index);
 
-		// texcoord
+		// encoded normals and tex coords
 		attribute_descriptions[1].binding = 0;
 		attribute_descriptions[1].location = 1;
-		attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-		attribute_descriptions[1].offset = offsetof(Vertex, tex_coord);
-
-		// normal
-		attribute_descriptions[2].binding = 0;
-		attribute_descriptions[2].location = 2;
-		attribute_descriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attribute_descriptions[2].offset = offsetof(Vertex, normal);
-
-		// mat_index
-		attribute_descriptions[3].binding = 0;
-		attribute_descriptions[3].location = 3;
-		attribute_descriptions[3].format = VK_FORMAT_R32G32B32A32_UINT;
-		attribute_descriptions[3].offset = offsetof(Vertex, mat_index);
+		attribute_descriptions[1].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+		attribute_descriptions[1].offset = offsetof(Vertex, encoded_normal_tex);
 
 		return attribute_descriptions;
 	}
 
 	bool operator==(const Vertex& other) const
 	{
-		return pos == other.pos && tex_coord == other.tex_coord && normal == other.normal;
+		return pos_mat_index == other.pos_mat_index && encoded_normal_tex == other.encoded_normal_tex;
 	}
 };
 
@@ -76,7 +62,7 @@ namespace std
 	{
 		size_t operator()(Vertex const& vertex) const
 		{
-			return (hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec2>()(vertex.tex_coord) << 1));
+			return (hash<glm::vec3>()(vertex.pos_mat_index) ^ (hash<glm::vec2>()(vertex.encoded_normal_tex) << 1));
 		}
 	};
 }
@@ -94,6 +80,8 @@ public:
 
 	inline glm::vec3 GetMinVertex() { return min_vertex_; }
 	inline glm::vec3 GetMaxVertex() { return max_vertex_;}
+
+	static glm::vec2 SpheremapEncode(glm::vec3 normal);
 
 protected:
 	void LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::attrib_t* attrib, std::vector<tinyobj::material_t>* materials, std::vector<tinyobj::shape_t*> shapes);

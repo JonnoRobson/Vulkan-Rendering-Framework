@@ -132,6 +132,18 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 	std::cout << "The most complex shape contains " << most_complex_shape_size_ << " triangles.\n";
 }
 
+glm::vec2 Mesh::SpheremapEncode(glm::vec3 normal)
+{
+	if (normal.z > 0.999f)
+	{
+		return glm::vec2(256.0f, 256.0f);
+	}
+
+	glm::vec2 enc = glm::normalize(glm::vec2(normal.x, normal.y)) * (sqrt(-normal.z * 0.5f + 0.5f));
+	enc = enc * 0.5f + glm::vec2(0.5f, 0.5f);
+	return enc;
+}
+
 void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, VulkanRenderer* renderer, tinyobj::attrib_t* attrib, std::vector<tinyobj::material_t>* materials, std::vector<tinyobj::shape_t*> shapes)
 {
 	for (const auto& shape : shapes)
@@ -151,44 +163,48 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 
 			if (index.vertex_index >= 0)
 			{
-				vertex.pos = {
-					attrib->vertices[3 * index.vertex_index + 0],
-					attrib->vertices[3 * index.vertex_index + 2],
-					attrib->vertices[3 * index.vertex_index + 1]
-				};
+				vertex.pos_mat_index.x = attrib->vertices[3 * index.vertex_index + 0];
+				vertex.pos_mat_index.y = attrib->vertices[3 * index.vertex_index + 2];
+				vertex.pos_mat_index.z = attrib->vertices[3 * index.vertex_index + 1];
 			}
 			else
 			{
-				vertex.pos = { 0.0f, 0.0f, 0.0f };
+				vertex.pos_mat_index.x = 0;
+				vertex.pos_mat_index.y = 0;
+				vertex.pos_mat_index.z = 0;
 			}
 
 			if (index.texcoord_index >= 0)
 			{
-				vertex.tex_coord = {
-					attrib->texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib->texcoords[2 * index.texcoord_index + 1]
-				};
+				vertex.encoded_normal_tex.z = attrib->texcoords[2 * index.texcoord_index + 0];
+				vertex.encoded_normal_tex.w = 1.0f - attrib->texcoords[2 * index.texcoord_index + 1];
 			}
 			else
 			{
-				vertex.tex_coord = { 0.0f, 0.0f };
+				vertex.encoded_normal_tex.z = 0;
+				vertex.encoded_normal_tex.w = 0;
 			}
 
 			if (index.normal_index >= 0)
 			{
-				vertex.normal = {
+				glm::vec3 normal = {
 					-attrib->normals[3 * index.normal_index + 0],
 					attrib->normals[3 * index.normal_index + 2],
 					attrib->normals[3 * index.normal_index + 1]
 				};
+
+				glm::vec2 encoded_normal = SpheremapEncode(normal);
+				vertex.encoded_normal_tex.x = encoded_normal.x;
+				vertex.encoded_normal_tex.y = encoded_normal.y;
 			}
 			else
 			{
-				vertex.normal = glm::vec3(0.0f, 0.0f, 0.0f);
+				vertex.encoded_normal_tex.x = 0;
+				vertex.encoded_normal_tex.y = 0;
 			}
 
 			// material index
-			vertex.mat_index = 0;
+			vertex.pos_mat_index.w = 0;
 			if (mesh_materials_.size() > 0)
 			{
 				Material* face_material = mesh_materials_[(*materials)[shape->mesh.material_ids[face_index]].name];
@@ -196,7 +212,7 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 				{
 					if (face_material->GetMaterialIndex() >= 0)
 					{
-						vertex.mat_index = face_material->GetMaterialIndex();
+						vertex.pos_mat_index.w = face_material->GetMaterialIndex();
 						if (!transparency_enabled)
 							transparency_enabled = face_material->GetTransparencyEnabled();
 					}
@@ -209,20 +225,20 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 				vertices.push_back(vertex);
 
 				// test to see if this vertex is outside the current bounds
-				if (vertex.pos.x < min_vertex_.x)
-					min_vertex_.x = vertex.pos.x;
-				else if (vertex.pos.x > max_vertex_.x)
-					max_vertex_.x = vertex.pos.x;
+				if (vertex.pos_mat_index.x < min_vertex_.x)
+					min_vertex_.x = vertex.pos_mat_index.x;
+				else if (vertex.pos_mat_index.x > max_vertex_.x)
+					max_vertex_.x = vertex.pos_mat_index.x;
 
-				if (vertex.pos.y < min_vertex_.y)
-					min_vertex_.y = vertex.pos.y;
-				else if (vertex.pos.y > max_vertex_.y)
-					max_vertex_.y = vertex.pos.y;
+				if (vertex.pos_mat_index.y < min_vertex_.y)
+					min_vertex_.y = vertex.pos_mat_index.y;
+				else if (vertex.pos_mat_index.y > max_vertex_.y)
+					max_vertex_.y = vertex.pos_mat_index.y;
 
-				if (vertex.pos.z < min_vertex_.z)
-					min_vertex_.z = vertex.pos.z;
-				else if (vertex.pos.z > max_vertex_.z)
-					max_vertex_.z = vertex.pos.z;
+				if (vertex.pos_mat_index.z < min_vertex_.z)
+					min_vertex_.z = vertex.pos_mat_index.z;
+				else if (vertex.pos_mat_index.z > max_vertex_.z)
+					max_vertex_.z = vertex.pos_mat_index.z;
 			}
 
 			indices.push_back(unique_vertices[vertex]);

@@ -40,6 +40,12 @@ struct MaterialData
 	uint reflection_map_index;
 };
 
+struct StorageVertex
+{
+	vec4 pos_mat_index;
+	vec4 encoded_normal_tex_coord;
+};
+
 struct Vertex
 {
 	vec3 pos;
@@ -84,7 +90,7 @@ layout(binding = 12, r32ui) uniform uimage2D visibilityBuffer;
 // vertex, index and shape buffers
 layout(binding = 13) buffer VertexBuffer
 {
-	float _vertexData[];
+	StorageVertex _vertices[];
 };
 
 layout(binding = 14) buffer IndexBuffer
@@ -352,6 +358,20 @@ vec3 PerturbNormal(vec3 normal, vec3 view, vec2 texCoord, uint normal_map_index)
 	return normalize(cotangentFrame * map);
 }
 
+vec3 SphereMapDecode(vec2 encoded_normal)
+{
+	if(length(encoded_normal) > 128.0f)
+	{
+		return vec3(0, 0, 1);
+	}
+
+	vec4 nn = vec4(encoded_normal, 0, 0) * vec4(2, 2, 0, 0) + vec4(-1, -1, 1, -1);
+	float l = dot(nn.xyz, -nn.xyw);
+	nn.z = l;
+	nn.xy *= sqrt(l);
+	return nn.xyz * 2.0f + vec3(0, 0, -1);
+}
+
 vec3 Intersect(vec3 p0, vec3 p1, vec3 p2, vec3 o, vec3 d)
 {
 	vec3 e0 = o  - p0;
@@ -376,12 +396,12 @@ Vertex LoadVertex(uint index)
 {
 	Vertex vertex;
 
-	uint startIndex = index * 9;
+	StorageVertex storageVertex = _vertices[index];
 
-	vertex.pos = vec3(_vertexData[startIndex], _vertexData[startIndex + 1], _vertexData[startIndex + 2]);
-	vertex.tex_coord = vec2(_vertexData[startIndex + 3], _vertexData[startIndex + 4]);
-	vertex.normal = vec3(_vertexData[startIndex + 5], _vertexData[startIndex + 6], _vertexData[startIndex + 7]);
-	vertex.mat_index = uint(_vertexData[startIndex + 8]);
+	vertex.pos = storageVertex.pos_mat_index.xyz;
+	vertex.tex_coord = storageVertex.encoded_normal_tex_coord.zw;
+	vertex.normal = SphereMapDecode(storageVertex.encoded_normal_tex_coord.xy);
+	vertex.mat_index = uint(storageVertex.pos_mat_index.w);
 	
 	return vertex;   
 }
@@ -399,6 +419,8 @@ Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID,
 	Vertex v1 = LoadVertex(vertexOffset + vIndices[1]);
 	Vertex v2 = LoadVertex(vertexOffset + vIndices[2]);
 	
+	return v0;
+
 	vec4 p0 = vec4(v0.pos, 1.0f);
 	vec4 p1 = vec4(v1.pos, 1.0f);
 	vec4 p2 = vec4(v2.pos, 1.0f);
@@ -497,5 +519,5 @@ void main()
 
 	color.w = 1.0f;
 	
-	outColor = vec4(worldPosition, 1.0f);
+	outColor = color;
 }
