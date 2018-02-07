@@ -7,9 +7,9 @@
 
 struct VisibilityRenderData
 {
-	glm::vec2 screen_dimensions;
-	glm::vec2 padding;
-	glm::mat4 invViewProj;
+	glm::vec4 screen_dimensions;
+	glm::mat4 invView;
+	glm::mat4 invProj;
 };
 
 class VisibilityDeferredPipeline : public VulkanPipeline

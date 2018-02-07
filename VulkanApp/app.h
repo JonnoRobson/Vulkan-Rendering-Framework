@@ -28,7 +28,7 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 #ifdef NDEBUG
 #define ENABLE_VALIDATION_LAYERS false
 #else
-#define ENABLE_VALIDATION_LAYERS false
+#define ENABLE_VALIDATION_LAYERS true
 #endif
 
 

@@ -22,13 +22,10 @@ vec2 positions[6] = vec2[](
     vec2(1.0, 1.0)
 );
 
-
-layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec2 inTexCoord;
-layout(location = 2) in vec3 inNormal;
-layout(location = 3) in uint inMatIndex;
+layout(location = 0) in vec4 inPositionMatIndex;
+layout(location = 1) in vec4 inEncodedNormalTexCoord;
 
 void main()
 {
-	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
+	gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPositionMatIndex.xyz, 1.0);
 }

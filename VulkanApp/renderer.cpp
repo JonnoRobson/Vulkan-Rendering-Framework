@@ -66,9 +66,9 @@ void VulkanRenderer::RenderScene()
 
 		// send data to the visibility data buffer
 		VisibilityRenderData visibility_data = {};
-		visibility_data.screen_dimensions = { swap_extent.width, swap_extent.height };
-		visibility_data.padding = { 0, 0 };
-		visibility_data.invViewProj = glm::inverse(render_camera_->GetProjectionMatrix() * render_camera_->GetViewMatrix());
+		visibility_data.screen_dimensions = glm::vec4(swap_extent.width, swap_extent.height, 0, 0);
+		visibility_data.invView = glm::inverse(render_camera_->GetViewMatrix());
+		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
 		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityRenderData));
 
 		for (Light* light : lights_)
@@ -539,7 +539,7 @@ void VulkanRenderer::InitPipelines()
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
 	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
-	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, visibility_buffer_->GetImageViews()[0]);
+	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, swap_chain_->GetDepthImageView());
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
@@ -737,6 +737,7 @@ void VulkanRenderer::InitVisibilityPipeline()
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 14, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeOffsets));
 	visibility_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, visibility_data_buffer_, sizeof(VisibilityRenderData));
+	visibility_deferred_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 17, swap_chain_->GetDepthImageView());
 	visibility_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 	CreateVisibilityCommandBuffer();

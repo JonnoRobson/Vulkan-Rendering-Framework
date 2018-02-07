@@ -2,6 +2,7 @@
 #define _PRIMITIVE_BUFFER_H_
 
 #include <vulkan/vulkan.h>
+#include <glm/glm.hpp>
 #include <vector>
 
 #include "device.h"
@@ -11,9 +12,7 @@
 
 struct ShapeOffsets
 {
-	uint32_t vertex_offset;
-	uint32_t index_offset;
-	uint32_t padding[2];
+	uint32_t offsets[4];
 };
 
 class VulkanPrimitiveBuffer

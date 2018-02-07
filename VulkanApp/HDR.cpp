@@ -250,7 +250,7 @@ void HDR::InitShaders(VulkanSwapChain* swap_chain)
 void HDR::InitResources()
 {
 	// start as hdr on normal
-	hdr_mode_ = 1;
+	hdr_mode_ = 0;
 
 	// initialize the sampler that will be used for buffers
 	// initialize the g buffer sampler

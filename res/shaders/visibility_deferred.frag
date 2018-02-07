@@ -56,8 +56,7 @@ struct Vertex
 
 struct Shape
 {
-	uvec2 offsets;
-	uvec2 padding;
+	uvec4 offsets;
 };
 
 // uniform buffers
@@ -105,10 +104,12 @@ layout(binding = 15) buffer ShapeBuffer
 
 layout(binding = 16) uniform MatrixBuffer
 {
-	vec2 screenDimensions;
-	vec2 padding;
-	mat4 invViewProj;
+	vec4 screenDimensions;
+	mat4 invView;
+	mat4 invProj;
 } matrix_data;
+
+layout(binding = 17) uniform texture2D depthBuffer;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -392,6 +393,33 @@ vec3 Intersect(vec3 p0, vec3 p1, vec3 p2, vec3 o, vec3 d)
 	return vec3(a, b, c);
 }
 
+vec3 Intersect2(vec3 p, vec3 v0, vec3 v1, vec3 v2)
+{
+	vec3 weights = vec3(0, 0, 0);
+
+	vec3 v0v1 = v1-v0;
+	vec3 v0v2 = v2-v0;
+
+	vec3 n = cross(v0v1, v0v2);
+	float area = length(n) / 2;
+
+	vec3 c = vec3(0.0f, 0.0f, 0.0f);
+
+	vec3 edge1 = v2 - v1;
+	vec3 vp1 = p - v1;
+	c = cross(edge1, vp1);
+	weights.x = (length(c) / 2) / area;
+
+	vec3 edge2 = v0 - v2;
+	vec3 vp2 = p - v2;
+	c = cross(edge2, vp2);
+	weights.y = (length(c) / 2) / area;
+
+	weights.z = 1.0f - weights.x - weights.y;
+
+	return weights;
+}
+
 Vertex LoadVertex(uint index)
 {
 	Vertex vertex;
@@ -406,7 +434,19 @@ Vertex LoadVertex(uint index)
 	return vertex;   
 }
 
-Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID, vec2 pixelCoord)
+vec3 PositionFromDepth(float depth, vec2 uv)
+{
+	vec4 clipPos = vec4(uv * 2.0 - 1.0, depth, 1.0);
+	vec4 viewPos = matrix_data.invProj * clipPos;
+
+	viewPos /= viewPos.w;
+
+	vec4 worldPos = matrix_data.invView * viewPos;
+
+	return worldPos.xyz;
+}
+
+Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID, vec2 pixelCoord)
 {
 	uint indexLoc0 = indexOffset + (triID * 3) + 0;
 	uint indexLoc1 = indexOffset + (triID * 3) + 1;
@@ -426,24 +466,18 @@ Vertex LoadAndInterpolateVertex(uint indexOffset, uint vertexOffset, uint triID,
 	vec4 p0 = vec4(v0.pos, 1.0f);
 	vec4 p1 = vec4(v1.pos, 1.0f);
 	vec4 p2 = vec4(v2.pos, 1.0f);
+	
+	// sample pixel depth from the depth buffer
+	float depth = texture(sampler2D(depthBuffer, mapSampler), screenTexCoord).x;
 
-	return v0;
-
-	// compute barycentric coordinates
-	mat4 invViewProj = matrix_data.invViewProj;
-	vec3 d 
-	= invViewProj[0].xyz * (pixelCoord.x + 0.5f)
-	+ invViewProj[1].xyz * ((matrix_data.screenDimensions.y - pixelCoord.y - 1) + 0.5)
-	+ invViewProj[3].xyz;
-
-	vec3 weights = Intersect(p0.xyz, p1.xyz, p2.xyz, invViewProj[2].xyz, d);
+	vec3 worldPos = PositionFromDepth(depth, screenTexCoord);
+	vec3 weights = Intersect2(worldPos.xyz, p0.xyz, p1.xyz, p2.xyz);
 
 	Vertex vertex;
 	vertex.pos = v0.pos * weights.x + (v1.pos * weights.y + (v2.pos * weights.z));
 	vertex.tex_coord = v0.tex_coord * weights.x + (v1.tex_coord * weights.y + (v2.tex_coord * weights.z));
 	vertex.normal = v0.normal * weights.x + (v1.normal * weights.y + (v2.normal * weights.z));
 	vertex.mat_index = v0.mat_index;
-	vertex.pos = vec3(vertexOffset + vIndices[0], vertexOffset + vIndices[1], vertexOffset + vIndices[2]);
 	vertex.pos = vec3(vIndices[0], vIndices[1], vIndices[2]);
 
 	return vertex;
@@ -457,11 +491,11 @@ void main()
 	uint matIndex = 0;
 
 	// read from the visibility buffer texture
-	vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions;
+	vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
 	uint visibilityData = imageLoad(visibilityBuffer, ivec2(pixelCoord)).r;
 	uint triID = visibilityData >> SHAPE_ID_BITS;
 	uint shapeID = (visibilityData & SHAPE_ID_MASK);
-	uvec2 offsets = _shapes[shapeID].offsets;
+	uvec2 offsets = _shapes[shapeID].offsets.xy;
 
 	if(visibilityData == 0)
 		discard;
@@ -525,5 +559,5 @@ void main()
 
 	color.w = 1.0f;
 	
-	outColor = vec4(worldPosition, 1.0f);
+	outColor = color;
 }
