@@ -373,27 +373,7 @@ vec3 SphereMapDecode(vec2 encoded_normal)
 	return nn.xyz * 2.0f + vec3(0, 0, -1);
 }
 
-vec3 Intersect(vec3 p0, vec3 p1, vec3 p2, vec3 o, vec3 d)
-{
-	vec3 e0 = o  - p0;
-	vec3 e1 = p1 - p0;
-	vec3 e2 = p2 - p0;
-
-	vec3 r = cross(d, e2);
-	vec3 s = cross(e0, e1);
-
-	float iV = 1.0f / dot(r, e1);
-
-	float v1 = dot(r, e0);
-	float v2 = dot(s,  d);
-
-	float b = v1 * iV;
-	float c = v2 * iV;
-	float a = 1.0f - b - c;
-	return vec3(a, b, c);
-}
-
-vec3 Intersect2(vec3 p, vec3 v0, vec3 v1, vec3 v2)
+vec3 Intersect(vec3 p, vec3 v0, vec3 v1, vec3 v2)
 {
 	vec3 weights = vec3(0, 0, 0);
 
@@ -471,7 +451,7 @@ Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID,
 	float depth = texture(sampler2D(depthBuffer, mapSampler), screenTexCoord).x;
 
 	vec3 worldPos = PositionFromDepth(depth, screenTexCoord);
-	vec3 weights = Intersect2(worldPos.xyz, p0.xyz, p1.xyz, p2.xyz);
+	vec3 weights = Intersect(worldPos.xyz, p0.xyz, p1.xyz, p2.xyz);
 
 	Vertex vertex;
 	vertex.pos = v0.pos * weights.x + (v1.pos * weights.y + (v2.pos * weights.z));
