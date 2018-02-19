@@ -49,6 +49,8 @@ bool App::InitWindow()
 
 bool App::InitVulkan()
 {
+	validation_layers_available_ = true;
+
 	// init vulkan instance and debug functionality
 	if (!ValidateExtensions())
 	{
@@ -57,7 +59,8 @@ bool App::InitVulkan()
 
 	if (ENABLE_VALIDATION_LAYERS && !CheckValidationLayerSupport())
 	{
-		throw std::runtime_error("validation layers requested, but not available!");
+		validation_layers_available_ = false;
+		std::cout << "validation layers requested, but not available!\n";
 	}
 
 	if (!CreateInstance())
@@ -378,7 +381,7 @@ bool App::CreateInstance()
 	create_info.ppEnabledExtensionNames = extensions.data();
 
 	// if running debug then enable validation layers
-	if (ENABLE_VALIDATION_LAYERS)
+	if (ENABLE_VALIDATION_LAYERS && validation_layers_available_)
 	{
 		create_info.enabledLayerCount = static_cast<uint32_t>(validation_layers_.size());
 		create_info.ppEnabledLayerNames = validation_layers_.data();
@@ -511,7 +514,7 @@ void App::InitDevices()
 	device_features.samplerAnisotropy = VK_TRUE;
 	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 	device_features.independentBlend = VK_TRUE;
-	device_features.geometryShader = VK_TRUE;
+	device_features.multiDrawIndirect = VK_TRUE;
 
 	// create the physical device
 	devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);

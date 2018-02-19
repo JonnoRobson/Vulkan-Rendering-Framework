@@ -4,6 +4,7 @@
 // inputs
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) flat in uint matIndex;
+layout(location = 2) flat in uint drawID;
 
 struct MaterialData
 {

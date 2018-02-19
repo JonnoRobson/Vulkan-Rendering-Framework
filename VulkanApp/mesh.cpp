@@ -146,7 +146,9 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 	{
 		std::unordered_map<Vertex, uint32_t> unique_vertices = {};
 		std::vector<Vertex> vertices;
-		std::vector<uint32_t> indices;
+		std::vector<uint32_t> indices; 
+		glm::vec4 shape_min_vertex = glm::vec4(1e9f, 1e9f, 1e9f, 0.0f);
+		glm::vec4 shape_max_vertex = glm::vec4(-1e9f, -1e9f, -1e9f, 0.0f);
 
 		Shape* mesh_shape = new Shape();
 
@@ -220,21 +222,21 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 				unique_vertices[vertex] = static_cast<uint32_t>(vertices.size());
 				vertices.push_back(vertex);
 
-				// test to see if this vertex is outside the current bounds
-				if (vertex.pos_mat_index.x < min_vertex_.x)
-					min_vertex_.x = vertex.pos_mat_index.x;
-				else if (vertex.pos_mat_index.x > max_vertex_.x)
-					max_vertex_.x = vertex.pos_mat_index.x;
+				// test to see if this vertex is outside the current shape bounds
+				if (vertex.pos_mat_index.x < shape_min_vertex.x)
+					shape_min_vertex.x = vertex.pos_mat_index.x;
+				else if (vertex.pos_mat_index.x > shape_max_vertex.x)
+					shape_max_vertex.x = vertex.pos_mat_index.x;
 
-				if (vertex.pos_mat_index.y < min_vertex_.y)
-					min_vertex_.y = vertex.pos_mat_index.y;
-				else if (vertex.pos_mat_index.y > max_vertex_.y)
-					max_vertex_.y = vertex.pos_mat_index.y;
+				if (vertex.pos_mat_index.y < shape_min_vertex.y)
+					shape_min_vertex.y = vertex.pos_mat_index.y;
+				else if (vertex.pos_mat_index.y > shape_max_vertex.y)
+					shape_max_vertex.y = vertex.pos_mat_index.y;
 
-				if (vertex.pos_mat_index.z < min_vertex_.z)
-					min_vertex_.z = vertex.pos_mat_index.z;
-				else if (vertex.pos_mat_index.z > max_vertex_.z)
-					max_vertex_.z = vertex.pos_mat_index.z;
+				if (vertex.pos_mat_index.z < shape_min_vertex.z)
+					shape_min_vertex.z = vertex.pos_mat_index.z;
+				else if (vertex.pos_mat_index.z > shape_max_vertex.z)
+					shape_max_vertex.z = vertex.pos_mat_index.z;
 			}
 
 			indices.push_back(unique_vertices[vertex]);
@@ -243,10 +245,30 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 				face_index++;
 		}
 
-		most_complex_shape_size_ = std::max(most_complex_shape_size_, (uint32_t)indices.size() / 3);
+		// test to see if this shape is outside the current mesh bounds
+		if (shape_min_vertex.x < min_vertex_.x)
+			min_vertex_.x = shape_min_vertex.x;
+		
+		if (shape_max_vertex.x > max_vertex_.x)
+			max_vertex_.x = shape_max_vertex.x;
 
+		if (shape_min_vertex.y < min_vertex_.y)
+			min_vertex_.y = shape_min_vertex.y;
+		
+		if (shape_max_vertex.y > max_vertex_.y)
+			max_vertex_.y = shape_max_vertex.y;
+
+		if (shape_min_vertex.z < min_vertex_.z)
+			min_vertex_.z = shape_min_vertex.z;
+		
+		if (shape_max_vertex.z > max_vertex_.z)
+			max_vertex_.z = shape_max_vertex.z;
+
+
+		most_complex_shape_size_ = std::max(most_complex_shape_size_, (uint32_t)indices.size() / 3);
+		BoundingBox shape_bounding_box = {shape_min_vertex, shape_max_vertex};
 		std::unique_lock<std::mutex> shape_lock(*shape_mutex);
-		mesh_shape->InitShape(devices, renderer, vertices, indices, transparency_enabled);
+		mesh_shape->InitShape(devices, renderer, vertices, indices, shape_bounding_box, transparency_enabled);
 		mesh_shapes_.push_back(mesh_shape);
 		shape_lock.unlock();
 	}

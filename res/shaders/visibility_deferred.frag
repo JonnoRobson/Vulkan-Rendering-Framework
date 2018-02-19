@@ -57,6 +57,8 @@ struct Vertex
 struct Shape
 {
 	uvec4 offsets;
+	vec4 min_vertex;
+	vec4 max_vertex;
 };
 
 // uniform buffers

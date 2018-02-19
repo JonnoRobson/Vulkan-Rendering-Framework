@@ -81,6 +81,8 @@ protected:
 	const int window_width_ = 1920;
 	const int window_height_ = 1080;
 
+	bool validation_layers_available_;
+
 	const std::vector<const char*> validation_layers_ = {
 		"VK_LAYER_LUNARG_standard_validation",
 		"VK_LAYER_LUNARG_monitor"

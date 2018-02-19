@@ -1,4 +1,6 @@
 #include "renderer.h"
+#include <chrono>
+#include <iostream>
 #include <array>
 #include <map>
 
@@ -84,8 +86,16 @@ void VulkanRenderer::RenderScene()
 		visibility_data.invView = glm::inverse(render_camera_->GetViewMatrix());
 		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
 		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityRenderData));
-		
+
+		auto vis_begin = std::chrono::high_resolution_clock::now();
+
 		RenderVisibility();
+
+		vkQueueWaitIdle(graphics_queue_);
+		auto vis_end = std::chrono::high_resolution_clock::now();
+		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
+		std::cout << "Visibility took " << vis_time << "ms.\n";
+
 		RenderVisbilityDeferred();
 
 		// render transparency
@@ -100,13 +110,29 @@ void VulkanRenderer::RenderScene()
 		visibility_data.invView = glm::inverse(render_camera_->GetViewMatrix());
 		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
 		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityPeelRenderData));
+	
+		auto vis_begin = std::chrono::high_resolution_clock::now();
 
 		RenderVisibilityPeel();
+
+		vkQueueWaitIdle(graphics_queue_);
+		auto vis_end = std::chrono::high_resolution_clock::now();
+		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
+		std::cout << "Visibility took " << vis_time << "ms.\n";
+		
 		RenderVisibilityPeelDeferred();
 
 #elif _DEFERRED
 
+		auto vis_begin = std::chrono::high_resolution_clock::now();
+
 		RenderGBuffer();
+
+		vkQueueWaitIdle(graphics_queue_);
+		auto vis_end = std::chrono::high_resolution_clock::now();
+		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
+		std::cout << "Visibility took " << vis_time << "ms.\n";
+
 		RenderDeferred();
 
 		// render transparency
@@ -304,6 +330,8 @@ void VulkanRenderer::RenderVisibilityPeel()
 	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
 	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
 	{
+		vkQueueWaitIdle(graphics_queue_);
+
 		// update the data in the visibility peel buffer
 		VisibilityPeelData peel_data = {};
 		peel_data.pass_number = i;
@@ -325,9 +353,9 @@ void VulkanRenderer::RenderVisibilityPeel()
 		submit_info.pCommandBuffers = &visibility_peel_command_buffers_[i];
 
 		// on the final peel layer signal the g buffer semaphore
+		VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
 		if (i == VISIBILITY_PEEL_COUNT - 1)
 		{
-			VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
 			submit_info.signalSemaphoreCount = 1;
 			submit_info.pSignalSemaphores = signal_semaphores;
 		}
@@ -926,7 +954,7 @@ void VulkanRenderer::InitVisibilityPipeline()
 	visibility_deferred_pipeline_->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_buffer_->GetImageViews()[0]);
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 13, primitive_buffer_->GetVertexBuffer(), primitive_buffer_->GetVertexCount() * sizeof(Vertex));
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 14, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
-	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeOffsets));
+	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeData));
 	visibility_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, visibility_data_buffer_, sizeof(VisibilityRenderData));
 	visibility_deferred_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 17, swap_chain_->GetDepthImageView());
 	visibility_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
@@ -1016,7 +1044,7 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 	visibility_peel_deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, min_max_depth_image_views_);
 	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 14, primitive_buffer_->GetVertexBuffer(), primitive_buffer_->GetVertexCount() * sizeof(Vertex));
 	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
-	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeOffsets));
+	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeData));
 	visibility_peel_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 17, visibility_data_buffer_, sizeof(VisibilityRenderData));
 	visibility_peel_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 

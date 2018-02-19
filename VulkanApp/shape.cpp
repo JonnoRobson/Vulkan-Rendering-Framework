@@ -16,10 +16,11 @@ Shape::Shape()
 	standalone_shape_ = true;
 }
 
-void Shape::InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool transparency_enabled)
+void Shape::InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, BoundingBox bounding_box, bool transparency_enabled)
 {
 	devices_ = devices;
 	transparency_enabled_ = transparency_enabled;
+	bounding_box_ = bounding_box;
 
 	if (renderer)
 		standalone_shape_ = false;
@@ -30,7 +31,7 @@ void Shape::InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vec
 	// add mesh to renderer primitve buffer - standalone meshes do not need to be added
 	if (renderer)
 	{
-		renderer->GetPrimitiveBuffer()->AddPrimitiveData(devices, vertex_count_, index_count_, vertex_buffer_, index_buffer_, vertex_buffer_offset_, index_buffer_offset_, shape_index_);
+		renderer->GetPrimitiveBuffer()->AddPrimitiveData(devices, this);
 
 		// free the vertex and index buffers now that they have been added to the primitive buffer
 		vkDestroyBuffer(devices_->GetLogicalDevice(), vertex_buffer_, nullptr);
