@@ -134,11 +134,6 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 
 glm::vec2 Mesh::SpheremapEncode(glm::vec3 normal)
 {
-	if (normal.z > 0.999f)
-	{
-		return glm::vec2(256.0f, 256.0f);
-	}
-
 	glm::vec2 enc = (normal.x == 0 && normal.y == 0) ? glm::vec2(0.0f, 0.0f) : glm::normalize(glm::vec2(normal.x, normal.y));
 	enc = enc * (sqrt(-normal.z * 0.5f + 0.5f));
 	enc = enc * 0.5f + glm::vec2(0.5f, 0.5f);

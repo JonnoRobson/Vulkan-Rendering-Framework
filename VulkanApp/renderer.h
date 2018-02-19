@@ -23,6 +23,8 @@
 #include "transparency_composite_pipeline.h"
 #include "visibility_pipeline.h"
 #include "visibility_deferred_pipeline.h"
+#include "visibility_peel_pipeline.h"
+#include "visibility_peel_deferred_pipeline.h"
 #include "HDR.h"
 #include "skybox.h"
 
@@ -42,6 +44,7 @@ public:
 		DEFERRED,
 		DEFERRED_COMPUTE,
 		VISIBILITY,
+		VISIBILITY_PEELED,
 		BUFFER_VIS
 	};
 
@@ -89,7 +92,15 @@ protected:
 	void InitDeferredPipeline();
 	void InitDeferredComputePipeline();
 	void InitVisibilityPipeline();
+	void InitVisibilityPeelPipeline();
 	void InitTransparencyPipeline();
+
+	// cleanup functions
+	void CleanupForwardPipeline();
+	void CleanupDeferredPipeline();
+	void CleanupVisibilityPipeline();
+	void CleanupVisibilityPeelPipeline();
+	void CleanupTransparencyPipeline();
 
 	// command buffer creation functions
 	void CreateCommandPool();
@@ -102,6 +113,8 @@ protected:
 	void CreateTransparencyCompositeCommandBuffer();
 	void CreateVisibilityCommandBuffer();
 	void CreateVisibilityDeferredCommandBuffer();
+	void CreateVisibilityPeelCommandBuffers();
+	void CreateVisibilityPeelDeferredCommandBuffers();
 	void CreateBufferVisualisationCommandBuffers();
 
 	// resource creation functions
@@ -120,6 +133,8 @@ protected:
 	void RenderDeferredCompute();
 	void RenderVisibility();
 	void RenderVisbilityDeferred();
+	void RenderVisibilityPeel();
+	void RenderVisibilityPeelDeferred();
 	void RenderTransparency();
 
 protected:
@@ -134,11 +149,11 @@ protected:
 	VulkanShader* buffer_visualisation_shader_;
 	VulkanPipeline* rendering_pipeline_;
 	BufferVisualisationPipeline* buffer_visualisation_pipeline_;
+	VkSampler buffer_unnormalized_sampler_, buffer_normalized_sampler_, shadow_map_sampler_;
 	
 	// deferred shading components
 	VulkanShader *g_buffer_shader_, *deferred_shader_;
 	VulkanComputeShader* deferred_compute_shader_;
-	VkSampler g_buffer_unnormalized_sampler_, g_buffer_normalized_sampler_, shadow_map_sampler_;
 	GBufferPipeline* g_buffer_pipeline_;
 	DeferredPipeline* deferred_pipeline_;
 	DeferredComputePipeline* deferred_compute_pipeline_;
@@ -156,6 +171,17 @@ protected:
 	VkCommandBuffer visibility_command_buffer_;
 	VkCommandBuffer visibility_deferred_command_buffer_;
 
+	// visibility peeled shading components
+	VulkanShader *visibility_peel_shader_, *visibility_peel_deferred_shader_;
+	VulkanRenderTarget* visibility_peel_buffer_;
+	VisibilityPeelDeferredPipeline* visibility_peel_deferred_pipeline_;
+	VkCommandBuffer visibility_peel_deferred_command_buffer_;
+	std::vector<VisibilityPeelPipeline*> visibility_peel_pipelines_;
+	std::vector<VkCommandBuffer> visibility_peel_command_buffers_;
+	std::vector<VkImage> min_max_depth_images_;
+	std::vector<VkDeviceMemory> min_max_depth_image_memory_;
+	std::vector<VkImageView> min_max_depth_image_views_;
+
 	// transparency shading components
 	VulkanShader *transparency_shader_, *transparency_composite_shader_;
 	WeightedBlendedTransparencyPipeline* transparency_pipeline_;
@@ -165,8 +191,8 @@ protected:
 	VkSemaphore transparency_semaphore_, transparency_composite_semaphore_;
 
 	// buffers
-	VkBuffer matrix_buffer_, light_buffer_, visibility_data_buffer_;
-	VkDeviceMemory matrix_buffer_memory_, light_buffer_memory_, visibility_data_buffer_memory_;
+	VkBuffer matrix_buffer_, light_buffer_, visibility_data_buffer_, visibility_peel_data_buffer_;
+	VkDeviceMemory matrix_buffer_memory_, light_buffer_memory_, visibility_data_buffer_memory_, visibility_peel_data_buffer_memory_;
 
 	HDR* hdr_;
 	Skybox* skybox_;

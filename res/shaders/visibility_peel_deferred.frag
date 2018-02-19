@@ -1,6 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#define PEEL_COUNT 2
+
 // inputs
 layout(location = 0) in vec2 screenTexCoord;
 
@@ -84,32 +86,32 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12, r32ui) uniform uimage2D visibilityBuffer;
+layout(binding = 12, r32ui) uniform uimage2D visibilityBuffers[PEEL_COUNT * 2];
+layout(binding = 13, r32f) uniform image2D depthBuffers[PEEL_COUNT * 2];
 
 // vertex, index and shape buffers
-layout(binding = 13) buffer VertexBuffer
+layout(binding = 14) buffer VertexBuffer
 {
 	StorageVertex _vertices[];
 };
 
-layout(binding = 14) buffer IndexBuffer
+layout(binding = 15) buffer IndexBuffer
 {
 	uint _indices[];
 };
 
-layout(binding = 15) buffer ShapeBuffer
+layout(binding = 16) buffer ShapeBuffer
 {
 	Shape _shapes[];
 };
 
-layout(binding = 16) uniform MatrixBuffer
+layout(binding = 17) uniform MatrixBuffer
 {
 	vec4 screenDimensions;
 	mat4 invView;
 	mat4 invProj;
 } matrix_data;
 
-layout(binding = 17) uniform texture2D depthBuffer;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -421,7 +423,7 @@ vec3 PositionFromDepth(float depth, vec2 uv)
 	return worldPos.xyz;
 }
 
-Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID, vec2 pixelCoord)
+Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID, float depth, vec2 pixelCoord)
 {
 	uint indexLoc0 = indexOffset + (triID * 3) + 0;
 	uint indexLoc1 = indexOffset + (triID * 3) + 1;
@@ -442,9 +444,7 @@ Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID,
 	vec4 p1 = vec4(v1.pos, 1.0f);
 	vec4 p2 = vec4(v2.pos, 1.0f);
 	
-	// sample pixel depth from the depth buffer
-	float depth = texture(sampler2D(depthBuffer, mapSampler), screenTexCoord).x;
-
+	// calculate the barycentric coordinates of the pixel
 	vec3 worldPos = PositionFromDepth(depth, screenTexCoord);
 	vec3 weights = Intersect(worldPos.xyz, p0.xyz, p1.xyz, p2.xyz);
 
@@ -464,74 +464,79 @@ void main()
 	vec2 fragTexCoord = vec2(0.0f, 0.0f);
 	uint matIndex = 0;
 
-	// read from the visibility buffer texture
-	vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
-	uint visibilityData = imageLoad(visibilityBuffer, ivec2(pixelCoord)).r;
-	uint triID = visibilityData >> SHAPE_ID_BITS;
-	uint shapeID = (visibilityData & SHAPE_ID_MASK);
-	uvec2 offsets = _shapes[shapeID].offsets.xy;
+	for(int i = 0; i < PEEL_COUNT * 2; i++)
+	{
+		// read from the visibility buffer texture
+		vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
+		uint visibilityData = imageLoad(visibilityBuffers[i], ivec2(pixelCoord)).r;
+		uint triID = visibilityData >> SHAPE_ID_BITS;
+		uint shapeID = (visibilityData & SHAPE_ID_MASK);
+		uvec2 offsets = _shapes[shapeID].offsets.xy;
 
-	if(visibilityData == 0)
-		discard;
+		if(visibilityData == 0)
+			discard;
 
-	Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, pixelCoord);
-	worldPosition = vertex.pos;
-	worldNormal = vertex.normal;
-	fragTexCoord = vertex.tex_coord;
-	matIndex = vertex.mat_index;
+		// load depth
+		float depth = imageLoad(depthBuffers[i], ivec2(pixelCoord)).r;
+		Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, pixelCoord);
+		worldPosition = vertex.pos;
+		worldNormal = vertex.normal;
+		fragTexCoord = vertex.tex_coord;
+		matIndex = vertex.mat_index;
 
-	vec4 diffuse = material_data.materials[matIndex].diffuse;
+		vec4 diffuse = material_data.materials[matIndex].diffuse;
 	
-	// if diffuse map index is non-zero sample the diffuse map
-	uint diffuse_map_index = material_data.materials[matIndex].diffuse_map_index;
-	if(diffuse_map_index > 0)
-	{
-		diffuse = diffuse * texture(sampler2D(diffuseMaps[diffuse_map_index - 1], mapSampler), fragTexCoord);
-	}
+		// if diffuse map index is non-zero sample the diffuse map
+		uint diffuse_map_index = material_data.materials[matIndex].diffuse_map_index;
+		if(diffuse_map_index > 0)
+		{
+			diffuse = diffuse * texture(sampler2D(diffuseMaps[diffuse_map_index - 1], mapSampler), fragTexCoord);
+		}
 
-	// if normal map index is non-zero sample the normal map
-	vec3 normal = worldNormal;
-	uint normal_map_index = material_data.materials[matIndex].bump_map_index;
-	if(normal_map_index > 0)
-	{
-		vec3 cameraVec = light_data.camera_data.xyz - worldPosition.xyz;
-		normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
-	}
+		// if normal map index is non-zero sample the normal map
+		vec3 normal = worldNormal;
+		uint normal_map_index = material_data.materials[matIndex].bump_map_index;
+		if(normal_map_index > 0)
+		{
+			vec3 cameraVec = light_data.camera_data.xyz - worldPosition.xyz;
+			normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
+		}
 
-	// if ambient map index is non-zero sample the ambient map
-	vec4 ambient = material_data.materials[matIndex].ambient;
-	uint ambient_map_index = material_data.materials[matIndex].ambient_map_index;
-	if(ambient_map_index > 0)
-	{
-		ambient = ambient + texture(sampler2D(ambientMaps[ambient_map_index - 1], mapSampler), fragTexCoord);
-	}
+		// if ambient map index is non-zero sample the ambient map
+		vec4 ambient = material_data.materials[matIndex].ambient;
+		uint ambient_map_index = material_data.materials[matIndex].ambient_map_index;
+		if(ambient_map_index > 0)
+		{
+			ambient = ambient + texture(sampler2D(ambientMaps[ambient_map_index - 1], mapSampler), fragTexCoord);
+		}
 		
-	vec4 color = ambient * vec4(light_data.scene_data.xyz, 1.0f);
+		vec4 color = ambient * vec4(light_data.scene_data.xyz, 1.0f);
 
-	// calculate specular color
-	vec4 specularColor = material_data.materials[matIndex].specular;
-	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
-	if(specular_map_index > 0)
-	{
-		specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
-	}
+		// calculate specular color
+		vec4 specularColor = material_data.materials[matIndex].specular;
+		uint specular_map_index = material_data.materials[matIndex].specular_map_index;
+		if(specular_map_index > 0)
+		{
+			specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
+		}
 	
-	// calculate specular power
-	specularColor.w = material_data.materials[matIndex].shininess;
-	uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
-	if(exponent_map_index > 0)
-	{
-		specularColor.w = specularColor.w * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
-	}
+		// calculate specular power
+		specularColor.w = material_data.materials[matIndex].shininess;
+		uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
+		if(exponent_map_index > 0)
+		{
+			specularColor.w = specularColor.w * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
+		}
 
-	// calculate lighting for all lights
-	for(uint i = 0; i < light_data.scene_data.w; i++)
-	{
-		vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, specularColor, matIndex, i);
-		color = color + (diffuse * lighting);
-	}
+		// calculate lighting for all lights
+		for(uint i = 0; i < light_data.scene_data.w; i++)
+		{
+			vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, specularColor, matIndex, i);
+			color = color + (diffuse * lighting);
+		}
 
-	color.w = 1.0f;
+		color.w = 1.0f;
 	
-	outColor = color;
+		outColor = color;
+	}
 }

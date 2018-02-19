@@ -23,11 +23,6 @@ layout(location = 3) out uint matIndex;
 
 vec3 SphereMapDecode(vec2 encoded_normal)
 {
-	if(length(encoded_normal) > 128.0f)
-	{
-		return vec3(0, 0, 1);
-	}
-
 	vec4 nn = vec4(encoded_normal, 0, 0) * vec4(2, 2, 0, 0) + vec4(-1, -1, 1, -1);
 	float l = dot(nn.xyz, -nn.xyw);
 	nn.z = l;

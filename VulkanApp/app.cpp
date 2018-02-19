@@ -318,23 +318,6 @@ void App::Update()
 		input_->SetKeyUp(GLFW_KEY_E);
 	}
 
-	// render mode switch
-	if (input_->IsKeyPressed(GLFW_KEY_TAB))
-	{
-		renderer_->SetRenderMode(VulkanRenderer::RenderMode::VISIBILITY);
-		input_->SetKeyUp(GLFW_KEY_TAB);
-	}
-	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_SHIFT))
-	{
-		renderer_->SetRenderMode(VulkanRenderer::RenderMode::DEFERRED);
-		input_->SetKeyUp(GLFW_KEY_LEFT_SHIFT);
-	}
-	else if (input_->IsKeyPressed(GLFW_KEY_LEFT_ALT))
-	{
-		renderer_->SetRenderMode(VulkanRenderer::RenderMode::BUFFER_VIS);
-		input_->SetKeyUp(GLFW_KEY_LEFT_ALT);
-	}
-
 	// hdr toggle
 	if (input_->IsKeyPressed(GLFW_KEY_H))
 	{

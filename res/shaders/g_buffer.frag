@@ -43,12 +43,8 @@ layout(location = 1) out vec4 gBufferNormTex;
 
 vec2 SphereMapEncode(vec3 normal)
 {
-	if(normal.z > 0.999f)
-	{
-		return vec2(256.0f, 256.0f);
-	}
-
-	vec2 enc = normalize(normal.xy) * (sqrt(-normal.z * 0.5f + 0.5f));
+	vec2 enc = (normal.x == 0 && normal.y == 0) ? vec2(0.0f, 0.0f) : normalize(normal.xy);
+	enc = enc * (sqrt(-normal.z * 0.5f + 0.5f));
 	enc = enc * 0.5f + vec2(0.5f, 0.5f);
 	return enc;
 }

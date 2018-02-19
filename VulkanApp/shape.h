@@ -13,6 +13,12 @@
 
 struct Vertex;
 
+struct BoundingBox
+{
+	glm::vec4 min_vertex;
+	glm::vec4 max_vertex;
+};
+
 class Shape
 {
 public:

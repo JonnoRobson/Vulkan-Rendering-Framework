@@ -6,7 +6,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain)
 {
 	devices_ = devices;
 	swap_chain_ = swap_chain;
-	render_mode_ = RenderMode::VISIBILITY;
+	render_mode_ = RenderMode::VISIBILITY_PEELED;
 
 	// load a default texture
 	default_texture_ = new Texture();
@@ -47,7 +47,7 @@ void VulkanRenderer::RenderScene()
 	{
 		RenderVisualisation(image_index);
 	}
-	else if (render_mode_ == RenderMode::DEFERRED || render_mode_ == RenderMode::VISIBILITY)
+	else
 	{
 		// send matrix data to the gpu
 		UniformBufferObject ubo = {};
@@ -64,12 +64,6 @@ void VulkanRenderer::RenderScene()
 		scene_data.camera_data = glm::vec4(render_camera_->GetPosition(), 1000.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
 
-		// send data to the visibility data buffer
-		VisibilityRenderData visibility_data = {};
-		visibility_data.screen_dimensions = glm::vec4(swap_extent.width, swap_extent.height, 0, 0);
-		visibility_data.invView = glm::inverse(render_camera_->GetViewMatrix());
-		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
-		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityRenderData));
 
 		for (Light* light : lights_)
 		{
@@ -81,20 +75,44 @@ void VulkanRenderer::RenderScene()
 		skybox_->Render(render_camera_);
 
 		// render the scene
-		if (render_mode_ == RenderMode::VISIBILITY)
-		{
-			RenderVisibility();
-			RenderVisbilityDeferred();
-		}
-		else
-		{
-			RenderGBuffer();
-			RenderDeferred();
-		}
+
+#ifdef _VISIBILITY
+
+		// send data to the visibility data buffer
+		VisibilityRenderData visibility_data = {};
+		visibility_data.screen_dimensions = glm::vec4(swap_extent.width, swap_extent.height, 0, 0);
+		visibility_data.invView = glm::inverse(render_camera_->GetViewMatrix());
+		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
+		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityRenderData));
+		
+		RenderVisibility();
+		RenderVisbilityDeferred();
 
 		// render transparency
 		current_signal_semaphore_ = transparency_composite_semaphore_;
 		RenderTransparency();
+
+#elif _VISIBILITY_PEELED
+
+		// send data to the visibility data buffer
+		VisibilityPeelRenderData visibility_data = {};
+		visibility_data.screen_dimensions = glm::vec4(swap_extent.width, swap_extent.height, 0, 0);
+		visibility_data.invView = glm::inverse(render_camera_->GetViewMatrix());
+		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
+		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityPeelRenderData));
+
+		RenderVisibilityPeel();
+		RenderVisibilityPeelDeferred();
+
+#elif _DEFERRED
+
+		RenderGBuffer();
+		RenderDeferred();
+
+		// render transparency
+		current_signal_semaphore_ = transparency_composite_semaphore_;
+		RenderTransparency();
+#endif
 		
 		if (hdr_->GetHDRMode() > 0)
 		{
@@ -264,6 +282,98 @@ void VulkanRenderer::RenderVisbilityDeferred()
 	}
 }
 
+void VulkanRenderer::RenderVisibilityPeel()
+{
+	// clear the peel depth buffers
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
+	{
+		VkClearColorValue minDepth = { 0, 0, 0, 0 };
+		VkClearColorValue maxDepth = { 1, 0, 0, 0 };
+		devices_->ClearImage(min_max_depth_images_[i * 2], VK_IMAGE_LAYOUT_GENERAL, minDepth);
+		devices_->ClearImage(min_max_depth_images_[i * 2 + 1], VK_IMAGE_LAYOUT_GENERAL, maxDepth);
+	}
+
+	// set up generic draw info
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.waitSemaphoreCount = 0;
+	submit_info.pWaitSemaphores = nullptr;
+	submit_info.pWaitDstStageMask = nullptr;
+	submit_info.commandBufferCount = 1;
+
+	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
+	{
+		// update the data in the visibility peel buffer
+		VisibilityPeelData peel_data = {};
+		peel_data.pass_number = i;
+		peel_data.screen_dimensions = glm::vec2(swap_extent.width, swap_extent.height);
+		peel_data.padding = 0;
+		devices_->CopyDataToBuffer(visibility_peel_data_buffer_memory_, &peel_data, sizeof(VisibilityPeelData));
+
+		// copy the previous passes min max depth buffers
+		if (i > 0)
+		{
+			int prev_pass_index = i - 1;
+
+			VkOffset3D dims = { swap_extent.width, swap_extent.height, 1 };
+			devices_->CopyImage(min_max_depth_images_[prev_pass_index], min_max_depth_images_[i], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, dims);
+			devices_->CopyImage(min_max_depth_images_[(min_max_depth_images_.size() - 1) - prev_pass_index], min_max_depth_images_[(min_max_depth_images_.size() - 1) - i], VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, dims);
+		}
+
+		// submit the draw command buffer
+		submit_info.pCommandBuffers = &visibility_peel_command_buffers_[i];
+
+		// on the final peel layer signal the g buffer semaphore
+		if (i == VISIBILITY_PEEL_COUNT - 1)
+		{
+			VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
+			submit_info.signalSemaphoreCount = 1;
+			submit_info.pSignalSemaphores = signal_semaphores;
+		}
+		else
+		{
+			submit_info.signalSemaphoreCount = 0;
+			submit_info.pSignalSemaphores = nullptr;
+		}
+
+		VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to submit visibility peel command buffer!");
+		}
+	}
+}
+
+void VulkanRenderer::RenderVisibilityPeelDeferred()
+{
+	VkSemaphore skybox_semaphore = skybox_->GetRenderSemaphore();
+
+	//  transition the intermediate image to color write optimal layout
+	devices_->TransitionImageLayout(swap_chain_->GetIntermediateImage(), swap_chain_->GetIntermediateImageFormat(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	// submit the draw command buffer
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submit_info.waitSemaphoreCount = 2;
+	submit_info.pWaitSemaphores = wait_semaphores;
+	submit_info.pWaitDstStageMask = wait_stages;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &visibility_peel_deferred_command_buffer_;
+
+	VkSemaphore signal_semaphores[] = { render_semaphore_ };
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = signal_semaphores;
+
+	VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to submit deferred command buffer!");
+	}
+}
+
 void VulkanRenderer::RenderTransparency()
 {
 	VkSemaphore wait_semaphores[] = { render_semaphore_ };
@@ -346,18 +456,14 @@ void VulkanRenderer::Cleanup()
 {
 	// clean up command and descriptor pools
 	vkDestroyCommandPool(devices_->GetLogicalDevice(), command_pool_, nullptr);
-
-
+	
 	// clean up the buffer
 	vkDestroyBuffer(devices_->GetLogicalDevice(), matrix_buffer_, nullptr);
 	vkFreeMemory(devices_->GetLogicalDevice(), matrix_buffer_memory_, nullptr);
 
 	vkDestroyBuffer(devices_->GetLogicalDevice(), light_buffer_, nullptr);
 	vkFreeMemory(devices_->GetLogicalDevice(), light_buffer_memory_, nullptr);
-
-	vkDestroyBuffer(devices_->GetLogicalDevice(), visibility_data_buffer_, nullptr);
-	vkFreeMemory(devices_->GetLogicalDevice(), visibility_data_buffer_memory_, nullptr);
-
+	
 	// clean up shaders
 	material_shader_->Cleanup();
 	delete material_shader_;
@@ -370,35 +476,7 @@ void VulkanRenderer::Cleanup()
 	shadow_map_shader_->Cleanup();
 	delete shadow_map_shader_;
 	shadow_map_shader_ = nullptr;
-
-	g_buffer_shader_->Cleanup();
-	delete g_buffer_shader_;
-	g_buffer_shader_ = nullptr;
-
-	deferred_shader_->Cleanup();
-	delete deferred_shader_;
-	deferred_shader_ = nullptr;
-
-	deferred_compute_shader_->Cleanup();
-	delete deferred_compute_shader_;
-	deferred_compute_shader_ = nullptr;
-
-	visibility_shader_->Cleanup();
-	delete visibility_shader_;
-	visibility_shader_ = nullptr;
-
-	visibility_deferred_shader_->Cleanup();
-	delete visibility_deferred_shader_;
-	visibility_deferred_shader_ = nullptr;
-
-	transparency_shader_->Cleanup();
-	delete transparency_shader_;
-	transparency_shader_ = nullptr;
-
-	transparency_composite_shader_->Cleanup();
-	delete transparency_composite_shader_;
-	transparency_composite_shader_ = nullptr;
-
+		
 	// clean up primitive buffer
 	primitive_buffer_->Cleanup();
 	delete primitive_buffer_;
@@ -413,58 +491,21 @@ void VulkanRenderer::Cleanup()
 	texture_cache_->Cleanup();
 	delete texture_cache_;
 	texture_cache_ = nullptr;
-
-
+	
 	// clean up the buffer visualisation pipeline
 	buffer_visualisation_pipeline_->CleanUp();
 	delete buffer_visualisation_pipeline_;
 	buffer_visualisation_pipeline_ = nullptr;
-
-	// clean up deferred rendering pipelines
-	g_buffer_pipeline_->CleanUp();
-	delete g_buffer_pipeline_;
-	g_buffer_pipeline_ = nullptr;
-
-	deferred_pipeline_->CleanUp();
-	delete deferred_pipeline_;
-	deferred_pipeline_ = nullptr;
-
-	// clean up the visibility rendering pipelines
-	visibility_pipeline_->CleanUp();
-	delete visibility_pipeline_;
-	visibility_pipeline_ = nullptr;
-
-	visibility_deferred_pipeline_->CleanUp();
-	delete visibility_deferred_pipeline_;
-	visibility_deferred_pipeline_ = nullptr;
-
-	// clean up transparency pipelines
-	transparency_pipeline_->CleanUp();
-	delete transparency_pipeline_;
-	transparency_pipeline_ = nullptr;
-
-	transparency_composite_pipeline_->CleanUp();
-	delete transparency_composite_pipeline_;
-	transparency_composite_pipeline_ = nullptr;
-
-	// clean up g buffer
-	g_buffer_->Cleanup();
-	delete g_buffer_;
-	g_buffer_ = nullptr;
-
-	// clean up visibility buffer
-	visibility_buffer_->Cleanup();
-	delete visibility_buffer_;
-	visibility_buffer_ = nullptr;
-
-	// clean up transparency buffers
-	accumulation_buffer_->Cleanup();
-	delete accumulation_buffer_;
-	accumulation_buffer_ = nullptr;
-
-	revealage_buffer_->Cleanup();
-	delete revealage_buffer_;
-	revealage_buffer_ = nullptr;
+		
+#ifdef _DEFERRED
+	CleanupDeferredPipeline();
+	CleanupTransparencyPipeline();
+#elif _VISIBILITY
+	CleanupVisibilityPipeline();
+	CleanupTransparencyPipeline();
+#elif _VISIBILITY_PEELED
+	CleanupVisibilityPeelPipeline();
+#endif
 
 	// clean up the skybox
 	skybox_->Cleanup();
@@ -482,8 +523,8 @@ void VulkanRenderer::Cleanup()
 	default_texture_ = nullptr;
 
 	// clean up samplers
-	vkDestroySampler(devices_->GetLogicalDevice(), g_buffer_normalized_sampler_, nullptr);
-	vkDestroySampler(devices_->GetLogicalDevice(), g_buffer_unnormalized_sampler_, nullptr);
+	vkDestroySampler(devices_->GetLogicalDevice(), buffer_normalized_sampler_, nullptr);
+	vkDestroySampler(devices_->GetLogicalDevice(), buffer_unnormalized_sampler_, nullptr);
 	vkDestroySampler(devices_->GetLogicalDevice(), shadow_map_sampler_, nullptr);
 
 	// clean up semaphores
@@ -491,6 +532,133 @@ void VulkanRenderer::Cleanup()
 	vkDestroySemaphore(devices_->GetLogicalDevice(), transparency_semaphore_, nullptr);
 	vkDestroySemaphore(devices_->GetLogicalDevice(), g_buffer_semaphore_, nullptr);
 	vkDestroySemaphore(devices_->GetLogicalDevice(), transparency_composite_semaphore_, nullptr);
+}
+
+void VulkanRenderer::CleanupForwardPipeline()
+{
+
+}
+
+void VulkanRenderer::CleanupDeferredPipeline()
+{
+	// clean up shaders
+	g_buffer_shader_->Cleanup();
+	delete g_buffer_shader_;
+	g_buffer_shader_ = nullptr;
+
+	deferred_shader_->Cleanup();
+	delete deferred_shader_;
+	deferred_shader_ = nullptr;
+
+	// clean up g buffer
+	g_buffer_->Cleanup();
+	delete g_buffer_;
+	g_buffer_ = nullptr;
+
+	// clean up deferred rendering pipelines
+	g_buffer_pipeline_->CleanUp();
+	delete g_buffer_pipeline_;
+	g_buffer_pipeline_ = nullptr;
+
+	deferred_pipeline_->CleanUp();
+	delete deferred_pipeline_;
+	deferred_pipeline_ = nullptr;
+}
+
+void VulkanRenderer::CleanupVisibilityPipeline()
+{
+	// clean up buffers
+	vkDestroyBuffer(devices_->GetLogicalDevice(), visibility_data_buffer_, nullptr);
+	vkFreeMemory(devices_->GetLogicalDevice(), visibility_data_buffer_memory_, nullptr);
+
+	// clean up shaders
+	visibility_shader_->Cleanup();
+	delete visibility_shader_;
+	visibility_shader_ = nullptr;
+
+	visibility_deferred_shader_->Cleanup();
+	delete visibility_deferred_shader_;
+	visibility_deferred_shader_ = nullptr;
+
+	// clean up visibility buffer
+	visibility_buffer_->Cleanup();
+	delete visibility_buffer_;
+	visibility_buffer_ = nullptr;
+
+	// clean up the visibility rendering pipelines
+	visibility_pipeline_->CleanUp();
+	delete visibility_pipeline_;
+	visibility_pipeline_ = nullptr;
+
+	visibility_deferred_pipeline_->CleanUp();
+	delete visibility_deferred_pipeline_;
+	visibility_deferred_pipeline_ = nullptr;
+}
+
+void VulkanRenderer::CleanupVisibilityPeelPipeline()
+{
+	// cleanup shaders
+	visibility_peel_shader_->Cleanup();
+	delete visibility_peel_shader_;
+	visibility_peel_shader_ = nullptr;
+
+	visibility_peel_deferred_shader_->Cleanup();
+	delete visibility_peel_deferred_shader_;
+	visibility_deferred_shader_ = nullptr;
+
+	// clean up visibility peel pipelines
+	for (int i = 0; i < visibility_peel_pipelines_.size(); i++)
+	{
+		visibility_peel_pipelines_[i]->CleanUp();
+		delete visibility_peel_pipelines_[i];
+	}
+	visibility_peel_pipelines_.clear();
+
+	// clean up visibility peel resources
+	visibility_peel_buffer_->Cleanup();
+	delete visibility_peel_buffer_;
+	visibility_peel_buffer_ = nullptr;
+
+	vkDestroyBuffer(devices_->GetLogicalDevice(), visibility_data_buffer_, nullptr);
+	vkFreeMemory(devices_->GetLogicalDevice(), visibility_data_buffer_memory_, nullptr);
+
+	for (int i = 0; i < min_max_depth_images_.size(); i++)
+	{
+		vkDestroyImage(devices_->GetLogicalDevice(), min_max_depth_images_[i], nullptr);
+		vkDestroyImageView(devices_->GetLogicalDevice(), min_max_depth_image_views_[i], nullptr);
+		vkFreeMemory(devices_->GetLogicalDevice(), min_max_depth_image_memory_[i], nullptr);
+	}
+
+}
+
+void VulkanRenderer::CleanupTransparencyPipeline()
+{
+	// cleanup shaders
+	transparency_shader_->Cleanup();
+	delete transparency_shader_;
+	transparency_shader_ = nullptr;
+
+	transparency_composite_shader_->Cleanup();
+	delete transparency_composite_shader_;
+	transparency_composite_shader_ = nullptr;
+
+	// clean up transparency pipelines
+	transparency_pipeline_->CleanUp();
+	delete transparency_pipeline_;
+	transparency_pipeline_ = nullptr;
+
+	transparency_composite_pipeline_->CleanUp();
+	delete transparency_composite_pipeline_;
+	transparency_composite_pipeline_ = nullptr;
+
+	// clean up transparency buffers
+	accumulation_buffer_->Cleanup();
+	delete accumulation_buffer_;
+	accumulation_buffer_ = nullptr;
+
+	revealage_buffer_->Cleanup();
+	delete revealage_buffer_;
+	revealage_buffer_ = nullptr;
 }
 
 void VulkanRenderer::InitPipelines()
@@ -522,10 +690,47 @@ void VulkanRenderer::InitPipelines()
 	if (reflection_textures_.empty())
 		reflection_textures_.push_back(default_texture_);
 
+	// initialize the buffer samplers
+	VkSamplerCreateInfo sampler_info = {};
+	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	sampler_info.magFilter = VK_FILTER_NEAREST;
+	sampler_info.minFilter = VK_FILTER_NEAREST;
+	sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+	sampler_info.anisotropyEnable = VK_FALSE;
+	sampler_info.maxAnisotropy = 1;
+	sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	sampler_info.unnormalizedCoordinates = VK_TRUE;
+	sampler_info.compareEnable = VK_FALSE;
+	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &buffer_unnormalized_sampler_) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create g buffer sampler!");
+	}
+
+	// initialize the shadow map sampler
+	sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &shadow_map_sampler_) != VK_SUCCESS ||
+		vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &buffer_normalized_sampler_) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create normalized samplers!");
+	}
+
+	// initialize the shape buffer now that we know how many there are
+	primitive_buffer_->InitShapeBuffer(devices_);
+
 	// init rendering pipelines
+#ifdef _DEFERRED
 	InitDeferredPipeline();
 	InitTransparencyPipeline();
+#elif _VISIBILITY
 	InitVisibilityPipeline();
+	InitTransparencyPipeline();
+#elif _VISIBILITY_PEELED
+	InitVisibilityPeelPipeline();
+#endif
 
 	// initialize the skybox
 	skybox_ = new Skybox();
@@ -538,7 +743,7 @@ void VulkanRenderer::InitPipelines()
 	// initialize a buffer visualisation pipeline
 	buffer_visualisation_pipeline_ = new BufferVisualisationPipeline();
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
-	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_normalized_sampler_);
+	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, buffer_normalized_sampler_);
 	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, swap_chain_->GetDepthImageView());
 
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
@@ -579,34 +784,13 @@ void VulkanRenderer::InitForwardPipeline()
 
 void VulkanRenderer::InitDeferredPipeline()
 {
-	// initialize the g buffer sampler
-	VkSamplerCreateInfo sampler_info = {};
-	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	sampler_info.magFilter = VK_FILTER_NEAREST;
-	sampler_info.minFilter = VK_FILTER_NEAREST;
-	sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	sampler_info.anisotropyEnable = VK_FALSE;
-	sampler_info.maxAnisotropy = 1;
-	sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	sampler_info.unnormalizedCoordinates = VK_TRUE;
-	sampler_info.compareEnable = VK_FALSE;
-	sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-	sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	// create the deferred rendering shaders
+	g_buffer_shader_ = new VulkanShader();
+	g_buffer_shader_->Init(devices_, swap_chain_, "../res/shaders/g_buffer.vert.spv", "", "", "../res/shaders/g_buffer.frag.spv");
 
-	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &g_buffer_unnormalized_sampler_) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create g buffer sampler!");
-	}
-
-	// initialize the shadow map sampler
-	sampler_info.unnormalizedCoordinates = VK_FALSE;
-
-	if (vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &shadow_map_sampler_) != VK_SUCCESS ||
-		vkCreateSampler(devices_->GetLogicalDevice(), &sampler_info, nullptr, &g_buffer_normalized_sampler_) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create normalized samplers!");
-	}
-
+	deferred_shader_ = new VulkanShader();
+	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", "../res/shaders/deferred.frag.spv");
+	
 	// initialize the g buffer
 	g_buffer_ = new VulkanRenderTarget();
 	g_buffer_->Init(devices_, VK_FORMAT_R32G32B32A32_SFLOAT, swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height, 2, false);
@@ -644,7 +828,7 @@ void VulkanRenderer::InitDeferredPipeline()
 
 	// add the g buffer to the pipeline
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
-	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, g_buffer_normalized_sampler_);
+	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, buffer_normalized_sampler_);
 
 	// set the deferred shader
 	deferred_pipeline_->SetShader(deferred_shader_);
@@ -678,7 +862,7 @@ void VulkanRenderer::InitDeferredComputePipeline()
 
 	// add the g buffer to the pipeline
 	deferred_compute_pipeline_->AddTextureArray(VK_SHADER_STAGE_COMPUTE_BIT, 13, g_buffer_->GetImageViews());
-	deferred_compute_pipeline_->AddSampler(VK_SHADER_STAGE_COMPUTE_BIT, 14, g_buffer_unnormalized_sampler_);
+	deferred_compute_pipeline_->AddSampler(VK_SHADER_STAGE_COMPUTE_BIT, 14, buffer_unnormalized_sampler_);
 	deferred_compute_pipeline_->AddSampler(VK_SHADER_STAGE_COMPUTE_BIT, 15, shadow_map_sampler_);
 	deferred_compute_pipeline_->AddStorageImage(VK_SHADER_STAGE_COMPUTE_BIT, 0, swap_chain_->GetIntermediateImageView());
 
@@ -692,11 +876,18 @@ void VulkanRenderer::InitDeferredComputePipeline()
 
 void VulkanRenderer::InitVisibilityPipeline()
 {
+	// create the visibility rendering shaders
+	visibility_shader_ = new VulkanShader();
+	visibility_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility.vert.spv", "", "", "../res/shaders/visibility.frag.spv");
+
+	visibility_deferred_shader_ = new VulkanShader();
+	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_deferred.frag.spv");
+
+	// create the visibility data buffer
+	devices_->CreateBuffer(sizeof(VisibilityRenderData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_data_buffer_, visibility_data_buffer_memory_);
+
 	// calculate size of the light buffer
 	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
-
-	// initialize the shape buffer now that we know how many there are
-	primitive_buffer_->InitShapeBuffer(devices_);
 
 	// initialize the visibility buffer
 	VkExtent2D swap_size = swap_chain_->GetSwapChainExtent();
@@ -744,8 +935,104 @@ void VulkanRenderer::InitVisibilityPipeline()
 	CreateVisibilityDeferredCommandBuffer();
 }
 
+void VulkanRenderer::InitVisibilityPeelPipeline()
+{
+	// calculate size of the light buffer
+	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
+
+	// create the visibility peel shaders
+	visibility_peel_shader_ = new VulkanShader();
+	visibility_peel_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_peel.vert.spv", "", "", "../res/shaders/visibility_peel.frag.spv");
+
+	visibility_peel_deferred_shader_ = new VulkanShader();
+	visibility_peel_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_peel_deferred.frag.spv");
+
+	// create the visibility peel data buffer
+	devices_->CreateBuffer(sizeof(VisibilityPeelData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_peel_data_buffer_, visibility_peel_data_buffer_memory_);
+
+	// initalize the peeled visibility buffer
+	VkExtent2D swap_size = swap_chain_->GetSwapChainExtent();
+	visibility_peel_buffer_ = new VulkanRenderTarget();
+	visibility_peel_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT * 2, false);
+
+	// initialize the min max depth images
+	min_max_depth_images_.resize(VISIBILITY_PEEL_COUNT * 2);
+	min_max_depth_image_memory_.resize(VISIBILITY_PEEL_COUNT * 2);
+	min_max_depth_image_views_.resize(VISIBILITY_PEEL_COUNT * 2);
+
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT * 2; i++)
+	{
+		devices_->CreateImage(swap_size.width, swap_size.height, VK_FORMAT_R32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, min_max_depth_images_[i], min_max_depth_image_memory_[i]);
+		min_max_depth_image_views_[i] = devices_->CreateImageView(min_max_depth_images_[i], VK_FORMAT_R32_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT);
+		devices_->TransitionImageLayout(min_max_depth_images_[i], VK_FORMAT_R32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	}
+	
+	// create the visibility peel pipelines
+	visibility_peel_pipelines_.resize(VISIBILITY_PEEL_COUNT);
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
+	{
+		visibility_peel_pipelines_[i] = new VisibilityPeelPipeline();
+		visibility_peel_pipelines_[i]->SetShader(visibility_peel_shader_);
+
+		// add the resources to the visibility peel pipelines
+		visibility_peel_pipelines_[i]->SetVisibilityBuffer(visibility_peel_buffer_, i);
+		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+		visibility_peel_pipelines_[i]->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+		visibility_peel_pipelines_[i]->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
+		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 4, min_max_depth_image_views_[i]);
+		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 5, min_max_depth_image_views_[(min_max_depth_image_views_.size() - 1) - i]);
+		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 6, visibility_peel_data_buffer_, sizeof(VisibilityPeelData));
+
+		// initialize the visibility peel pipelines
+		visibility_peel_pipelines_[i]->Init(devices_, swap_chain_, primitive_buffer_);
+	}
+
+	// create the visibility data buffer
+	devices_->CreateBuffer(sizeof(VisibilityPeelRenderData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_data_buffer_, visibility_data_buffer_memory_);
+
+	// create the visibility peel deferred pipelines
+	visibility_peel_deferred_pipeline_ = new VisibilityPeelDeferredPipeline();
+	visibility_peel_deferred_pipeline_->SetShader(visibility_peel_deferred_shader_);
+
+	// add the resources to the visibility peel deferred pipeline	
+	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 0, light_buffer_, buffer_size);
+	visibility_peel_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+
+	// add the material textures to the pipeline
+	visibility_peel_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, ambient_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 4, diffuse_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 5, specular_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 6, specular_highlight_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 7, emissive_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 8, normal_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 9, alpha_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 10, reflection_textures_);
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
+
+	// add visibility rendering resources to the pipeline
+	visibility_peel_deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_peel_buffer_->GetImageViews());
+	visibility_peel_deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, min_max_depth_image_views_);
+	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 14, primitive_buffer_->GetVertexBuffer(), primitive_buffer_->GetVertexCount() * sizeof(Vertex));
+	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
+	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeOffsets));
+	visibility_peel_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 17, visibility_data_buffer_, sizeof(VisibilityRenderData));
+	visibility_peel_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
+	CreateVisibilityPeelCommandBuffers();
+	CreateVisibilityPeelDeferredCommandBuffers();
+}
+
 void VulkanRenderer::InitTransparencyPipeline()
 {
+	// create the tranparency rendering shaders
+	transparency_shader_ = new VulkanShader();
+	transparency_shader_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "", "", "../res/shaders/weighted_blended_transparency.frag.spv");
+
+	transparency_composite_shader_ = new VulkanShader();
+	transparency_composite_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/transparency_composite.frag.spv");
+
 	VkExtent2D image_extent = swap_chain_->GetSwapChainExtent();
 
 	// calculate size of the light buffer
@@ -785,7 +1072,7 @@ void VulkanRenderer::InitTransparencyPipeline()
 	transparency_composite_pipeline_->SetShader(transparency_composite_shader_);
 
 	// add resources to the pipeline
-	transparency_composite_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, g_buffer_unnormalized_sampler_);
+	transparency_composite_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, buffer_unnormalized_sampler_);
 	transparency_composite_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, accumulation_buffer_->GetImageViews()[0]);
 	transparency_composite_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 2, revealage_buffer_->GetImageViews()[0]);
 
@@ -1002,7 +1289,70 @@ void VulkanRenderer::CreateVisibilityDeferredCommandBuffer()
 
 	if (vkEndCommandBuffer(visibility_deferred_command_buffer_) != VK_SUCCESS)
 	{
-		throw std::runtime_error("failed to record render command buffer!");
+		throw std::runtime_error("failed to record visibility deferred command buffer!");
+	}
+}
+
+void VulkanRenderer::CreateVisibilityPeelCommandBuffers()
+{
+	// create visibility peel command buffers
+	visibility_peel_command_buffers_.resize(VISIBILITY_PEEL_COUNT);
+	devices_->CreateCommandBuffers(command_pool_, visibility_peel_command_buffers_.data(), visibility_peel_command_buffers_.size());
+
+	// record the visibility peel commands
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
+	{
+		vkBeginCommandBuffer(visibility_peel_command_buffers_[i], &begin_info);
+
+		if (visibility_peel_pipelines_[i])
+		{
+			// bind pipeline
+			visibility_peel_pipelines_[i]->RecordCommands(visibility_peel_command_buffers_[i], 0);
+
+			for (Mesh* mesh : meshes_)
+			{
+				mesh->RecordRenderCommands(visibility_peel_command_buffers_[i], RenderStage::GENERIC, visibility_peel_pipelines_[i]->GetPipelineLayout());
+			}
+
+			vkCmdEndRenderPass(visibility_peel_command_buffers_[i]);
+		}
+
+		if (vkEndCommandBuffer(visibility_peel_command_buffers_[i]) != VK_SUCCESS)
+		{
+			throw std::runtime_error("failed to record render command buffer!");
+		}
+	}
+}
+
+void VulkanRenderer::CreateVisibilityPeelDeferredCommandBuffers()
+{
+	// create rendering command buffers
+	devices_->CreateCommandBuffers(command_pool_, &visibility_peel_deferred_command_buffer_);
+
+	// record the command buffer
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(visibility_peel_deferred_command_buffer_, &begin_info);
+
+	if (visibility_peel_deferred_pipeline_)
+	{
+		// bind pipeline
+		visibility_peel_deferred_pipeline_->RecordCommands(visibility_peel_deferred_command_buffer_, 0);
+
+		vkCmdEndRenderPass(visibility_peel_deferred_command_buffer_);
+	}
+
+	if (vkEndCommandBuffer(visibility_peel_deferred_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record visibility deferred command buffer!");
 	}
 }
 
@@ -1108,30 +1458,6 @@ void VulkanRenderer::CreateShaders()
 
 	buffer_visualisation_shader_ = new VulkanShader();
 	buffer_visualisation_shader_->Init(devices_, swap_chain_, "../res/shaders/buffer_visualisation.vert.spv", "", "", "../res/shaders/buffer_visualisation.frag.spv");
-
-	// deferred rendering shaders
-	g_buffer_shader_ = new VulkanShader();
-	g_buffer_shader_->Init(devices_, swap_chain_, "../res/shaders/g_buffer.vert.spv", "", "", "../res/shaders/g_buffer.frag.spv");
-	
-	deferred_shader_ = new VulkanShader();
-	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", "../res/shaders/deferred.frag.spv");
-
-	deferred_compute_shader_ = new VulkanComputeShader();
-	deferred_compute_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.comp.spv");
-
-	// visibility rendering shaders
-	visibility_shader_ = new VulkanShader();
-	visibility_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility.vert.spv", "", "", "../res/shaders/visibility.frag.spv");
-
-	visibility_deferred_shader_ = new VulkanShader();
-	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_deferred.frag.spv");
-
-	// tranparency rendering shaders
-	transparency_shader_ = new VulkanShader();
-	transparency_shader_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "", "", "../res/shaders/weighted_blended_transparency.frag.spv");
-
-	transparency_composite_shader_ = new VulkanShader();
-	transparency_composite_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/transparency_composite.frag.spv");
 }
 
 void VulkanRenderer::CreatePrimitiveBuffer()
@@ -1228,7 +1554,6 @@ void VulkanRenderer::CreateSemaphores()
 void VulkanRenderer::CreateBuffers()
 {
 	devices_->CreateBuffer(sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, matrix_buffer_, matrix_buffer_memory_);
-	devices_->CreateBuffer(sizeof(VisibilityRenderData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_data_buffer_, visibility_data_buffer_memory_);
 }
 
 void VulkanRenderer::CreateLightBuffer()

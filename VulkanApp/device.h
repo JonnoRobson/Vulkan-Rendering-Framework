@@ -49,6 +49,8 @@ public:
 	void CopyBuffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size, VkDeviceSize offset = 0);
 	void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	void CopyDataToBuffer(VkDeviceMemory dst_buffer_memory, void* data, VkDeviceSize size, VkDeviceSize offset = 0);
+	void CopyImage(VkImage src_image, VkImage dst_image, VkImageLayout src_layout, VkImageLayout dst_layout, VkOffset3D dimensions);
+	void ClearImage(VkImage image, VkImageLayout image_layout, VkClearColorValue clear_color);
 
 	void TransitionImageLayout(VkImage, VkFormat, VkImageLayout, VkImageLayout);
 

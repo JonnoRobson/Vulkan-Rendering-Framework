@@ -480,6 +480,47 @@ void VulkanDevices::CopyDataToBuffer(VkDeviceMemory dst_buffer_memory, void* dat
 	vkUnmapMemory(logical_device_, dst_buffer_memory);
 }
 
+void VulkanDevices::CopyImage(VkImage src, VkImage dst, VkImageLayout src_layout, VkImageLayout dst_layout, VkOffset3D dim)
+{
+	// start the copy command buffer
+	VkCommandBuffer blit_buffer = BeginSingleTimeCommands();
+
+	VkImageBlit image_blit = {};
+	image_blit.srcOffsets[0] = { 0, 0, 0 };
+	image_blit.srcOffsets[1] = dim;
+	image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_blit.srcSubresource.baseArrayLayer = 0;
+	image_blit.srcSubresource.layerCount = 1;
+	image_blit.srcSubresource.mipLevel = 0;
+
+	image_blit.dstOffsets[0] = { 0, 0, 0 };
+	image_blit.dstOffsets[1] = dim;
+	image_blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_blit.dstSubresource.baseArrayLayer = 0;
+	image_blit.dstSubresource.layerCount = 1;
+	image_blit.dstSubresource.mipLevel = 0;
+
+	vkCmdBlitImage(blit_buffer, src, src_layout, dst, dst_layout, 1, &image_blit, VK_FILTER_LINEAR);
+
+	// submit the blit command buffer
+	EndSingleTimeCommands(blit_buffer);
+}
+
+void VulkanDevices::ClearImage(VkImage image, VkImageLayout image_layout, VkClearColorValue clear_color)
+{
+	// clear the image
+	VkCommandBuffer clear_buffer = BeginSingleTimeCommands();
+
+	VkImageSubresourceRange image_range = {};
+	image_range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	image_range.levelCount = 1;
+	image_range.layerCount = 1;
+
+	vkCmdClearColorImage(clear_buffer, image, image_layout, &clear_color, 1, &image_range);
+
+	EndSingleTimeCommands(clear_buffer);
+}
+
 VkCommandBuffer VulkanDevices::BeginSingleTimeCommands()
 {
 	VkCommandBufferAllocateInfo alloc_info = {};
