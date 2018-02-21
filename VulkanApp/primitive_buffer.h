@@ -19,6 +19,16 @@ struct ShapeData
 	glm::vec4 max_bounding_vertex;
 };
 
+struct IndirectDrawCommand
+{
+	uint32_t index_count;
+	uint32_t instance_count;
+	uint32_t first_index;
+	int32_t vertex_offset;
+	uint32_t first_instance;
+	uint32_t padding[3];
+};
+
 class VulkanPrimitiveBuffer
 {
 public:
@@ -42,6 +52,7 @@ public:
 	inline VkBuffer GetVertexBuffer() { return vertex_buffer_; }
 	inline VkBuffer GetIndexBuffer() { return index_buffer_; }
 	inline VkBuffer GetShapeBuffer() { return shape_buffer_; }
+	inline VkBuffer GetIndirectDrawBuffer() { return indirect_draw_buffer_; }
 
 protected:
 	VkDevice device_handle_;

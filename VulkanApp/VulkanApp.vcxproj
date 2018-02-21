@@ -489,6 +489,7 @@
     <ClCompile Include="app.cpp" />
     <ClCompile Include="buffer_visualisation_pipeline.cpp" />
     <ClCompile Include="camera.cpp" />
+    <ClCompile Include="compute_pipeline.cpp" />
     <ClCompile Include="compute_shader.cpp" />
     <ClCompile Include="deferred_compute_pipeline.cpp" />
     <ClCompile Include="deferred_pipeline.cpp" />
@@ -509,6 +510,7 @@
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="shadow_map_pipeline.cpp" />
     <ClCompile Include="shape.cpp" />
+    <ClCompile Include="shape_culling_pipeline.cpp" />
     <ClCompile Include="skybox.cpp" />
     <ClCompile Include="swap_chain.cpp" />
     <ClCompile Include="texture.cpp" />
@@ -524,6 +526,7 @@
   <ItemGroup>
     <ClInclude Include="app.h" />
     <ClInclude Include="buffer_visualisation_pipeline.h" />
+    <ClInclude Include="compute_pipeline.h" />
     <ClInclude Include="compute_shader.h" />
     <ClInclude Include="deferred_compute_pipeline.h" />
     <ClInclude Include="deferred_pipeline.h" />
@@ -545,6 +548,7 @@
     <ClInclude Include="primitive_buffer.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="shader.h" />
+    <ClInclude Include="shape_culling_pipeline.h" />
     <ClInclude Include="skybox.h" />
     <ClInclude Include="swap_chain.h" />
     <ClInclude Include="texture.h" />
@@ -572,6 +576,7 @@
     <None Include="..\res\shaders\screen_space.vert" />
     <None Include="..\res\shaders\shadow_map.frag" />
     <None Include="..\res\shaders\shadow_map.vert" />
+    <None Include="..\res\shaders\shape_culling.comp" />
     <None Include="..\res\shaders\skybox.frag" />
     <None Include="..\res\shaders\skybox.vert" />
     <None Include="..\res\shaders\tonemap.frag" />

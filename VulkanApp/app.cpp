@@ -515,6 +515,7 @@ void App::InitDevices()
 	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
 	device_features.independentBlend = VK_TRUE;
 	device_features.multiDrawIndirect = VK_TRUE;
+	device_features.geometryShader = VK_TRUE;
 
 	// create the physical device
 	devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);

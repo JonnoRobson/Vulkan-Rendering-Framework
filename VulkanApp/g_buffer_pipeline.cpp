@@ -21,8 +21,6 @@ void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t b
 	vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
 
-	primitive_buffer_->RecordBindingCommands(command_buffer);
-
 	// set the dynamic viewport data
 	VkViewport viewport = {};
 	viewport.x = 0.0f;

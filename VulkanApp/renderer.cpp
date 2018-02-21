@@ -76,6 +76,9 @@ void VulkanRenderer::RenderScene()
 		// render the skybox
 		skybox_->Render(render_camera_);
 
+		// cull the scene geometry
+		CullGeometry();
+
 		// render the scene
 
 #ifdef _VISIBILITY
@@ -94,7 +97,7 @@ void VulkanRenderer::RenderScene()
 		vkQueueWaitIdle(graphics_queue_);
 		auto vis_end = std::chrono::high_resolution_clock::now();
 		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-		std::cout << "Visibility took " << vis_time << "ms.\n";
+		//std::cout << "Visibility took " << vis_time << "ms.\n";
 
 		RenderVisbilityDeferred();
 
@@ -118,7 +121,7 @@ void VulkanRenderer::RenderScene()
 		vkQueueWaitIdle(graphics_queue_);
 		auto vis_end = std::chrono::high_resolution_clock::now();
 		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-		std::cout << "Visibility took " << vis_time << "ms.\n";
+		//std::cout << "Visibility took " << vis_time << "ms.\n";
 		
 		RenderVisibilityPeelDeferred();
 
@@ -131,7 +134,7 @@ void VulkanRenderer::RenderScene()
 		vkQueueWaitIdle(graphics_queue_);
 		auto vis_end = std::chrono::high_resolution_clock::now();
 		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-		std::cout << "Visibility took " << vis_time << "ms.\n";
+		//std::cout << "Visibility took " << vis_time << "ms.\n";
 
 		RenderDeferred();
 
@@ -480,6 +483,25 @@ void VulkanRenderer::RenderVisualisation(uint32_t image_index)
 	}
 }
 
+void VulkanRenderer::CullGeometry()
+{
+	VkSubmitInfo submit_info = {};
+	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submit_info.waitSemaphoreCount = 0;
+	submit_info.pWaitSemaphores = nullptr;
+	submit_info.pWaitDstStageMask = nullptr;
+	submit_info.commandBufferCount = 1;
+	submit_info.pCommandBuffers = &shape_culling_command_buffer_;
+
+	VkResult result = vkQueueSubmit(compute_queue_, 1, &submit_info, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to submit shape culling command buffer!");
+	}
+
+	vkQueueWaitIdle(compute_queue_);
+}
+
 void VulkanRenderer::Cleanup()
 {
 	// clean up command and descriptor pools
@@ -500,6 +522,10 @@ void VulkanRenderer::Cleanup()
 	buffer_visualisation_shader_->Cleanup();
 	delete buffer_visualisation_shader_;
 	buffer_visualisation_shader_ = nullptr;
+
+	shape_culling_shader_->Cleanup();
+	delete shape_culling_shader_;
+	shape_culling_shader_ = nullptr;
 
 	shadow_map_shader_->Cleanup();
 	delete shadow_map_shader_;
@@ -524,7 +550,12 @@ void VulkanRenderer::Cleanup()
 	buffer_visualisation_pipeline_->CleanUp();
 	delete buffer_visualisation_pipeline_;
 	buffer_visualisation_pipeline_ = nullptr;
-		
+	
+	// clean up the shape culling pipeline
+	shape_culling_pipeline_->CleanUp();
+	delete shape_culling_pipeline_;
+	shape_culling_pipeline_ = nullptr;
+
 #ifdef _DEFERRED
 	CleanupDeferredPipeline();
 	CleanupTransparencyPipeline();
@@ -773,8 +804,16 @@ void VulkanRenderer::InitPipelines()
 	buffer_visualisation_pipeline_->SetShader(buffer_visualisation_shader_);
 	buffer_visualisation_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 0, buffer_normalized_sampler_);
 	buffer_visualisation_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 1, swap_chain_->GetDepthImageView());
-
 	buffer_visualisation_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
+
+	// initialize the shape culling pipeline
+	shape_culling_pipeline_ = new ShapeCullingPipeline();
+	shape_culling_pipeline_->SetShader(shape_culling_shader_);
+	shape_culling_pipeline_->AddStorageBuffer(0, primitive_buffer_->GetIndirectDrawBuffer(), primitive_buffer_->GetShapeCount() * sizeof(IndirectDrawCommand));
+	shape_culling_pipeline_->AddStorageBuffer(1, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeData));
+	shape_culling_pipeline_->AddUniformBuffer(2, matrix_buffer_, sizeof(UniformBufferObject));
+	shape_culling_pipeline_->SetShapeCount(primitive_buffer_->GetShapeCount());
+	shape_culling_pipeline_->Init(devices_);
 
 	CreateCommandBuffers();
 }
@@ -1135,6 +1174,7 @@ void VulkanRenderer::CreateCommandBuffers()
 	CreateVisibilityCommandBuffer();
 	CreateTransparencyCommandBuffer();
 	CreateBufferVisualisationCommandBuffers();
+	CreateCullingCommandBuffer();
 }
 
 void VulkanRenderer::CreateForwardCommandBuffers()
@@ -1196,10 +1236,8 @@ void VulkanRenderer::CreateGBufferCommandBuffers()
 			// bind pipeline
 			g_buffer_pipeline_->RecordCommands(g_buffer_command_buffers_[i], i);
 
-			for (Mesh* mesh : meshes_)
-			{
-				mesh->RecordRenderCommands(g_buffer_command_buffers_[i], RenderStage::GENERIC);
-			}
+			// record draw commands
+			primitive_buffer_->RecordIndirectDrawCommands(g_buffer_command_buffers_[i]);
 
 			vkCmdEndRenderPass(g_buffer_command_buffers_[i]);
 		}
@@ -1280,10 +1318,7 @@ void VulkanRenderer::CreateVisibilityCommandBuffer()
 		// bind pipeline
 		visibility_pipeline_->RecordCommands(visibility_command_buffer_, 0);
 
-		for (Mesh* mesh : meshes_)
-		{
-			mesh->RecordRenderCommands(visibility_command_buffer_, RenderStage::GENERIC, visibility_pipeline_->GetPipelineLayout());
-		}
+		primitive_buffer_->RecordIndirectDrawCommands(visibility_command_buffer_);
 
 		vkCmdEndRenderPass(visibility_command_buffer_);
 	}
@@ -1342,10 +1377,7 @@ void VulkanRenderer::CreateVisibilityPeelCommandBuffers()
 			// bind pipeline
 			visibility_peel_pipelines_[i]->RecordCommands(visibility_peel_command_buffers_[i], 0);
 
-			for (Mesh* mesh : meshes_)
-			{
-				mesh->RecordRenderCommands(visibility_peel_command_buffers_[i], RenderStage::GENERIC, visibility_peel_pipelines_[i]->GetPipelineLayout());
-			}
+			primitive_buffer_->RecordIndirectDrawCommands(visibility_peel_command_buffers_[i]);
 
 			vkCmdEndRenderPass(visibility_peel_command_buffers_[i]);
 		}
@@ -1476,6 +1508,27 @@ void VulkanRenderer::CreateBufferVisualisationCommandBuffers()
 
 }
 
+void VulkanRenderer::CreateCullingCommandBuffer()
+{
+	// create the shape culling command buffer
+	devices_->CreateCommandBuffers(command_pool_, &shape_culling_command_buffer_);
+
+	// record the command buffer
+	VkCommandBufferBeginInfo begin_info = {};
+	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	begin_info.pInheritanceInfo = nullptr;
+
+	vkBeginCommandBuffer(shape_culling_command_buffer_, &begin_info);
+
+	if (shape_culling_pipeline_)
+	{
+		shape_culling_pipeline_->RecordCommands(shape_culling_command_buffer_);
+	}
+
+	vkEndCommandBuffer(shape_culling_command_buffer_);
+}
+
 void VulkanRenderer::CreateShaders()
 {
 	material_shader_ = new VulkanShader();
@@ -1486,6 +1539,9 @@ void VulkanRenderer::CreateShaders()
 
 	buffer_visualisation_shader_ = new VulkanShader();
 	buffer_visualisation_shader_->Init(devices_, swap_chain_, "../res/shaders/buffer_visualisation.vert.spv", "", "", "../res/shaders/buffer_visualisation.frag.spv");
+	
+	shape_culling_shader_ = new VulkanComputeShader();
+	shape_culling_shader_->Init(devices_, swap_chain_, "../res/shaders/shape_culling.comp.spv");
 }
 
 void VulkanRenderer::CreatePrimitiveBuffer()

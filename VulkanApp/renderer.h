@@ -25,6 +25,7 @@
 #include "visibility_deferred_pipeline.h"
 #include "visibility_peel_pipeline.h"
 #include "visibility_peel_deferred_pipeline.h"
+#include "shape_culling_pipeline.h"
 #include "HDR.h"
 #include "skybox.h"
 
@@ -116,6 +117,7 @@ protected:
 	void CreateVisibilityPeelCommandBuffers();
 	void CreateVisibilityPeelDeferredCommandBuffers();
 	void CreateBufferVisualisationCommandBuffers();
+	void CreateCullingCommandBuffer();
 
 	// resource creation functions
 	void CreateBuffers();
@@ -136,6 +138,7 @@ protected:
 	void RenderVisibilityPeel();
 	void RenderVisibilityPeelDeferred();
 	void RenderTransparency();
+	void CullGeometry();
 
 protected:
 	VulkanDevices* devices_;
@@ -147,7 +150,9 @@ protected:
 	VulkanShader* material_shader_;
 	VulkanShader* shadow_map_shader_;
 	VulkanShader* buffer_visualisation_shader_;
+	VulkanComputeShader* shape_culling_shader_;
 	VulkanPipeline* rendering_pipeline_;
+	ShapeCullingPipeline* shape_culling_pipeline_;
 	BufferVisualisationPipeline* buffer_visualisation_pipeline_;
 	VkSampler buffer_unnormalized_sampler_, buffer_normalized_sampler_, shadow_map_sampler_;
 	
@@ -205,6 +210,7 @@ protected:
 	VkCommandPool command_pool_;
 	std::vector<VkCommandBuffer> command_buffers_;
 	std::vector<VkCommandBuffer> buffer_visualisation_command_buffers_;
+	VkCommandBuffer shape_culling_command_buffer_;
 
 	VkSemaphore g_buffer_semaphore_;
 	VkSemaphore render_semaphore_;

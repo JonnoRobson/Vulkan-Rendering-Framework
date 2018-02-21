@@ -25,7 +25,7 @@ public:
 	Shape();
 
 	void InitShape(VulkanDevices* devices, VulkanRenderer* renderer, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, BoundingBox bounding_box, bool transparency_enabled);
-	void RecordRenderCommands(VkCommandBuffer& command_buffer, VkPipelineLayout pipeline_layout = VK_NULL_HANDLE);
+	void RecordRenderCommands(VkCommandBuffer& command_buffer);
 	void CleanUp();
 
 	inline bool GetTransparencyEnabled() { return transparency_enabled_; }

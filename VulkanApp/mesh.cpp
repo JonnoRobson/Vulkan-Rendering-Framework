@@ -274,7 +274,7 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 	}
 }
 
-void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage render_stage, VkPipelineLayout pipeline_layout)
+void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage render_stage)
 {
 	switch (render_stage)
 	{
@@ -283,7 +283,7 @@ void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage ren
 		for (Shape* shape : mesh_shapes_)
 		{
 			if(shape->GetTransparencyEnabled() == false)
-				shape->RecordRenderCommands(command_buffer, pipeline_layout);
+				shape->RecordRenderCommands(command_buffer);
 		}
 		break;
 	}
@@ -292,7 +292,7 @@ void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage ren
 		for (Shape* shape : mesh_shapes_)
 		{
 			if (shape->GetTransparencyEnabled() == true)
-				shape->RecordRenderCommands(command_buffer, pipeline_layout);
+				shape->RecordRenderCommands(command_buffer);
 		}
 		break;
 	}
@@ -300,7 +300,7 @@ void Mesh::RecordRenderCommands(VkCommandBuffer& command_buffer, RenderStage ren
 	{
 		for (Shape* shape : mesh_shapes_)
 		{
-			shape->RecordRenderCommands(command_buffer, pipeline_layout);
+			shape->RecordRenderCommands(command_buffer);
 		}
 		break;
 	}

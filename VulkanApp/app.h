@@ -89,7 +89,8 @@ protected:
 	};
 
 	const std::vector<const char*> device_extensions_ = {
-		VK_KHR_SWAPCHAIN_EXTENSION_NAME
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+		VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME
 	};
 
 	std::string debug_msg_;

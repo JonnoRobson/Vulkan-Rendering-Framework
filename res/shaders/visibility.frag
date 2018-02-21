@@ -32,11 +32,6 @@ layout(binding = 1) uniform MaterialUberBuffer
 	MaterialData materials[512];
 } material_data;
 
-layout(push_constant) uniform PushConstants
-{
-	uint shapeID;
-} push_constants;
-
 // textures
 layout(binding = 2) uniform sampler mapSampler;
 layout(binding = 3) uniform texture2D alphaMaps[512];
@@ -59,5 +54,5 @@ void main()
 	if(alpha < 1.0f)
 		discard;
 
-	visibilityBuffer = (gl_PrimitiveID << SHAPE_ID_BITS) | push_constants.shapeID;
+	visibilityBuffer = (gl_PrimitiveID << SHAPE_ID_BITS) | drawID;
 }

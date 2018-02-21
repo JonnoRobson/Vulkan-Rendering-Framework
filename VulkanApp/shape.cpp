@@ -139,7 +139,7 @@ void Shape::CreateIndexBuffer(std::vector<uint32_t>& indices)
 	}
 }
 
-void Shape::RecordRenderCommands(VkCommandBuffer& command_buffer, VkPipelineLayout pipeline_layout)
+void Shape::RecordRenderCommands(VkCommandBuffer& command_buffer)
 {
 	if (standalone_shape_)
 	{
@@ -154,9 +154,6 @@ void Shape::RecordRenderCommands(VkCommandBuffer& command_buffer, VkPipelineLayo
 	}
 	else
 	{
-		if(pipeline_layout != VK_NULL_HANDLE)
-			vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t), &shape_index_);	// push the shape id to the constants buffer
-
 		// shapes that are added to a primitive buffer simply need to execute their draw command
 		vkCmdDrawIndexed(command_buffer, index_count_, 1, index_buffer_offset_, vertex_buffer_offset_, 0);
 	}

@@ -25,5 +25,5 @@ void main()
 	gl_Position = transforms.proj * transforms.view * transforms.model * vec4(inPositionMatIndex.xyz, 1.0);
 	fragTexCoord = inEncodedNormalTexCoord.zw;
 	matIndex = uint(inPositionMatIndex.w);
-	drawID = gl_DrawID;
+	drawID = uint(gl_DrawID);
 }

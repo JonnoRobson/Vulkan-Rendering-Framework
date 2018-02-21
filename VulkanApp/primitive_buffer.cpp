@@ -44,19 +44,22 @@ void VulkanPrimitiveBuffer::InitShapeBuffer(VulkanDevices* devices)
 	vkFreeMemory(devices->GetLogicalDevice(), staging_buffer_memory, nullptr);
 
 	// create the indirect draw buffer
-	VkDeviceSize indirect_buffer_size = shape_data_.size() * sizeof(VkDrawIndexedIndirectCommand);
+	VkDeviceSize indirect_buffer_size = shape_data_.size() * sizeof(IndirectDrawCommand);
 	devices->CreateBuffer(indirect_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indirect_draw_buffer_, indirect_draw_buffer_memory_);
 	
 	// use a staging buffer to copy indirect draw data to the shape buffer
-	std::vector<VkDrawIndexedIndirectCommand> indirect_draw_commands;
+	std::vector<IndirectDrawCommand> indirect_draw_commands;
 	for (ShapeData shape_data : shape_data_)
 	{
-		VkDrawIndexedIndirectCommand indirect_draw_command = {};
-		indirect_draw_command.vertexOffset = shape_data.offsets[0];
-		indirect_draw_command.firstIndex = shape_data.offsets[1];
-		indirect_draw_command.indexCount = shape_data.offsets[3];
-		indirect_draw_command.firstInstance = 0;
-		indirect_draw_command.instanceCount = 1;
+		IndirectDrawCommand indirect_draw_command = {};
+		indirect_draw_command.vertex_offset = shape_data.offsets[0];
+		indirect_draw_command.first_index = shape_data.offsets[1];
+		indirect_draw_command.index_count = shape_data.offsets[3];
+		indirect_draw_command.first_instance = 0;
+		indirect_draw_command.instance_count = 1;
+		indirect_draw_command.padding[0] = 0;
+		indirect_draw_command.padding[1] = 0;
+		indirect_draw_command.padding[2] = 0;
 		indirect_draw_commands.push_back(indirect_draw_command);
 	}
 	
@@ -82,6 +85,10 @@ void VulkanPrimitiveBuffer::Cleanup()
 	// cleanup shape buffer
 	vkDestroyBuffer(device_handle_, shape_buffer_, nullptr);
 	vkFreeMemory(device_handle_, shape_buffer_memory_, nullptr);
+
+	// cleanup indirect draw buffer
+	vkDestroyBuffer(device_handle_, indirect_draw_buffer_, nullptr);
+	vkFreeMemory(device_handle_, indirect_draw_buffer_memory_, nullptr);
 }
 
 void VulkanPrimitiveBuffer::RecordBindingCommands(VkCommandBuffer& command_buffer)
@@ -101,7 +108,7 @@ void VulkanPrimitiveBuffer::RecordIndirectDrawCommands(VkCommandBuffer& command_
 	vkCmdBindIndexBuffer(command_buffer, index_buffer_, 0, VK_INDEX_TYPE_UINT32);
 
 	// issue the multi draw indirect command
-	vkCmdDrawIndexedIndirect(command_buffer, indirect_draw_buffer_, 0, shape_data_.size(), sizeof(VkDrawIndexedIndirectCommand));
+	vkCmdDrawIndexedIndirect(command_buffer, indirect_draw_buffer_, 0, shape_data_.size(), sizeof(IndirectDrawCommand));
 }
 
 void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, uint32_t vertex_count, uint32_t index_count, VkBuffer vertices, VkBuffer indices, uint32_t& vertex_offset, uint32_t& index_offset, uint32_t& shape_index)
