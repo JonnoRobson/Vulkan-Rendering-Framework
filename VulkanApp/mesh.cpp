@@ -87,7 +87,7 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 	}
 
 	// multithread shape loading
-	const int thread_count = 10;
+	const int thread_count = 1;
 	std::thread shape_threads[thread_count];
 
 	// determine how many shapes are calculated per thread

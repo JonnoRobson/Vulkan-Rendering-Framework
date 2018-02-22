@@ -67,14 +67,14 @@ void main()
 
 	v0 = matrices.proj * matrices.view * v0;
 	v0 /= v0.w;
-	if(v0.z > 0.0)
+	if(v0.z >= 0.0)
 	{
 		atomicExchange(draw_commands[index].instanceCount, 1);
 	}
 
 	v1 = matrices.proj * matrices.view * v1;
 	v1 /= v1.w;
-	if(v1.z > 0.0)
+	if(v1.z >= 0.0)
 	{
 		atomicExchange(draw_commands[index].instanceCount, 1);
 		return;
@@ -82,7 +82,7 @@ void main()
 	
 	v2 = matrices.proj * matrices.view * v2;
 	v2 /= v2.w;
-	if(v2.z > 0.0)
+	if(v2.z >= 0.0)
 	{
 		atomicExchange(draw_commands[index].instanceCount, 1);
 		return;
@@ -90,7 +90,7 @@ void main()
 	
 	v3 = matrices.proj * matrices.view * v3;
 	v3 /= v3.w;
-	if(v3.z > 0.0)
+	if(v3.z >= 0.0)
 	{
 		atomicExchange(draw_commands[index].instanceCount, 1);
 		return;
@@ -98,7 +98,7 @@ void main()
 	
 	v4 = matrices.proj * matrices.view * v4;
 	v4 /= v4.w;
-	if(v4.z > 0.0)
+	if(v4.z >= 0.0)
 	{
 		atomicExchange(draw_commands[index].instanceCount, 1);
 		return;
@@ -106,7 +106,7 @@ void main()
 	
 	v5 = matrices.proj * matrices.view * v5;
 	v5 /= v5.w;
-	if(v5.z > 0.0)
+	if(v5.z >= 0.0)
 	{
 		atomicExchange(draw_commands[index].instanceCount, 1);
 		return;
@@ -127,5 +127,6 @@ void main()
 		atomicExchange(draw_commands[index].instanceCount, 1);
 		return;
 	}
+
 	atomicExchange(draw_commands[index].instanceCount, 0);
 }

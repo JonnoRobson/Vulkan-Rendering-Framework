@@ -4,7 +4,7 @@
 // inputs
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) flat in uint matIndex;
-layout(location = 2) flat in uint drawID;
+layout(location = 2) flat in uint shapeID;
 
 struct MaterialData
 {
@@ -54,5 +54,5 @@ void main()
 	if(alpha < 1.0f)
 		discard;
 
-	visibilityBuffer = (gl_PrimitiveID << SHAPE_ID_BITS) | drawID;
+	visibilityBuffer = (gl_PrimitiveID << SHAPE_ID_BITS) | shapeID;
 }

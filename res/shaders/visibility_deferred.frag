@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // inputs
+layout(origin_upper_left) in vec4 gl_FragCoord;
 layout(location = 0) in vec2 screenTexCoord;
 
 // required structs
@@ -455,7 +456,6 @@ Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID,
 	vertex.tex_coord = v0.tex_coord * weights.x + (v1.tex_coord * weights.y + (v2.tex_coord * weights.z));
 	vertex.normal = v0.normal * weights.x + (v1.normal * weights.y + (v2.normal * weights.z));
 	vertex.mat_index = v0.mat_index;
-	vertex.pos = vec3(vIndices[0], vIndices[1], vIndices[2]);
 
 	return vertex;
 }
@@ -469,7 +469,7 @@ void main()
 
 	// read from the visibility buffer texture
 	vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
-	uint visibilityData = imageLoad(visibilityBuffer, ivec2(pixelCoord)).r;
+	uint visibilityData = imageLoad(visibilityBuffer, ivec2(gl_FragCoord.xy)).r;
 	uint triID = visibilityData >> SHAPE_ID_BITS;
 	uint shapeID = (visibilityData & SHAPE_ID_MASK);
 	uvec2 offsets = _shapes[shapeID].offsets.xy;
@@ -536,5 +536,5 @@ void main()
 
 	color.w = 1.0f;
 	
-	outColor = vec4(worldPosition, 1);
+	outColor = color;
 }

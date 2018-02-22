@@ -55,7 +55,7 @@ void VulkanPrimitiveBuffer::InitShapeBuffer(VulkanDevices* devices)
 		indirect_draw_command.vertex_offset = shape_data.offsets[0];
 		indirect_draw_command.first_index = shape_data.offsets[1];
 		indirect_draw_command.index_count = shape_data.offsets[3];
-		indirect_draw_command.first_instance = 0;
+		indirect_draw_command.first_instance = shape_data.offsets[2];
 		indirect_draw_command.instance_count = 1;
 		indirect_draw_command.padding[0] = 0;
 		indirect_draw_command.padding[1] = 0;
@@ -161,7 +161,7 @@ void VulkanPrimitiveBuffer::AddPrimitiveData(VulkanDevices* devices, Shape* shap
 	ShapeData shape_data = {
 		vertex_offset,
 		index_offset,
-		shape->GetVertexCount(),
+		shape_index,
 		shape->GetIndexCount(),
 		shape->GetBoundingBox().min_vertex,
 		shape->GetBoundingBox().max_vertex

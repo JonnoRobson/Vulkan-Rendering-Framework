@@ -18,12 +18,12 @@ out gl_PerVertex
 
 layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out uint matIndex;
-layout(location = 2) out uint drawID;
+layout(location = 2) out uint shapeID;
 
 void main()
 {
 	gl_Position = transforms.proj * transforms.view * transforms.model * vec4(inPositionMatIndex.xyz, 1.0);
 	fragTexCoord = inEncodedNormalTexCoord.zw;
 	matIndex = uint(inPositionMatIndex.w);
-	drawID = uint(gl_DrawID);
+	shapeID = uint(gl_BaseInstance);
 }
