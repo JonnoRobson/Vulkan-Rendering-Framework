@@ -5,7 +5,7 @@
 layout(origin_upper_left) in vec4 gl_FragCoord;
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) flat in uint matIndex;
-layout(location = 2) flat in uint drawID;
+layout(location = 2) flat in uint shapeID;
 
 struct MaterialData
 {
@@ -89,7 +89,7 @@ void main()
 	}
 
 	// fragment is on peeled layer from last pass so add it to the peeled visibility buffer
-	uint visibilityData = (gl_PrimitiveID << SHAPE_ID_BITS) | drawID;
+	uint visibilityData = (gl_PrimitiveID << SHAPE_ID_BITS) | shapeID;
 	imageStore(minDepthBuffer, depthBufferCoord, vec4(0.0, 0.0, 0.0, 0.0));
 	imageStore(maxDepthBuffer, depthBufferCoord, vec4(0.0, 0.0, 0.0, 0.0));
 	

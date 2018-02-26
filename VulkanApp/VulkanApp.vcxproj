@@ -519,6 +519,7 @@
     <ClCompile Include="transparency_composite_pipeline.cpp" />
     <ClCompile Include="visibility_deferred_pipeline.cpp" />
     <ClCompile Include="visibility_peel_deferred_pipeline.cpp" />
+    <ClCompile Include="visibility_peel_init_pipeline.cpp" />
     <ClCompile Include="visibility_peel_pipeline.cpp" />
     <ClCompile Include="visibility_pipeline.cpp" />
     <ClCompile Include="weighted_blended_transparency_pipeline.cpp" />
@@ -557,6 +558,7 @@
     <ClInclude Include="transparency_composite_pipeline.h" />
     <ClInclude Include="visibility_deferred_pipeline.h" />
     <ClInclude Include="visibility_peel_deferred_pipeline.h" />
+    <ClInclude Include="visibility_peel_init_pipeline.h" />
     <ClInclude Include="visibility_peel_pipeline.h" />
     <ClInclude Include="visibility_pipeline.h" />
     <ClInclude Include="weighted_blended_transparency_pipeline.h" />
@@ -587,6 +589,8 @@
     <None Include="..\res\shaders\visibility_peel.frag" />
     <None Include="..\res\shaders\visibility_peel.vert" />
     <None Include="..\res\shaders\visibility_peel_deferred.frag" />
+    <None Include="..\res\shaders\visibility_peel_init.frag" />
+    <None Include="..\res\shaders\visibility_peel_init.vert" />
     <None Include="..\res\shaders\weighted_blended_transparency.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
