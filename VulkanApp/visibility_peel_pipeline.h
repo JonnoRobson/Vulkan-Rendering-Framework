@@ -8,19 +8,12 @@
 
 #define VISIBILITY_PEEL_COUNT 2
 
-struct VisibilityPeelData
-{
-	uint32_t pass_number;
-	glm::vec2 screen_dimensions;
-	float padding;
-};
-
 class VisibilityPeelPipeline : public VulkanPipeline
 {
 public:
 	void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
-	void SetVisibilityBuffer(VulkanRenderTarget* visibility_buffer, int pass_num);
+	void SetOutputBuffers(VkImageView front_buffer, VkImageView back_buffer, VkImageView min_depth, VkImageView max_depth);
 
 protected:
 	void CreatePipeline();
@@ -28,8 +21,8 @@ protected:
 	void CreateFramebuffers();
 
 protected:
-	int pass_num_;
-	VulkanRenderTarget* visibility_buffer_;
+	VkImageView min_depth_buffer_, max_depth_buffer_, front_visibility_buffer_, back_visibility_buffer_;
+
 };
 
 #endif

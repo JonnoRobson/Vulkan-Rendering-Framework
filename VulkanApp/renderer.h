@@ -23,6 +23,7 @@
 #include "transparency_composite_pipeline.h"
 #include "visibility_pipeline.h"
 #include "visibility_deferred_pipeline.h"
+#include "visibility_peel_init_pipeline.h"
 #include "visibility_peel_pipeline.h"
 #include "visibility_peel_deferred_pipeline.h"
 #include "shape_culling_pipeline.h"
@@ -177,15 +178,13 @@ protected:
 	VkCommandBuffer visibility_deferred_command_buffer_;
 
 	// visibility peeled shading components
-	VulkanShader *visibility_peel_shader_, *visibility_peel_deferred_shader_;
-	VulkanRenderTarget* visibility_peel_buffer_;
+	VulkanShader *visibility_peel_init_shader_, *visibility_peel_shader_, *visibility_peel_deferred_shader_;
+	VulkanRenderTarget *visibility_peel_buffer_, *min_max_depth_buffer_;
+	VisibilityPeelInitPipeline* visibility_peel_init_pipeline_;
 	VisibilityPeelDeferredPipeline* visibility_peel_deferred_pipeline_;
-	VkCommandBuffer visibility_peel_deferred_command_buffer_;
+	VkCommandBuffer visibility_peel_init_command_buffer_, visibility_peel_deferred_command_buffer_;
 	std::vector<VisibilityPeelPipeline*> visibility_peel_pipelines_;
 	std::vector<VkCommandBuffer> visibility_peel_command_buffers_;
-	std::vector<VkImage> min_max_depth_images_;
-	std::vector<VkDeviceMemory> min_max_depth_image_memory_;
-	std::vector<VkImageView> min_max_depth_image_views_;
 
 	// transparency shading components
 	VulkanShader *transparency_shader_, *transparency_composite_shader_;
@@ -196,9 +195,8 @@ protected:
 	VkSemaphore transparency_semaphore_, transparency_composite_semaphore_;
 
 	// buffers
-	VkBuffer matrix_buffer_, light_buffer_, visibility_data_buffer_, visibility_peel_data_buffer_;
-	VkDeviceMemory matrix_buffer_memory_, light_buffer_memory_, visibility_data_buffer_memory_, visibility_peel_data_buffer_memory_;
-
+	VkBuffer matrix_buffer_, light_buffer_, visibility_data_buffer_;
+	VkDeviceMemory matrix_buffer_memory_, light_buffer_memory_, visibility_data_buffer_memory_;
 	HDR* hdr_;
 	Skybox* skybox_;
 

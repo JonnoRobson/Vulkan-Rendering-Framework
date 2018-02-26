@@ -36,18 +36,14 @@ layout(binding = 1) uniform MaterialUberBuffer
 // textures
 layout(binding = 2) uniform sampler mapSampler;
 layout(binding = 3) uniform texture2D alphaMaps[512];
-layout(binding = 4, r32f) uniform image2D minDepthBuffer;
-layout(binding = 5, r32f) uniform image2D maxDepthBuffer;
-layout(binding = 6) uniform PeelDataBuffer
-{
-	uint pass_number;
-	vec2 screen_dimensions;
-	float padding;
-};
+layout(binding = 4, r32f) uniform image2D inMinDepthBuffer;
+layout(binding = 5, r32f) uniform image2D inMaxDepthBuffer;
 
 // outputs
 layout(location = 0) out uint frontVisibilityBuffer;
 layout(location = 1) out uint backVisibilityBuffer;
+layout(location = 2) out float outMinDepthBuffer;
+layout(location = 3) out float outMaxDepthBuffer;
 
 #define SHAPE_ID_BITS 12
 #define PASS_COUNT 2
@@ -57,8 +53,8 @@ void main()
 	float fragDepth = gl_FragCoord.z;
 	ivec2 depthBufferCoord = ivec2(gl_FragCoord.xy);
 	
-	float minDepth = imageLoad(minDepthBuffer, depthBufferCoord).x;
-	float maxDepth = imageLoad(maxDepthBuffer, depthBufferCoord).x;
+	float minDepth = imageLoad(inMinDepthBuffer, depthBufferCoord).x;
+	float maxDepth = imageLoad(inMaxDepthBuffer, depthBufferCoord).x;
 	
 	// sample alpha of this pixel
 	float alpha = material_data.materials[matIndex].dissolve;
@@ -75,23 +71,27 @@ void main()
 	// fragment at this depth has already been peeled
 	if(fragDepth < minDepth || fragDepth > maxDepth)
 	{
-		imageStore(minDepthBuffer, depthBufferCoord, vec4(0.0, 0.0, 0.0, 0.0));
-		imageStore(maxDepthBuffer, depthBufferCoord, vec4(0.0, 0.0, 0.0, 0.0));
-		discard;
+		outMinDepthBuffer = 1.0;
+		outMaxDepthBuffer = 0.0;
+		frontVisibilityBuffer = 0;
+		backVisibilityBuffer = 0;
+		return;
 	}
 
 	// fragment at this depth needs to be peeled again
 	if(fragDepth > minDepth && fragDepth < maxDepth)
 	{
-		imageStore(minDepthBuffer, depthBufferCoord, vec4(fragDepth, 0, 0, 0));
-		imageStore(maxDepthBuffer, depthBufferCoord, vec4(1.0f - fragDepth, 0, 0, 0));
-		discard;
+		outMinDepthBuffer = fragDepth;
+		outMaxDepthBuffer = 1.0 - fragDepth;
+		frontVisibilityBuffer = 0;
+		backVisibilityBuffer = 0;
+		return;
 	}
 
 	// fragment is on peeled layer from last pass so add it to the peeled visibility buffer
 	uint visibilityData = (gl_PrimitiveID << SHAPE_ID_BITS) | shapeID;
-	imageStore(minDepthBuffer, depthBufferCoord, vec4(0.0, 0.0, 0.0, 0.0));
-	imageStore(maxDepthBuffer, depthBufferCoord, vec4(0.0, 0.0, 0.0, 0.0));
+	outMinDepthBuffer = 1.0;
+	outMaxDepthBuffer = 0.0;
 	
 	frontVisibilityBuffer = 0;
 	backVisibilityBuffer = 0;

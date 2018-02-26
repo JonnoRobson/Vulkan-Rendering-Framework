@@ -4,6 +4,7 @@
 #define PEEL_COUNT 2
 
 // inputs
+layout(origin_upper_left) in vec4 gl_FragCoord;
 layout(location = 0) in vec2 screenTexCoord;
 
 // required structs
@@ -469,18 +470,17 @@ void main()
 	for(int i = 0; i < PEEL_COUNT * 2; i++)
 	{
 		// read from the visibility buffer texture
-		vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
-		uint visibilityData = imageLoad(visibilityBuffers[i], ivec2(pixelCoord)).r;
+		uint visibilityData = imageLoad(visibilityBuffers[i], ivec2(gl_FragCoord.xy)).r;
 		uint triID = visibilityData >> SHAPE_ID_BITS;
 		uint shapeID = (visibilityData & SHAPE_ID_MASK);
 		uvec2 offsets = _shapes[shapeID].offsets.xy;
 
 		if(visibilityData == 0)
-			discard;
+			continue;
 
 		// load depth
-		float depth = imageLoad(depthBuffers[i], ivec2(pixelCoord)).r;
-		Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, pixelCoord);
+		float depth = imageLoad(depthBuffers[i], ivec2(gl_FragCoord.xy)).r;
+		Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, gl_FragCoord.xy);
 		worldPosition = vertex.pos;
 		worldNormal = vertex.normal;
 		fragTexCoord = vertex.tex_coord;
