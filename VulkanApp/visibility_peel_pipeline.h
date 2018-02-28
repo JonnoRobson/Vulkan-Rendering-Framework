@@ -6,7 +6,7 @@
 
 #include <glm/glm.hpp>
 
-#define VISIBILITY_PEEL_COUNT 2
+#define VISIBILITY_PEEL_COUNT 3
 
 // each visibility peel pipeline writes to both visibility and depth render targets for each layer
 class VisibilityPeelPipeline : public VulkanPipeline

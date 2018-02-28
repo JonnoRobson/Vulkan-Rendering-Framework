@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#define PEEL_COUNT 2
+#define PEEL_COUNT 3
 
 // inputs
 layout(origin_upper_left) in vec4 gl_FragCoord;
@@ -468,8 +468,9 @@ void main()
 	uint matIndex = 0;
 
 	vec3 accumColor = vec3(0.0, 0.0, 0.0);
+	float accumAlpha = 0.0;
 
-	for(int i = (PEEL_COUNT * 2) - 1; i >= 0; i--)
+	for(int i = 0; i < PEEL_COUNT * 2; i++)
 	{
 		// read from the visibility buffer texture
 		uint visibilityData = imageLoad(visibilityBuffers[i], ivec2(gl_FragCoord.xy)).r;
@@ -549,7 +550,12 @@ void main()
 
 		color.w = alpha;
 	
-		accumColor = (accumColor * (1.0 - color.w)) + (color.xyz * color.w);
+		accumColor = accumColor + (color.xyz * color.w * (1.0 - accumAlpha));
+		accumAlpha = accumAlpha + color.w;
+
+
+		if(accumAlpha >= 1.0)
+			break;
 	}
 
 	if(length(accumColor) <= 0)

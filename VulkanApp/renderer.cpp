@@ -1043,6 +1043,9 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 	visibility_peel_init_pipeline_->SetShader(visibility_peel_init_shader_);
 	visibility_peel_init_pipeline_->SetDepthBuffers(min_max_depths[0], min_max_depths[(VISIBILITY_PEEL_COUNT * 2) - 1]);
 	visibility_peel_init_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	visibility_peel_init_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+	visibility_peel_init_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	visibility_peel_init_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
 	visibility_peel_init_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 	
 	// create the visibility peel pipelines
