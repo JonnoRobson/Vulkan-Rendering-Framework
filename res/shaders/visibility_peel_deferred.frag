@@ -467,7 +467,9 @@ void main()
 	vec2 fragTexCoord = vec2(0.0f, 0.0f);
 	uint matIndex = 0;
 
-	for(int i = 0; i < PEEL_COUNT * 2; i++)
+	vec3 accumColor = vec3(0.0, 0.0, 0.0);
+
+	for(int i = (PEEL_COUNT * 2) - 1; i >= 0; i--)
 	{
 		// read from the visibility buffer texture
 		uint visibilityData = imageLoad(visibilityBuffers[i], ivec2(gl_FragCoord.xy)).r;
@@ -530,6 +532,14 @@ void main()
 			specularColor.w = specularColor.w * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
 		}
 
+		// calculate sample opacity
+		float alpha = material_data.materials[matIndex].dissolve;
+		uint alpha_map_index = material_data.materials[matIndex].alpha_map_index;
+		if(alpha_map_index > 0)
+		{
+			alpha = alpha * texture(sampler2D(alphaMaps[alpha_map_index - 1], mapSampler), fragTexCoord).x;
+		}
+
 		// calculate lighting for all lights
 		for(uint i = 0; i < light_data.scene_data.w; i++)
 		{
@@ -537,8 +547,13 @@ void main()
 			color = color + (diffuse * lighting);
 		}
 
-		color.w = 1.0f;
+		color.w = alpha;
 	
-		outColor = color;
+		accumColor = (accumColor * (1.0 - color.w)) + (color.xyz * color.w);
 	}
+
+	if(length(accumColor) <= 0)
+		discard;
+
+	outColor = vec4(accumColor, 1.0);
 }

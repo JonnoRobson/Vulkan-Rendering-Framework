@@ -4,6 +4,7 @@
 #include "pipeline.h"
 #include "render_target.h"
 
+// the visibility peel init pipeline populates the depth buffers without writing to any visibility targets
 class VisibilityPeelInitPipeline : public VulkanPipeline
 {
 public:

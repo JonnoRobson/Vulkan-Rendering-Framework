@@ -332,33 +332,35 @@ void VulkanRenderer::RenderVisibilityPeel()
 		throw std::runtime_error("failed to submit visibility peel init command buffer!");
 	}
 
-	// submit the visibility layer peel pipelines
-	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
-	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
-	{
-		vkQueueWaitIdle(graphics_queue_);
+	vkQueueWaitIdle(graphics_queue_);
 
+	// submit the visibility layer peel pipelines
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT - 1; i++)
+	{
 		// submit the draw command buffer
 		submit_info.pCommandBuffers = &visibility_peel_command_buffers_[i];
-
-		// on the final peel layer signal the g buffer semaphore
-		VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
-		if (i == VISIBILITY_PEEL_COUNT - 1)
-		{
-			submit_info.signalSemaphoreCount = 1;
-			submit_info.pSignalSemaphores = signal_semaphores;
-		}
-		else
-		{
-			submit_info.signalSemaphoreCount = 0;
-			submit_info.pSignalSemaphores = nullptr;
-		}
+		submit_info.signalSemaphoreCount = 0;
+		submit_info.pSignalSemaphores = nullptr;
 
 		VkResult result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
 		if (result != VK_SUCCESS)
 		{
 			throw std::runtime_error("failed to submit visibility peel command buffer!");
 		}
+
+		vkQueueWaitIdle(graphics_queue_);
+	}
+
+	// submit the visibility peel final pipeline
+	VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
+	submit_info.pCommandBuffers = &visibility_peel_final_command_buffer_;
+	submit_info.signalSemaphoreCount = 1;
+	submit_info.pSignalSemaphores = signal_semaphores;
+	
+	result = vkQueueSubmit(graphics_queue_, 1, &submit_info, VK_NULL_HANDLE);
+	if (result != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to submit visibility peel command buffer!");
 	}
 }
 
@@ -655,6 +657,10 @@ void VulkanRenderer::CleanupVisibilityPeelPipeline()
 	delete visibility_peel_init_shader_;
 	visibility_peel_init_shader_ = nullptr;
 
+	visibility_peel_final_shader_->Cleanup();
+	delete visibility_peel_final_shader_;
+	visibility_peel_final_shader_ = nullptr;
+
 	// clean up visibility peel init pipeline
 	visibility_peel_init_pipeline_->CleanUp();
 	delete visibility_peel_init_pipeline_;
@@ -667,6 +673,11 @@ void VulkanRenderer::CleanupVisibilityPeelPipeline()
 		delete visibility_peel_pipelines_[i];
 	}
 	visibility_peel_pipelines_.clear();
+
+	// clean up the visibility peel final pipeline
+	visibility_peel_final_pipeline_->CleanUp();
+	delete visibility_peel_final_pipeline_;
+	visibility_peel_final_pipeline_ = nullptr;
 
 	// clean up visibility peel resources
 	visibility_peel_buffer_->Cleanup();
@@ -1005,6 +1016,9 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 	visibility_peel_init_shader_ = new VulkanShader();
 	visibility_peel_init_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_peel_init.vert.spv", "", "", "../res/shaders/visibility_peel_init.frag.spv");
 
+	visibility_peel_final_shader_ = new VulkanShader();
+	visibility_peel_final_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_peel_final.vert.spv", "", "", "../res/shaders/visibility_peel_final.frag.spv");
+
 	visibility_peel_deferred_shader_ = new VulkanShader();
 	visibility_peel_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_peel_deferred.frag.spv");
 
@@ -1016,46 +1030,54 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 	// initialize the min max depth buffer
 	min_max_depth_buffer_ = new VulkanRenderTarget();
 	min_max_depth_buffer_->Init(devices_, VK_FORMAT_R32_SFLOAT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT * 2, false);
-
+	for (VkImage min_max_depth_buffer : min_max_depth_buffer_->GetImages())
+	{
+		devices_->TransitionImageLayout(min_max_depth_buffer, VK_FORMAT_R32_SFLOAT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL);
+	}
+	
 	std::vector<VkImageView> visibility_peels = visibility_peel_buffer_->GetImageViews();
 	std::vector<VkImageView> min_max_depths = min_max_depth_buffer_->GetImageViews();
 
 	// create the visibility peel init pipelines
 	visibility_peel_init_pipeline_ = new VisibilityPeelInitPipeline();
 	visibility_peel_init_pipeline_->SetShader(visibility_peel_init_shader_);
-	visibility_peel_init_pipeline_->SetDepthBuffers(min_max_depths[VISIBILITY_PEEL_COUNT - 1], min_max_depths[(VISIBILITY_PEEL_COUNT * 2) - 1]);
+	visibility_peel_init_pipeline_->SetDepthBuffers(min_max_depths[0], min_max_depths[(VISIBILITY_PEEL_COUNT * 2) - 1]);
 	visibility_peel_init_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
 	visibility_peel_init_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 	
 	// create the visibility peel pipelines
-	visibility_peel_pipelines_.resize(VISIBILITY_PEEL_COUNT);
-	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
+	visibility_peel_pipelines_.resize(VISIBILITY_PEEL_COUNT - 1);
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT - 1; i++)
 	{
 		visibility_peel_pipelines_[i] = new VisibilityPeelPipeline();
 		visibility_peel_pipelines_[i]->SetShader(visibility_peel_shader_);
 
 		// add the resources to the visibility peel pipelines
-		visibility_peel_pipelines_[i]->SetOutputBuffers(visibility_peels[i], visibility_peels[(visibility_peels.size() - 1) - i], min_max_depths[i], min_max_depths[(min_max_depths.size() - 1) - i]);
+		visibility_peel_pipelines_[i]->SetOutputBuffers(visibility_peels[i], visibility_peels[(visibility_peels.size() - 1) - i], min_max_depths[i + 1], min_max_depths[(min_max_depths.size() - 1) - (i + 1)]);
 		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
 		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
 		visibility_peel_pipelines_[i]->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
 		visibility_peel_pipelines_[i]->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
-
-		if (i == 0)
-		{
-			visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 4, min_max_depths[VISIBILITY_PEEL_COUNT - 1]);
-			visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 5, min_max_depths[(min_max_depths.size() - 1) - (VISIBILITY_PEEL_COUNT - 1)]);
-
-		}
-		else
-		{
-			visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 4, min_max_depths[i]);
-			visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 5, min_max_depths[(min_max_depths.size() - 1) - i]);
-		}
+		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 4, min_max_depths[i]);
+		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 5, min_max_depths[(min_max_depths.size() - 1) - i]);
 
 		// initialize the visibility peel pipelines
 		visibility_peel_pipelines_[i]->Init(devices_, swap_chain_, primitive_buffer_);
 	}
+
+	// create the visibility peel final pipeline
+	visibility_peel_final_pipeline_ = new VisibilityPeelFinalPipeline();
+	visibility_peel_final_pipeline_->SetShader(visibility_peel_final_shader_);
+
+	// add the resources to the visibility peel pipelines
+	visibility_peel_final_pipeline_->SetOutputBuffers(visibility_peels[VISIBILITY_PEEL_COUNT - 1], visibility_peels[(visibility_peels.size() - 1) - (VISIBILITY_PEEL_COUNT - 1)]);
+	visibility_peel_final_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	visibility_peel_final_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
+	visibility_peel_final_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
+	visibility_peel_final_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
+	visibility_peel_final_pipeline_->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 4, min_max_depths[VISIBILITY_PEEL_COUNT - 1]);
+	visibility_peel_final_pipeline_->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 5, min_max_depths[(min_max_depths.size() - 1) - (VISIBILITY_PEEL_COUNT - 1)]);
+	visibility_peel_final_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 	// create the visibility data buffer
 	devices_->CreateBuffer(sizeof(VisibilityPeelRenderData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_data_buffer_, visibility_data_buffer_memory_);
@@ -1360,17 +1382,37 @@ void VulkanRenderer::CreateVisibilityDeferredCommandBuffer()
 
 void VulkanRenderer::CreateVisibilityPeelCommandBuffers()
 {
-	// create visibility peel command buffers
-	visibility_peel_command_buffers_.resize(VISIBILITY_PEEL_COUNT);
-	devices_->CreateCommandBuffers(command_pool_, visibility_peel_command_buffers_.data(), visibility_peel_command_buffers_.size());
-
-	// record the visibility peel commands
 	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 	begin_info.pInheritanceInfo = nullptr;
 
-	for (int i = 0; i < VISIBILITY_PEEL_COUNT; i++)
+	// create visibility peel init command buffer
+	devices_->CreateCommandBuffers(command_pool_, &visibility_peel_init_command_buffer_);
+
+	// record the visibility peel init command buffer
+	vkBeginCommandBuffer(visibility_peel_init_command_buffer_, &begin_info);
+
+	if (visibility_peel_init_pipeline_)
+	{
+		visibility_peel_init_pipeline_->RecordCommands(visibility_peel_init_command_buffer_, 0);
+		
+		primitive_buffer_->RecordIndirectDrawCommands(visibility_peel_init_command_buffer_);
+
+		vkCmdEndRenderPass(visibility_peel_init_command_buffer_);
+	}
+
+	if (vkEndCommandBuffer(visibility_peel_init_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record render command buffer!");
+	}
+
+	// create visibility peel command buffers
+	visibility_peel_command_buffers_.resize(VISIBILITY_PEEL_COUNT - 1);
+	devices_->CreateCommandBuffers(command_pool_, visibility_peel_command_buffers_.data(), visibility_peel_command_buffers_.size());
+
+	// record the visibility peel commands
+	for (int i = 0; i < VISIBILITY_PEEL_COUNT - 1; i++)
 	{
 		vkBeginCommandBuffer(visibility_peel_command_buffers_[i], &begin_info);
 
@@ -1388,6 +1430,27 @@ void VulkanRenderer::CreateVisibilityPeelCommandBuffers()
 		{
 			throw std::runtime_error("failed to record render command buffer!");
 		}
+	}
+
+	// create the visibility peel final command buffer
+	devices_->CreateCommandBuffers(command_pool_, &visibility_peel_final_command_buffer_);
+
+	// record the visibility peel final commands
+	vkBeginCommandBuffer(visibility_peel_final_command_buffer_, &begin_info);
+
+	if (visibility_peel_final_pipeline_)
+	{
+		// bind pipeline
+		visibility_peel_final_pipeline_->RecordCommands(visibility_peel_final_command_buffer_, 0);
+
+		primitive_buffer_->RecordIndirectDrawCommands(visibility_peel_final_command_buffer_);
+
+		vkCmdEndRenderPass(visibility_peel_final_command_buffer_);
+	}
+
+	if (vkEndCommandBuffer(visibility_peel_final_command_buffer_) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to record render command buffer!");
 	}
 }
 

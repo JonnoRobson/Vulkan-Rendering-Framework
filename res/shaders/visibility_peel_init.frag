@@ -8,5 +8,5 @@ layout(location = 1) out float maxDepthBuffer;
 void main()
 {
 	minDepthBuffer = gl_FragCoord.z;
-	maxDepthBuffer = 1.0 - gl_FragCoord.z;
+	maxDepthBuffer = gl_FragCoord.z;
 }

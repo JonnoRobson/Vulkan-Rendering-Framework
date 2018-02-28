@@ -11,8 +11,8 @@ void VisibilityPeelInitPipeline::RecordCommands(VkCommandBuffer& command_buffer,
 	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
 
 	std::array<VkClearValue, 2> clear_values = {};
-	clear_values[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
-	clear_values[1].depthStencil = { 1.0f, 0 };
+	clear_values[0].color = { 1.0f, 0.0f, 0.0f, 0.0f };
+	clear_values[1].color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
 	render_pass_info.pClearValues = clear_values.data();
@@ -149,13 +149,13 @@ void VisibilityPeelInitPipeline::CreateRenderPass()
 	min_depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	min_depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	min_depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	min_depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	min_depth_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	min_depth_attachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+	min_depth_attachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	// setup the subpass attachment description
 	VkAttachmentReference min_depth_attachment_ref = {};
 	min_depth_attachment_ref.attachment = 0;
-	min_depth_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	min_depth_attachment_ref.layout = VK_IMAGE_LAYOUT_GENERAL;
 
 	// setup the max buffer attachment
 	VkAttachmentDescription max_depth_attachment = {};
@@ -165,13 +165,13 @@ void VisibilityPeelInitPipeline::CreateRenderPass()
 	max_depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	max_depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	max_depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	max_depth_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	max_depth_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	max_depth_attachment.initialLayout = VK_IMAGE_LAYOUT_GENERAL;
+	max_depth_attachment.finalLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 	// setup the subpass attachment description
 	VkAttachmentReference max_depth_attachment_ref = {};
 	max_depth_attachment_ref.attachment = 1;
-	max_depth_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	max_depth_attachment_ref.layout = VK_IMAGE_LAYOUT_GENERAL;
 
 	std::array<VkAttachmentReference, 2> color_attachments = { min_depth_attachment_ref, max_depth_attachment_ref };
 
