@@ -10,11 +10,9 @@ void VisibilityPeelFinalPipeline::RecordCommands(VkCommandBuffer& command_buffer
 	render_pass_info.renderArea.offset = { 0, 0 };
 	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
 
-	std::array<VkClearValue, 4> clear_values = {};
+	std::array<VkClearValue, 2> clear_values = {};
 	clear_values[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
 	clear_values[1].color = { 0.0f, 0.0f, 0.0f, 0.0f };
-	clear_values[2].color = { 1.0f, 0.0f, 0.0f, 0.0f };
-	clear_values[3].color = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 	render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
 	render_pass_info.pClearValues = clear_values.data();
@@ -75,8 +73,8 @@ void VisibilityPeelFinalPipeline::CreatePipeline()
 	// setup global color blend creation info
 	VkPipelineColorBlendStateCreateInfo blend_state = {};
 	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	blend_state.logicOpEnable = VK_FALSE;
-	blend_state.logicOp = VK_LOGIC_OP_COPY;
+	blend_state.logicOpEnable = VK_TRUE;
+	blend_state.logicOp = VK_LOGIC_OP_OR;
 	blend_state.attachmentCount = static_cast<uint32_t>(attachment_blend_states.size());
 	blend_state.pAttachments = attachment_blend_states.data();
 	blend_state.blendConstants[0] = 0.0f;

@@ -76,6 +76,7 @@ glm::mat4 Camera::GetProjectionMatrix()
 			0.0f, 0.0f, 0.5f, 1.0f);
 
 	proj_matrix = clip * glm::infinitePerspective(fov_, view_width_ / view_height_, 0.1f);
+	//proj_matrix = clip * glm::perspective(fov_, view_width_ / view_height_, 0.1f, 1000.0f);
 	
 	return proj_matrix;
 }

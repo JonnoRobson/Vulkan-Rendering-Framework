@@ -476,7 +476,7 @@ void main()
 
 	if(visibilityData == 0)
 		discard;
-
+		
 	Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, pixelCoord);
 	worldPosition = vertex.pos;
 	worldNormal = vertex.normal;

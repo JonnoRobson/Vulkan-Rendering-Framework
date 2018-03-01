@@ -95,8 +95,8 @@ void VisibilityPeelPipeline::CreatePipeline()
 	// setup global color blend creation info
 	VkPipelineColorBlendStateCreateInfo blend_state = {};
 	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	blend_state.logicOpEnable = VK_FALSE;
-	blend_state.logicOp = VK_LOGIC_OP_COPY;
+	blend_state.logicOpEnable = VK_TRUE;
+	blend_state.logicOp = VK_LOGIC_OP_OR;
 	blend_state.attachmentCount = static_cast<uint32_t>(attachment_blend_states.size());
 	blend_state.pAttachments = attachment_blend_states.data();
 	blend_state.blendConstants[0] = 0.0f;

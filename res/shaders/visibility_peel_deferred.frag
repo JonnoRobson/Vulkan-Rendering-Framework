@@ -469,7 +469,8 @@ void main()
 
 	vec3 accumColor = vec3(0.0, 0.0, 0.0);
 	float accumAlpha = 0.0;
-
+	
+	// blend layers from back to front
 	for(int i = 0; i < PEEL_COUNT * 2; i++)
 	{
 		// read from the visibility buffer texture
@@ -480,7 +481,7 @@ void main()
 
 		if(visibilityData == 0)
 			continue;
-
+			
 		// load depth
 		float depth = imageLoad(depthBuffers[i], ivec2(gl_FragCoord.xy)).r;
 		Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, gl_FragCoord.xy);
@@ -549,16 +550,15 @@ void main()
 		}
 
 		color.w = alpha;
-	
-		accumColor = accumColor + (color.xyz * color.w * (1.0 - accumAlpha));
+
+		// blend layer
+		//accumColor = (accumColor * (1.0 - color.w)) + (color.xyz * color.w); 
+		accumColor = accumColor + (color.xyz * color.w * clamp(1.0 - accumAlpha, 0, 1));
 		accumAlpha = accumAlpha + color.w;
 
-
-		if(accumAlpha >= 1.0)
-			break;
 	}
 
-	if(length(accumColor) <= 0)
+	if(accumAlpha <= 0)
 		discard;
 
 	outColor = vec4(accumColor, 1.0);
