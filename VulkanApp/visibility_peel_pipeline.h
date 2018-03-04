@@ -14,7 +14,7 @@ class VisibilityPeelPipeline : public VulkanPipeline
 public:
 	void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 
-	void SetOutputBuffers(VkImageView front_buffer, VkImageView back_buffer, VkImageView min_depth, VkImageView max_depth);
+	void SetOutputBuffers(VkImageView min_depth, VkImageView max_depth);
 
 protected:
 	void CreatePipeline();
@@ -22,7 +22,7 @@ protected:
 	void CreateFramebuffers();
 
 protected:
-	VkImageView min_depth_buffer_, max_depth_buffer_, front_visibility_buffer_, back_visibility_buffer_;
+	VkImageView min_depth_buffer_, max_depth_buffer_;
 
 };
 

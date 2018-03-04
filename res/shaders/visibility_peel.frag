@@ -38,17 +38,17 @@ layout(binding = 2) uniform sampler mapSampler;
 layout(binding = 3) uniform texture2D alphaMaps[512];
 layout(binding = 4, r32f) uniform image2D inMinDepthBuffer;
 layout(binding = 5, r32f) uniform image2D inMaxDepthBuffer;
+layout(binding = 6, r32ui) uniform uimage2D frontVisibilityBuffer;
+layout(binding = 7, r32ui) uniform uimage2D backVisibilityBuffer;
 
 // outputs
-layout(location = 0) out uint frontVisibilityBuffer;
-layout(location = 1) out uint backVisibilityBuffer;
-layout(location = 2) out float outMinDepthBuffer;
-layout(location = 3) out float outMaxDepthBuffer;
+layout(location = 0) out float outMinDepthBuffer;
+layout(location = 1) out float outMaxDepthBuffer;
 
 #define SHAPE_ID_BITS 12
 
 void main()
-{
+{ 
 	float fragDepth = gl_FragCoord.z;
 	ivec2 depthBufferCoord = ivec2(gl_FragCoord.xy);
 	
@@ -66,11 +66,7 @@ void main()
 	// if alpha for this pixel is zero simply discard it
 	if(alpha <= 0.0f)
 		discard;
-
-
-	frontVisibilityBuffer = 0;
-	backVisibilityBuffer = 0;
-
+		
 	// fragment at this depth has already been peeled
 	if(fragDepth < minDepth || fragDepth > maxDepth)
 	{
@@ -93,7 +89,7 @@ void main()
 	outMaxDepthBuffer = 0.0;
 
 	if(fragDepth == minDepth)
-		frontVisibilityBuffer = visibilityData;
+		imageStore(frontVisibilityBuffer, depthBufferCoord, uvec4(visibilityData, 0, 0, 0));
 	else if (fragDepth == maxDepth)
-		backVisibilityBuffer = visibilityData;
+		imageStore(backVisibilityBuffer, depthBufferCoord, uvec4(visibilityData, 0, 0, 0));
 }

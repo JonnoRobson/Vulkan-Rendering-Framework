@@ -313,6 +313,9 @@ void VulkanRenderer::RenderVisbilityDeferred()
 
 void VulkanRenderer::RenderVisibilityPeel()
 {
+	// clear the visibility images
+	visibility_peel_buffer_->ClearImage();
+
 	// set up generic draw info
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1056,13 +1059,15 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 		visibility_peel_pipelines_[i]->SetShader(visibility_peel_shader_);
 
 		// add the resources to the visibility peel pipelines
-		visibility_peel_pipelines_[i]->SetOutputBuffers(visibility_peels[i], visibility_peels[(visibility_peels.size() - 1) - i], min_max_depths[i + 1], min_max_depths[(min_max_depths.size() - 1) - (i + 1)]);
+		visibility_peel_pipelines_[i]->SetOutputBuffers(min_max_depths[i + 1], min_max_depths[(min_max_depths.size() - 1) - (i + 1)]);
 		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
 		visibility_peel_pipelines_[i]->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
 		visibility_peel_pipelines_[i]->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, default_texture_->GetSampler());
 		visibility_peel_pipelines_[i]->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 3, alpha_textures_);
 		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 4, min_max_depths[i]);
 		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 5, min_max_depths[(min_max_depths.size() - 1) - i]);
+		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 6, visibility_peels[i]);
+		visibility_peel_pipelines_[i]->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 7, visibility_peels[(visibility_peels.size() - 1) - i]);
 
 		// initialize the visibility peel pipelines
 		visibility_peel_pipelines_[i]->Init(devices_, swap_chain_, primitive_buffer_);

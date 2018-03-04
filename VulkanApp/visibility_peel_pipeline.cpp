@@ -60,16 +60,6 @@ void VisibilityPeelPipeline::CreatePipeline()
 	}
 
 	// setup color blend creation info
-	VkPipelineColorBlendAttachmentState visibility_blend_attachment = {};
-	visibility_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
-	visibility_blend_attachment.blendEnable = VK_TRUE;
-	visibility_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	visibility_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	visibility_blend_attachment.colorBlendOp = VK_BLEND_OP_MAX;
-	visibility_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-	visibility_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-	visibility_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
-
 	VkPipelineColorBlendAttachmentState min_blend_attachment = {};
 	min_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT;
 	min_blend_attachment.blendEnable = VK_TRUE;
@@ -90,12 +80,12 @@ void VisibilityPeelPipeline::CreatePipeline()
 	max_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 	max_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
-	std::array<VkPipelineColorBlendAttachmentState, 4> attachment_blend_states = { visibility_blend_attachment, visibility_blend_attachment, min_blend_attachment, max_blend_attachment};
+	std::array<VkPipelineColorBlendAttachmentState, 2> attachment_blend_states = { min_blend_attachment, max_blend_attachment};
 
 	// setup global color blend creation info
 	VkPipelineColorBlendStateCreateInfo blend_state = {};
 	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	blend_state.logicOpEnable = VK_TRUE;
+	blend_state.logicOpEnable = VK_FALSE;
 	blend_state.logicOp = VK_LOGIC_OP_OR;
 	blend_state.attachmentCount = static_cast<uint32_t>(attachment_blend_states.size());
 	blend_state.pAttachments = attachment_blend_states.data();
@@ -134,7 +124,7 @@ void VisibilityPeelPipeline::CreateFramebuffers()
 {
 	framebuffers_.resize(1);
 
-	std::array<VkImageView, 4> attachments = { front_visibility_buffer_, back_visibility_buffer_, min_depth_buffer_, max_depth_buffer_};
+	std::array<VkImageView, 2> attachments = { min_depth_buffer_, max_depth_buffer_};
 
 	VkFramebufferCreateInfo framebuffer_info = {};
 	framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -153,38 +143,6 @@ void VisibilityPeelPipeline::CreateFramebuffers()
 
 void VisibilityPeelPipeline::CreateRenderPass()
 {
-	// setup the front peel attachment
-	VkAttachmentDescription visibility_front_attachment = {};
-	visibility_front_attachment.format = VK_FORMAT_R32_UINT;
-	visibility_front_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	visibility_front_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	visibility_front_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	visibility_front_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	visibility_front_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	visibility_front_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	visibility_front_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	// setup the subpass attachment description
-	VkAttachmentReference visibility_front_attachment_ref = {};
-	visibility_front_attachment_ref.attachment = 0;
-	visibility_front_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	// setup the back peel attachment
-	VkAttachmentDescription visibility_back_attachment = {};
-	visibility_back_attachment.format = VK_FORMAT_R32_UINT;
-	visibility_back_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	visibility_back_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	visibility_back_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	visibility_back_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	visibility_back_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	visibility_back_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	visibility_back_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	// setup the subpass attachment description
-	VkAttachmentReference visibility_back_attachment_ref = {};
-	visibility_back_attachment_ref.attachment = 1;
-	visibility_back_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
 	// setup the back peel attachment
 	VkAttachmentDescription min_depth_attachment = {};
 	min_depth_attachment.format = VK_FORMAT_R32_SFLOAT;
@@ -198,7 +156,7 @@ void VisibilityPeelPipeline::CreateRenderPass()
 
 	// setup the subpass attachment description
 	VkAttachmentReference min_depth_attachment_ref = {};
-	min_depth_attachment_ref.attachment = 2;
+	min_depth_attachment_ref.attachment = 0;
 	min_depth_attachment_ref.layout = VK_IMAGE_LAYOUT_GENERAL;
 
 	// setup the back peel attachment
@@ -214,10 +172,10 @@ void VisibilityPeelPipeline::CreateRenderPass()
 
 	// setup the subpass attachment description
 	VkAttachmentReference max_depth_attachment_ref = {};
-	max_depth_attachment_ref.attachment = 3;
+	max_depth_attachment_ref.attachment = 1;
 	max_depth_attachment_ref.layout = VK_IMAGE_LAYOUT_GENERAL;
 
-	std::array<VkAttachmentReference, 4> color_attachments = { visibility_front_attachment_ref, visibility_back_attachment_ref, min_depth_attachment_ref, max_depth_attachment_ref };
+	std::array<VkAttachmentReference, 2> color_attachments = { min_depth_attachment_ref, max_depth_attachment_ref };
 
 	// setup the subpass description
 	VkSubpassDescription subpass = {};
@@ -236,7 +194,7 @@ void VisibilityPeelPipeline::CreateRenderPass()
 	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
 	// setup the render pass description
-	std::array<VkAttachmentDescription, 4> attachments = { visibility_front_attachment, visibility_back_attachment, min_depth_attachment, max_depth_attachment };
+	std::array<VkAttachmentDescription, 2> attachments = { min_depth_attachment, max_depth_attachment };
 
 	VkRenderPassCreateInfo render_pass_info = {};
 	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -253,10 +211,8 @@ void VisibilityPeelPipeline::CreateRenderPass()
 	}
 }
 
-void VisibilityPeelPipeline::SetOutputBuffers(VkImageView front_buffer, VkImageView back_buffer, VkImageView min_depth, VkImageView max_depth)
+void VisibilityPeelPipeline::SetOutputBuffers(VkImageView min_depth, VkImageView max_depth)
 {
-	front_visibility_buffer_ = front_buffer;
-	back_visibility_buffer_ = back_buffer;
 	min_depth_buffer_ = min_depth;
 	max_depth_buffer_ = max_depth;
 }
