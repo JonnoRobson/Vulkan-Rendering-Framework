@@ -97,13 +97,29 @@ void VulkanRenderer::RenderScene()
 		vkQueueWaitIdle(graphics_queue_);
 		auto vis_end = std::chrono::high_resolution_clock::now();
 		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-		//std::cout << "Visibility took " << vis_time << "ms.\n";
+		std::cout << "Visibility took " << vis_time << "ms.\n";
+		
+		auto shade_begin = std::chrono::high_resolution_clock::now();
 
 		RenderVisbilityDeferred();
 
+		vkQueueWaitIdle(graphics_queue_);
+		auto shade_end = std::chrono::high_resolution_clock::now();
+		float shade_time = std::chrono::duration_cast<std::chrono::milliseconds>(shade_end - shade_begin).count();
+		std::cout << "Shading took " << shade_time << "ms.\n";
+
 		// render transparency
+		auto transparency_begin = std::chrono::high_resolution_clock::now();
+
 		current_signal_semaphore_ = transparency_composite_semaphore_;
 		RenderTransparency();
+
+		vkQueueWaitIdle(graphics_queue_);
+		auto transparency_end = std::chrono::high_resolution_clock::now();
+		float transparency_time = std::chrono::duration_cast<std::chrono::milliseconds>(transparency_end - transparency_begin).count();
+		std::cout << "Transparency took " << shade_time << "ms.\n";
+
+		std::cout << "Total shading took " << vis_time + shade_time + transparency_time << "ms.\n\n\n";
 
 #elif _VISIBILITY_PEELED
 
@@ -121,9 +137,18 @@ void VulkanRenderer::RenderScene()
 		vkQueueWaitIdle(graphics_queue_);
 		auto vis_end = std::chrono::high_resolution_clock::now();
 		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-		//std::cout << "Visibility took " << vis_time << "ms.\n";
+		std::cout << "Visibility took " << vis_time << "ms.\n";
 		
+		auto shade_begin = std::chrono::high_resolution_clock::now();
+
 		RenderVisibilityPeelDeferred();
+
+		vkQueueWaitIdle(graphics_queue_);
+		auto shade_end = std::chrono::high_resolution_clock::now();
+		float shade_time = std::chrono::duration_cast<std::chrono::milliseconds>(shade_end - shade_begin).count();
+		std::cout << "Shading took " << shade_time << "ms.\n";
+
+		std::cout << "Total shading took " << vis_time + shade_time << "ms.\n\n\n";
 
 #elif _DEFERRED
 
@@ -134,13 +159,30 @@ void VulkanRenderer::RenderScene()
 		vkQueueWaitIdle(graphics_queue_);
 		auto vis_end = std::chrono::high_resolution_clock::now();
 		float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-		//std::cout << "Visibility took " << vis_time << "ms.\n";
+		std::cout << "Visibility took " << vis_time << "ms.\n";
+
+		auto shade_begin = std::chrono::high_resolution_clock::now();
 
 		RenderDeferred();
 
+		vkQueueWaitIdle(graphics_queue_);
+		auto shade_end = std::chrono::high_resolution_clock::now();
+		float shade_time = std::chrono::duration_cast<std::chrono::milliseconds>(shade_end - shade_begin).count();
+		std::cout << "Shading took " << shade_time << "ms.\n";
+
 		// render transparency
+		auto transparency_begin = std::chrono::high_resolution_clock::now();
+
 		current_signal_semaphore_ = transparency_composite_semaphore_;
 		RenderTransparency();
+
+		vkQueueWaitIdle(graphics_queue_);
+		auto transparency_end = std::chrono::high_resolution_clock::now();
+		float transparency_time = std::chrono::duration_cast<std::chrono::milliseconds>(transparency_end - transparency_begin).count();
+		std::cout << "Transparency took " << shade_time << "ms.\n";
+
+		std::cout << "Total shading took " << vis_time + shade_time + transparency_time << "ms.\n\n\n";
+
 #endif
 		
 		if (hdr_->GetHDRMode() > 0)
