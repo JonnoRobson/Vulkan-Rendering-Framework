@@ -469,7 +469,8 @@ void main()
 
 	vec3 accumColor = vec3(0.0, 0.0, 0.0);
 	float accumAlpha = 0.0;
-	
+	float accumCount = 0.0;
+
 	// blend layers from back to front
 	for(int i = 0; i < PEEL_COUNT * 2; i++)
 	{
@@ -551,15 +552,20 @@ void main()
 
 		color.w = alpha;
 
+		//accumCount++;
+
 		// blend layer
 		//accumColor = (accumColor * (1.0 - color.w)) + (color.xyz * color.w); 
 		accumColor = accumColor + (color.xyz * color.w * clamp(1.0 - accumAlpha, 0, 1));
 		accumAlpha = accumAlpha + color.w;
 
+		if(accumAlpha >= 1.0)
+			break;
 	}
 
 	if(accumAlpha <= 0)
 		discard;
 
+	//outColor = vec4(accumCount / float(PEEL_COUNT * 2), 0, 0, 1.0);
 	outColor = vec4(accumColor, 1.0);
 }

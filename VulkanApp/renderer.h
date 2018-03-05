@@ -23,9 +23,7 @@
 #include "transparency_composite_pipeline.h"
 #include "visibility_pipeline.h"
 #include "visibility_deferred_pipeline.h"
-#include "visibility_peel_init_pipeline.h"
-#include "visibility_peel_pipeline.h"
-#include "visibility_peel_final_pipeline.h"
+#include "visibility_front_peel_pipeline.h"
 #include "visibility_peel_deferred_pipeline.h"
 #include "shape_culling_pipeline.h"
 #include "HDR.h"
@@ -179,13 +177,11 @@ protected:
 	VkCommandBuffer visibility_deferred_command_buffer_;
 
 	// visibility peeled shading components
-	VulkanShader *visibility_peel_init_shader_, *visibility_peel_shader_, *visibility_peel_final_shader_, *visibility_peel_deferred_shader_;
-	VulkanRenderTarget *visibility_peel_buffer_, *min_max_depth_buffer_;
-	VisibilityPeelInitPipeline* visibility_peel_init_pipeline_;
-	VisibilityPeelFinalPipeline* visibility_peel_final_pipeline_;
+	VulkanShader *visibility_peel_shader_, *visibility_peel_deferred_shader_;
+	VulkanRenderTarget *visibility_peel_buffer_, *peel_depth_buffer_;
 	VisibilityPeelDeferredPipeline* visibility_peel_deferred_pipeline_;
-	VkCommandBuffer visibility_peel_init_command_buffer_, visibility_peel_final_command_buffer_, visibility_peel_deferred_command_buffer_;
-	std::vector<VisibilityPeelPipeline*> visibility_peel_pipelines_;
+	VkCommandBuffer visibility_peel_deferred_command_buffer_;
+	std::vector<VisibilityFrontPeelPipeline*> visibility_peel_pipelines_;
 	std::vector<VkCommandBuffer> visibility_peel_command_buffers_;
 
 	// transparency shading components

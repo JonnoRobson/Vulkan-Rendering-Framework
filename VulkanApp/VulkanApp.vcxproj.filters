@@ -138,6 +138,9 @@
     <ClCompile Include="visibility_peel_final_pipeline.cpp">
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
+    <ClCompile Include="visibility_front_peel_pipeline.cpp">
+      <Filter>Source Files\pipelines</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="app.h">
@@ -254,6 +257,9 @@
     <ClInclude Include="visibility_peel_final_pipeline.h">
       <Filter>Header Files\pipelines</Filter>
     </ClInclude>
+    <ClInclude Include="visibility_front_peel_pipeline.h">
+      <Filter>Header Files\pipelines</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\res\shaders\default_material.frag">
@@ -344,6 +350,12 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\visibility_peel_final.vert">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility_front_peel.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility_front_peel.vert">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>
