@@ -1,7 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#define PEEL_COUNT 3
+#define PEEL_COUNT 4
 
 // inputs
 layout(origin_upper_left) in vec4 gl_FragCoord;
@@ -90,25 +90,26 @@ layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
 layout(binding = 12, r32ui) uniform uimage2D visibilityBuffers[PEEL_COUNT * 2];
-layout(binding = 13, r32f) uniform image2D depthBuffers[PEEL_COUNT * 2];
+layout(binding = 13) uniform texture2D depthBuffers[PEEL_COUNT * 2];
+layout(binding = 14) uniform sampler depthBufferSampler;
 
 // vertex, index and shape buffers
-layout(binding = 14) buffer VertexBuffer
+layout(binding = 15) buffer VertexBuffer
 {
 	StorageVertex _vertices[];
 };
 
-layout(binding = 15) buffer IndexBuffer
+layout(binding = 16) buffer IndexBuffer
 {
 	uint _indices[];
 };
 
-layout(binding = 16) buffer ShapeBuffer
+layout(binding = 17) buffer ShapeBuffer
 {
 	Shape _shapes[];
 };
 
-layout(binding = 17) uniform MatrixBuffer
+layout(binding = 18) uniform MatrixBuffer
 {
 	vec4 screenDimensions;
 	mat4 invView;
@@ -470,21 +471,22 @@ void main()
 	vec3 accumColor = vec3(0.0, 0.0, 0.0);
 	float accumAlpha = 0.0;
 	float accumCount = 0.0;
+	ivec2 visBufferCoord = ivec2(gl_FragCoord.xy);
 
 	// blend layers from back to front
-	for(int i = 0; i < PEEL_COUNT * 2; i++)
+	for(int i = 0; i < PEEL_COUNT; i++)
 	{
 		// read from the visibility buffer texture
-		uint visibilityData = imageLoad(visibilityBuffers[i], ivec2(gl_FragCoord.xy)).r;
+		uint visibilityData = imageLoad(visibilityBuffers[i], visBufferCoord).r;
 		uint triID = visibilityData >> SHAPE_ID_BITS;
 		uint shapeID = (visibilityData & SHAPE_ID_MASK);
 		uvec2 offsets = _shapes[shapeID].offsets.xy;
 
 		if(visibilityData == 0)
-			continue;
+			break;
 			
 		// load depth
-		float depth = imageLoad(depthBuffers[i], ivec2(gl_FragCoord.xy)).r;
+		float depth = texture(sampler2D(depthBuffers[i], depthBufferSampler), gl_FragCoord.xy).r;
 		Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, gl_FragCoord.xy);
 		worldPosition = vertex.pos;
 		worldNormal = vertex.normal;
@@ -544,19 +546,17 @@ void main()
 		}
 
 		// calculate lighting for all lights
-		for(uint i = 0; i < light_data.scene_data.w; i++)
+		for(uint l = 0; l < light_data.scene_data.w; l++)
 		{
-			vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, specularColor, matIndex, i);
+			vec4 lighting = CalculateLighting(vec4(worldPosition, 1.0f), normal, fragTexCoord, specularColor, matIndex, l);
 			color = color + (diffuse * lighting);
 		}
 
 		color.w = alpha;
-
-		//accumCount++;
-
+		
 		// blend layer
 		//accumColor = (accumColor * (1.0 - color.w)) + (color.xyz * color.w); 
-		accumColor = accumColor + (color.xyz * color.w * clamp(1.0 - accumAlpha, 0, 1));
+		accumColor = accumColor + (color.xyz * color.w * clamp(1.0 - accumAlpha, 0.0, 1.0));
 		accumAlpha = accumAlpha + color.w;
 
 		if(accumAlpha >= 1.0)
@@ -566,6 +566,5 @@ void main()
 	if(accumAlpha <= 0)
 		discard;
 
-	//outColor = vec4(accumCount / float(PEEL_COUNT * 2), 0, 0, 1.0);
-	outColor = vec4(accumColor, 1.0);
+	outColor = vec4(accumColor, clamp(accumAlpha, 0, 1));
 }

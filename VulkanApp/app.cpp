@@ -128,6 +128,7 @@ bool App::InitResources()
 		Mesh* loaded_mesh = new Mesh();
 		loaded_mesh->CreateModelMesh(devices_, renderer_, filepath);
 		loaded_meshes_.push_back(loaded_mesh);
+		renderer_->AddMesh(loaded_mesh);
 	}
 
 	
@@ -156,30 +157,22 @@ bool App::InitResources()
 	test_light_b->Init(devices_, renderer_);
 	lights_.push_back(test_light_b);
 	
-	/*
-	Light* test_light_c = new Light();
-	test_light_c->SetType(1.0f);
-	test_light_c->SetPosition(glm::vec4(800.0f, -150.0f, 300.0f, 1.0f));
-	//test_light_c->SetPosition(glm::vec4(0.0f, 0.0f, 300.0f, 1.0f));
-	test_light_c->SetDirection(glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-	test_light_c->SetColor(glm::vec4(0.95f, 0.95f, 0.95f, 1.0f));
-	test_light_c->SetIntensity(1.0f);
-	test_light_c->SetRange(1000.0f);
-	test_light_c->SetShadowsEnabled(true);
-	test_light_c->Init(devices_, renderer_);
-	lights_.push_back(test_light_c);
-	
 
 	// light test
-	float light_count = 16;
-	for (int i = 0; i < 16; i++)
+	/*
+	glm::vec3 scene_min, scene_max;
+	renderer_->GetSceneMinMax(scene_min, scene_max);
+	int light_count = 4;
+	for (int i = 0; i < light_count; i++)
 	{
+		glm::vec4 position = glm::vec4(rand() % (int)(scene_max.x - scene_min.x) + scene_min.x, rand() % (int)(scene_max.y - scene_min.y) + scene_min.y, rand() % (int)(scene_max.z - scene_min.z) + scene_min.z, 1.0);
+
 		Light* light = new Light();
 		light->SetType(1.0f);
-		light->SetPosition(glm::vec4((-light_count + (i * 2)) * 100.0f, 0.0f, 10.0f, 1.0f));
+		light->SetPosition(position);
 		light->SetColor(glm::vec4((float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, 1));
 		light->SetIntensity(1.0f);
-		light->SetRange(1000.0f);
+		light->SetRange(10000.0f);
 		light->SetShadowsEnabled(true);
 		light->Init(devices_, renderer_);
 		lights_.push_back(light);
@@ -187,19 +180,14 @@ bool App::InitResources()
 	*/
 	camera_.SetViewDimensions(swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
-	camera_.SetPosition(glm::vec3(0.0f, -3.0f, 2.0f));
-	camera_.SetRotation(glm::vec3(-30.0f, 0.0f, 0.0f));
-
-	for (Mesh* mesh : loaded_meshes_)
-	{
-		renderer_->AddMesh(mesh);
-	}
+	camera_.SetPosition(glm::vec3(0.0f, -75.0f, 100.0f));
+	camera_.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
 
 	renderer_->SetCamera(&camera_);
 
 	for (Light* light : lights_)
 	{
-		light->GenerateShadowMap();
+		light->GenerateShadowMap(renderer_->GetCommandPool(), renderer_->GetMeshes());
 	}
 
 	renderer_->InitPipelines();
@@ -326,6 +314,13 @@ void App::Update()
 	{
 		renderer_->GetHDR()->CycleHDRMode();
 		input_->SetKeyUp(GLFW_KEY_H);
+	}
+
+	// renderer timing
+	if (input_->IsKeyPressed(GLFW_KEY_ENTER))
+	{
+		renderer_->EnableTiming();
+		input_->SetKeyUp(GLFW_KEY_ENTER);
 	}
 }
 

@@ -13,7 +13,8 @@ public:
 	void Cleanup();
 	
 	void ClearImage(VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 0.0f }, int image_index = -1);
-	void ClearDepth();
+	void ClearDepthImage(VkClearDepthStencilValue clear_value = { 1.0f, 0 }, int image_index = -1);
+	void ClearDepthBuffer();
 
 	inline std::vector<VkImage>& GetImages() { return render_target_images_; }
 	inline std::vector <VkImageView>& GetImageViews() { return render_target_image_views_; }

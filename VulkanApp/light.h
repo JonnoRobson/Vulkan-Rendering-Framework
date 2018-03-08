@@ -76,16 +76,17 @@ public:
 	void SetLightBufferIndex(uint16_t index) { light_buffer_index_ = index; }
 	uint16_t GetLightBufferIndex() { return light_buffer_index_; }
 
-	void GenerateShadowMap();
+	void GenerateShadowMap(VkCommandPool command_pool, std::vector<Mesh*>& meshes);
+
 	inline VulkanRenderTarget* GetShadowMap() { return shadow_map_; }
 
-	void RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh*>& meshes);
 
 
 protected:
 	void CalculateViewMatrices();
 	void CalculateProjectionMatrix();
 
+	void RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh*>& meshes);
 protected:
 	VulkanDevices* devices_;
 

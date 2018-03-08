@@ -63,19 +63,21 @@ public:
 	void RemoveLight(Light* light);
 	void SetCamera(Camera* camera) { render_camera_ = camera; }
 
-	VulkanShader* GetMaterialShader() { return material_shader_; }
-	VulkanShader* GetShadowMapShader() { return shadow_map_shader_; }
+	inline VulkanShader* GetMaterialShader() { return material_shader_; }
+	inline VulkanShader* GetShadowMapShader() { return shadow_map_shader_; }
 
-	VulkanSwapChain* GetSwapChain() { return swap_chain_; }
-	VulkanPrimitiveBuffer* GetPrimitiveBuffer() { return primitive_buffer_; }
-	VulkanMaterialBuffer* GetMaterialBuffer() { return material_buffer_; }
-	VkCommandPool GetCommandPool() { return command_pool_; }
+	inline VulkanSwapChain* GetSwapChain() { return swap_chain_; }
+	inline VulkanPrimitiveBuffer* GetPrimitiveBuffer() { return primitive_buffer_; }
+	inline VulkanMaterialBuffer* GetMaterialBuffer() { return material_buffer_; }
+	inline VkCommandPool GetCommandPool() { return command_pool_; }
+	inline std::vector<Mesh*> GetMeshes() { return meshes_; }
 
 	void GetMatrixBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory) { buffer = matrix_buffer_; buffer_memory = matrix_buffer_memory_; }
 	void GetLightBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory) { buffer = light_buffer_; buffer_memory = light_buffer_memory_; }
+	void GetSceneMinMax(glm::vec3& scene_min, glm::vec3& scene_max);
 
-	VkSemaphore GetSignalSemaphore() { return current_signal_semaphore_; }
-	Texture* GetDefaultTexture() { return default_texture_; }
+	inline VkSemaphore GetSignalSemaphore() { return current_signal_semaphore_; }
+	inline Texture* GetDefaultTexture() { return default_texture_; }
 
 	uint32_t AddTextureMap(Texture* texture, Texture::MapType map_type);
 
@@ -86,6 +88,8 @@ public:
 
 	inline VulkanTextureCache*	GetTextureCache() { return texture_cache_; }
 	inline HDR* GetHDR() { return hdr_; }
+
+	inline void EnableTiming() { timing_enabled_ = true; }
 
 protected:
 	// pipeline creation functions
@@ -228,6 +232,10 @@ protected:
 	std::vector<Texture*> normal_textures_;
 	std::vector<Texture*> alpha_textures_;
 	std::vector<Texture*> reflection_textures_;
+
+	//  rendering stage timing
+	bool timing_enabled_;
+
 };
 
 #endif

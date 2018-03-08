@@ -282,13 +282,13 @@ void VulkanPipeline::RecreateSwapChainFeatures()
 	CreateFramebuffers();
 }
 
-void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, Texture* texture)
+void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, Texture* texture, VkImageLayout image_layout)
 {
 	Descriptor texture_descriptor = {};
 	
 	// setup image info
 	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageLayout = image_layout;
 	image_info.imageView = texture->GetImageView();
 	image_info.sampler = texture->GetSampler();
 	texture_descriptor.image_infos.push_back(image_info);
@@ -303,13 +303,13 @@ void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding
 	descriptor_infos_.push_back(texture_descriptor);
 }
 
-void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image)
+void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image, VkImageLayout image_layout)
 {
 	Descriptor texture_descriptor = {};
 
 	// setup image info
 	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	image_info.imageLayout = image_layout;
 	image_info.imageView = image;
 	image_info.sampler = nullptr;
 	texture_descriptor.image_infos.push_back(image_info);
@@ -324,7 +324,7 @@ void VulkanPipeline::AddTexture(VkShaderStageFlags stage_flags, uint32_t binding
 	descriptor_infos_.push_back(texture_descriptor);
 }
 
-void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures)
+void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures, VkImageLayout image_layout)
 {
 	Descriptor texture_descriptor = {};
 
@@ -332,7 +332,7 @@ void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t bi
 	for (Texture* texture : textures)
 	{
 		VkDescriptorImageInfo image_info = {};
-		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_info.imageLayout = image_layout;
 		image_info.imageView = texture->GetImageView();
 		image_info.sampler = VK_NULL_HANDLE;
 		texture_descriptor.image_infos.push_back(image_info);
@@ -348,7 +348,7 @@ void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t bi
 	descriptor_infos_.push_back(texture_descriptor);
 }
 
-void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& textures)
+void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& textures, VkImageLayout image_layout)
 {
 	Descriptor texture_descriptor = {};
 
@@ -356,7 +356,7 @@ void VulkanPipeline::AddTextureArray(VkShaderStageFlags stage_flags, uint32_t bi
 	for (VkImageView texture : textures)
 	{
 		VkDescriptorImageInfo image_info = {};
-		image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		image_info.imageLayout = image_layout;
 		image_info.imageView = texture;
 		image_info.sampler = VK_NULL_HANDLE;
 		texture_descriptor.image_infos.push_back(image_info);

@@ -36,7 +36,8 @@ layout(binding = 1) uniform MaterialUberBuffer
 // textures
 layout(binding = 2) uniform sampler mapSampler;
 layout(binding = 3) uniform texture2D alphaMaps[512];
-layout(binding = 4, r32f) uniform image2D inDepthBuffer;
+layout(binding = 4) uniform texture2D inDepthBuffer;
+layout(binding = 5) uniform sampler depthBufferSampler;
 
 // outputs
 layout(location = 0) out uint outVisibility;
@@ -45,14 +46,13 @@ layout(location = 0) out uint outVisibility;
 
 void main()
 { 
-	float fragDepth = gl_FragCoord.z;
 	ivec2 depthBufferCoord = ivec2(gl_FragCoord.xy);
 	
-	float prevDepth = imageLoad(inDepthBuffer, depthBufferCoord).x;
+	float prevDepth = texture(sampler2D(inDepthBuffer, depthBufferSampler), gl_FragCoord.xy).r;
 	
 	if(gl_FragCoord.z <= prevDepth)
 		discard;
-
+	
 	// sample alpha of this pixel
 	float alpha = material_data.materials[matIndex].dissolve;
 	uint alpha_map_index = material_data.materials[matIndex].alpha_map_index;
@@ -64,7 +64,7 @@ void main()
 	// if alpha for this pixel is zero simply discard it
 	if(alpha <= 0.0f)
 		discard;
-
+	
 	// send the viisbility data to the buffer
 	outVisibility = (gl_PrimitiveID << SHAPE_ID_BITS) | shapeID;
 }

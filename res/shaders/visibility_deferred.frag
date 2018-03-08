@@ -319,14 +319,6 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 			
 	vec3 color = (lightColor.xyz + specularColor.xyz) * lightPower * lightIntensity * attenuation * (1.0f - occlusion);
 	
-	if(color.x < 0.0f)
-		color.x = 0.0f;
-
-	if(color.y < 0.0f)
-		color.y = 0.0f;
-
-	if(color.z < 0.0f)
-		color.z = 0.0f;
 
 	return vec4(color, 1.0f);
 }

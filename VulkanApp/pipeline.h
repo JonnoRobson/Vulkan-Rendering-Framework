@@ -26,10 +26,10 @@ public:
 
 	inline void SetShader(VulkanShader* shader) { shader_ = shader; }
 
-	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, Texture* texture);
-	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image);
-	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures);
-	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& textures);
+	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, Texture* texture, VkImageLayout image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	void AddTexture(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image, VkImageLayout image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<Texture*>& textures, VkImageLayout image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	void AddTextureArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& textures, VkImageLayout image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	void AddSampler(VkShaderStageFlags stage_flags, uint32_t binding_location, VkSampler sampler);
 	void AddUniformBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
 	void AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);

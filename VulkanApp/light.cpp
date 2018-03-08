@@ -71,8 +71,10 @@ void Light::Cleanup()
 	shadow_map_pipelines_.clear();
 }
 
-void Light::GenerateShadowMap()
+void Light::GenerateShadowMap(VkCommandPool command_pool, std::vector<Mesh*>& meshes)
 {
+	RecordShadowMapCommands(command_pool, meshes);
+
 	// send transform data to the gpu
 	for (int i = 0; i < shadow_map_->GetRenderTargetCount(); i++)
 	{
@@ -85,7 +87,7 @@ void Light::GenerateShadowMap()
 		// clear the shadow map and depth resources
 		VkClearColorValue clear_color = { FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX };
 		shadow_map_->ClearImage(clear_color, i);
-		shadow_map_->ClearDepth();
+		shadow_map_->ClearDepthBuffer();
 
 		devices_->CopyDataToBuffer(matrix_buffer_memory_, &ubo, sizeof(UniformBufferObject));
 

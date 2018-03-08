@@ -141,8 +141,8 @@ void GBufferPipeline::CreateRenderPass()
 	g_buffer_1_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	g_buffer_1_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	g_buffer_1_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	g_buffer_1_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	g_buffer_1_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	g_buffer_1_attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	g_buffer_1_attachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// setup the subpass attachment description
 	VkAttachmentReference g_buffer_1_attachment_ref = {};

@@ -192,7 +192,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 	}
 }
 
-vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, uint matIndex, uint lightIndex)
+vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, vec4 specularColor, uint matIndex, uint lightIndex)
 {
 	MaterialData mat = material_data.materials[matIndex];
 	LightData light = light_data.lights[lightIndex];
@@ -203,6 +203,10 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 	float lightRange = light.lightRange;
 	float lightIntensity = light.lightIntensity;
 	float lightType = light.lightType;
+		
+	// calculate distance to the pixel from the camera and quality level
+	float cameraDist = length(worldPosition.xyz - light_data.camera_pos.xyz);
+	float qualityLevel = light_data.camera_pos.w / cameraDist;
 
 	// immediatly return black if light intensity is zero or less
 	if(lightIntensity <= 0.0f)
@@ -241,36 +245,29 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 	
-	// calculate specular lighting
-	vec4 specularColor = material_data.materials[matIndex].specular;
-	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
-	if(specular_map_index > 0)
+	// don't bother with specular lighting if quality level is low
+	if(qualityLevel < 0.25f)
 	{
-		specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
+		if(specularColor.x + specularColor.y + specularColor.z > 0)
+		{
+			// calculate eye vector
+			vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
+
+			// calculate reflected light vector
+			vec3 reflectLight = reflect(rayDir, worldNormal);
+
+			float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularColor.w);
+			if(specularPower < 0.0f)
+				specularPower = 0.0f;
+
+			specularColor.xyz = specularColor.xyz * specularPower;
+		}
 	}
 
-	// calculate eye vector
-	vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
-
-	// calculate reflected light vector
-	vec3 reflectLight = reflect(rayDir, worldNormal);
-
-	// calculate specular power
-	float specularExponent = material_data.materials[matIndex].shininess;
-	uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
-	if(exponent_map_index > 0)
-	{
-		specularExponent = specularExponent * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
-	}
-
-	float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularExponent);
-	if(specularPower < 0.0f)
-		specularPower = 0.0f;
-
-	specularColor = specularColor * specularPower;
+	uint shadowQuality = uint(max(1, min(8 * qualityLevel, 8)));
 	
 	// calculate shadow occlusion and return black if fully occluded
-	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, 8);
+	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, shadowQuality);
 	if(occlusion >= 1.0f)
 	{
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
@@ -278,14 +275,6 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 			
 	vec3 color = (lightColor.xyz + specularColor.xyz) * lightPower * lightIntensity * attenuation * (1.0f - occlusion);
 	
-	if(color.x < 0.0f)
-		color.x = 0.0f;
-
-	if(color.y < 0.0f)
-		color.y = 0.0f;
-
-	if(color.z < 0.0f)
-		color.z = 0.0f;
 
 	return vec4(color, 1.0f);
 }
@@ -323,19 +312,6 @@ vec3 PerturbNormal(vec3 normal, vec3 view, vec2 texCoord, uint normal_map_index)
 
 void AccumulationRevealage(vec4 color, vec4 transmit)
 {
-	/*
-	// modulate coverage by the transmission factor
-	//color.w *= 1.0f - clamp((transmit.r + transmit.g + transmit.b) * (1.0f / 3.0f), 0, 1);
-
-	// apply weighting function
-	float a = min(1.0f, color.w) * 8.0f + 0.01f;
-	float b = -(gl_FragCoord.z * 2.0 - 1.0) * 0.95f + 1.0f;
-	//b /= sqrt(1e4 * abs(gl_FragCoord.z));
-	float w = clamp(a * a * a * 1e8 * b * b * b, 1e-2, 3e2);
-	accumulation = color * w;
-	revealage = color.w;
-	*/
-
 	// calculate weight
 	float viewDepth = abs(1.0 / gl_FragCoord.w) * 0.5f;
 	float weight = clamp(0.03 / (1e-5 + pow(viewDepth, 4.0)), 1e-2, 3e3);
@@ -385,11 +361,27 @@ void main()
 	}
 		
 	vec4 color = ambient * vec4(light_data.scene_data.xyz, 1.0f);
+	
+	// calculate specular color
+	vec4 specularColor = material_data.materials[matIndex].specular;
+	uint specular_map_index = material_data.materials[matIndex].specular_map_index;
+	if(specular_map_index > 0)
+	{
+		specularColor = specularColor * texture(sampler2D(specularMaps[specular_map_index - 1], mapSampler), fragTexCoord);
+	}
+	
+	// calculate specular power
+	specularColor.w = material_data.materials[matIndex].shininess;
+	uint exponent_map_index = material_data.materials[matIndex].specular_highlight_map_index;
+	if(exponent_map_index > 0)
+	{
+		specularColor.w = specularColor.w * texture(sampler2D(specularHighlightMaps[exponent_map_index - 1], mapSampler), fragTexCoord).x;
+	}
 
 	// calculate lighting for all lights
 	for(uint i = 0; i < light_data.scene_data.w; i++)
 	{
-		vec4 lighting = CalculateLighting(worldPosition, normal, fragTexCoord, matIndex, i);
+		vec4 lighting = CalculateLighting(worldPosition, normal, fragTexCoord, specularColor, matIndex, i);
 		color = color + (diffuse * lighting);
 	}
 	

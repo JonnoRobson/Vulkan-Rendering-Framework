@@ -62,6 +62,31 @@ void VisibilityPeelDeferredPipeline::CreatePipeline()
 	vertex_input_info.vertexAttributeDescriptionCount = 0;
 	vertex_input_info.pVertexAttributeDescriptions = nullptr;
 
+	// setup color blend creation info
+	VkPipelineColorBlendAttachmentState composite_blend_attachment = {};
+	composite_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	composite_blend_attachment.blendEnable = VK_TRUE;
+	composite_blend_attachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	composite_blend_attachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	composite_blend_attachment.colorBlendOp = VK_BLEND_OP_ADD;
+	composite_blend_attachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	composite_blend_attachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	composite_blend_attachment.alphaBlendOp = VK_BLEND_OP_ADD;
+
+	std::array<VkPipelineColorBlendAttachmentState, 1> attachment_blend_states = { composite_blend_attachment };
+
+	// setup global color blend creation info
+	VkPipelineColorBlendStateCreateInfo blend_state = {};
+	blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	blend_state.logicOpEnable = VK_FALSE;
+	blend_state.logicOp = VK_LOGIC_OP_COPY;
+	blend_state.attachmentCount = static_cast<uint32_t>(attachment_blend_states.size());
+	blend_state.pAttachments = attachment_blend_states.data();
+	blend_state.blendConstants[0] = 0.0f;
+	blend_state.blendConstants[1] = 0.0f;
+	blend_state.blendConstants[2] = 0.0f;
+	blend_state.blendConstants[3] = 0.0f;
+
 	// setup pipeline creation info
 	VkGraphicsPipelineCreateInfo pipeline_info = {};
 	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -73,7 +98,7 @@ void VisibilityPeelDeferredPipeline::CreatePipeline()
 	pipeline_info.pRasterizationState = &shader_->GetRasterizerStateDescription();
 	pipeline_info.pMultisampleState = &shader_->GetMultisampleStateDescription();
 	pipeline_info.pDepthStencilState = nullptr;
-	pipeline_info.pColorBlendState = &shader_->GetBlendStateDescription();
+	pipeline_info.pColorBlendState = &blend_state;
 	pipeline_info.pDynamicState = &shader_->GetDynamicStateDescription();
 	pipeline_info.layout = pipeline_layout_;
 	pipeline_info.renderPass = render_pass_;
