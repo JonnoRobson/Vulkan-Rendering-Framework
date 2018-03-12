@@ -436,13 +436,13 @@ void VulkanPipeline::AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t b
 	descriptor_infos_.push_back(buffer_descriptor);
 }
 
-void VulkanPipeline::AddStorageImage(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image)
+void VulkanPipeline::AddStorageImage(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image, VkImageLayout image_layout)
 {
 	Descriptor image_descriptor = {};
 
 	// setup image info
 	VkDescriptorImageInfo image_info = {};
-	image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	image_info.imageLayout = image_layout;
 	image_info.imageView = image;
 	image_info.sampler = VK_NULL_HANDLE;
 
@@ -456,7 +456,7 @@ void VulkanPipeline::AddStorageImage(VkShaderStageFlags stage_flags, uint32_t bi
 	descriptor_infos_.push_back(image_descriptor);
 }
 
-void VulkanPipeline::AddStorageImageArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& images)
+void VulkanPipeline::AddStorageImageArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& images, VkImageLayout image_layout)
 {
 	Descriptor image_descriptor = {};
 
@@ -464,7 +464,7 @@ void VulkanPipeline::AddStorageImageArray(VkShaderStageFlags stage_flags, uint32
 	for (VkImageView image : images)
 	{
 		VkDescriptorImageInfo image_info = {};
-		image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		image_info.imageLayout = image_layout;
 		image_info.imageView = image;
 		image_info.sampler = VK_NULL_HANDLE;
 		image_descriptor.image_infos.push_back(image_info);

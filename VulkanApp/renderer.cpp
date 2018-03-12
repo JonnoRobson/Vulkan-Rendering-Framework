@@ -955,7 +955,7 @@ void VulkanRenderer::InitDeferredPipeline()
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
 
 	// add the g buffer to the pipeline
-	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
+	deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, buffer_normalized_sampler_);
 
 	// set the deferred shader

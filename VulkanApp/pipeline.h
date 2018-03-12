@@ -33,8 +33,8 @@ public:
 	void AddSampler(VkShaderStageFlags stage_flags, uint32_t binding_location, VkSampler sampler);
 	void AddUniformBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
 	void AddStorageBuffer(VkShaderStageFlags stage_flags, uint32_t binding_location, VkBuffer buffer, VkDeviceSize buffer_size);
-	void AddStorageImage(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image);
-	void AddStorageImageArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& images);
+	void AddStorageImage(VkShaderStageFlags stage_flags, uint32_t binding_location, VkImageView image, VkImageLayout image_layout = VK_IMAGE_LAYOUT_GENERAL);
+	void AddStorageImageArray(VkShaderStageFlags stage_flags, uint32_t binding_location, std::vector<VkImageView>& images, VkImageLayout image_layout = VK_IMAGE_LAYOUT_GENERAL);
 	
 	virtual void RecordCommands(VkCommandBuffer& command_buffer, uint32_t buffer_index);
 

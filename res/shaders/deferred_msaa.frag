@@ -69,7 +69,7 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12) uniform texture2D gBuffer[2];
+layout(binding = 12, rgba32f) uniform image2DMS gBuffer[2];
 layout(binding = 13) uniform sampler gBufferSampler;
 
 // outputs
@@ -342,18 +342,19 @@ void main()
 	vec2 fragTexCoord = vec2(0.0f, 0.0f);
 	uint matIndex = 0;
 
+	vec4 accumColor = vec4(0.0);
+	int samplesApplied = 0;
+
 	// sample the g-buffer textures
-	for(int sample = 0; sample < MSAA_COUNT; sample++)
+	for(int sample_num = 0; sample_num < MSAA_COUNT; sample_num++)
 	{
-		ivec3 gBufferCoord = ivec3(gl_FragCoord.xy, sample);
-		vec4 gBuffer1 = imageLoad(gBuffer[0], gBufferCoord);
-		vec4 gBuffer2 = imageLoad(gBuffer[1], gBufferCoord);
+		ivec2 gBufferCoord = ivec2(gl_FragCoord.xy);
+		vec4 gBuffer1 = imageLoad(gBuffer[0], gBufferCoord, sample_num);
+		vec4 gBuffer2 = imageLoad(gBuffer[1], gBufferCoord, sample_num);
 
 		// discard pixel if it has an empty material index
 		if(gBuffer1.w == 0)
-		{
-			discard;
-		}
+			continue;
 
 		// decode g buffer data
 		ReadGBuffer(gBuffer1, gBuffer2, worldPosition, worldNormal, fragTexCoord, matIndex);
@@ -410,6 +411,14 @@ void main()
 		}
 
 		color.w = 1.0f;
+
+		accumColor += color;
+
+		samplesApplied++;
 	}
-	outColor = color;
+
+	if(length(accumColor) <= 0)
+		discard;
+
+	outColor = accumColor / float(MSAA_COUNT);
 }

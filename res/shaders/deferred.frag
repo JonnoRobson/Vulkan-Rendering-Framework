@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // inputs
+layout(origin_upper_left) in vec4 gl_FragCoord;
 layout(location = 0) in vec2 screenTexCoord;
 
 struct LightData
@@ -65,7 +66,7 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12) uniform texture2D gBuffer[2];
+layout(binding = 12, rgba32f) uniform image2D gBuffer[2];
 layout(binding = 13) uniform sampler gBufferSampler;
 
 // outputs
@@ -339,8 +340,8 @@ void main()
 	uint matIndex = 0;
 
 	// sample the g-buffer textures
-	vec4 gBuffer1 = texture(sampler2D(gBuffer[0], gBufferSampler), screenTexCoord);
-	vec4 gBuffer2 = texture(sampler2D(gBuffer[1], gBufferSampler), screenTexCoord);
+	vec4 gBuffer1 = imageLoad(gBuffer[0], ivec2(gl_FragCoord.xy));
+	vec4 gBuffer2 = imageLoad(gBuffer[1], ivec2(gl_FragCoord.xy));
 
 	// discard pixel if it has an empty material index
 	if(gBuffer1.w == 0)
