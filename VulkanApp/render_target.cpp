@@ -1,6 +1,6 @@
 #include "render_target.h"
 
-void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t width, uint32_t height, uint32_t count, bool depth_enabled)
+void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t width, uint32_t height, uint32_t count, bool depth_enabled, VkSampleCountFlagBits sample_count)
 {
 	devices_ = devices;
 
@@ -14,13 +14,13 @@ void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t 
 	{
 		if (format == VK_FORMAT_D32_SFLOAT)
 		{
-			devices->CreateImage(width, height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, render_target_images_[i], render_target_image_memories_[i]);
+			devices->CreateImage(width, height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sample_count, render_target_images_[i], render_target_image_memories_[i]);
 			render_target_image_views_[i] = devices->CreateImageView(render_target_images_[i], format, VK_IMAGE_ASPECT_DEPTH_BIT);
 			devices->TransitionImageLayout(render_target_images_[i], format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 		}
 		else
 		{
-			devices->CreateImage(width, height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, render_target_images_[i], render_target_image_memories_[i]);
+			devices->CreateImage(width, height, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sample_count, render_target_images_[i], render_target_image_memories_[i]);
 			render_target_image_views_[i] = devices->CreateImageView(render_target_images_[i], format, VK_IMAGE_ASPECT_COLOR_BIT);
 			devices->TransitionImageLayout(render_target_images_[i], format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		}
@@ -35,7 +35,7 @@ void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t 
 			VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
 		);
 
-		devices_->CreateImage(width, height, render_target_depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, render_target_depth_image_, render_target_depth_image_memory_);
+		devices_->CreateImage(width, height, render_target_depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sample_count, render_target_depth_image_, render_target_depth_image_memory_);
 		render_target_depth_image_view_ = devices_->CreateImageView(render_target_depth_image_, render_target_depth_format_, VK_IMAGE_ASPECT_DEPTH_BIT);
 		devices_->TransitionImageLayout(render_target_depth_image_, render_target_depth_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	}

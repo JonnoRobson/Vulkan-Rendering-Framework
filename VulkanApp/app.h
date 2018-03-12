@@ -73,6 +73,7 @@ protected:
 	std::string mesh_filenames_;
 	std::vector<Mesh*> loaded_meshes_;
 	std::vector<Light*> lights_;
+	int multisample_level_;
 
 	float current_time_;
 	float prev_time_;

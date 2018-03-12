@@ -264,7 +264,7 @@ void VulkanDevices::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Vk
 	vkBindBufferMemory(logical_device_, buffer, buffer_memory, 0);
 }
 
-void VulkanDevices::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory)
+void VulkanDevices::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkSampleCountFlagBits sample_count, VkImage& image, VkDeviceMemory& image_memory)
 {
 	VkImageCreateInfo image_info = {};
 	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -279,7 +279,7 @@ void VulkanDevices::CreateImage(uint32_t width, uint32_t height, VkFormat format
 	image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	image_info.usage = usage;
 	image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+	image_info.samples = sample_count;
 	image_info.flags = 0;
 
 	if (vkCreateImage(logical_device_, &image_info, nullptr, &image) != VK_SUCCESS)

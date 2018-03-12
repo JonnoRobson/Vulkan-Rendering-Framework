@@ -36,6 +36,23 @@ struct UniformBufferObject
 	glm::mat4 proj;
 };
 
+struct SampleCountData
+{
+	VkSampleCountFlagBits sample_count;
+	std::string deferred_shader;
+	std::string visibility_deferred_shader;
+	std::string visibility_peel_deferred_shader;
+};
+
+static std::map<int, SampleCountData> multisample_data =
+{
+	{ 1, { VK_SAMPLE_COUNT_1_BIT, "../res/shaders/deferred.frag.spv", "../res/shaders/visibility_deferred.frag.spv", "../res/shaders/visibility_peel_deferred.frag.spv" }},
+	{ 2, { VK_SAMPLE_COUNT_2_BIT, "../res/shaders/deferred_msaa_02.frag.spv", "../res/shaders/_visibility_deferred_msaa_02.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_02.frag.spv" }},
+	{ 4, { VK_SAMPLE_COUNT_4_BIT, "../res/shaders/deferred_msaa_04.frag.spv", "../res/shaders/_visibility_deferred_msaa_04.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_04.frag.spv" }},
+	{ 8, { VK_SAMPLE_COUNT_8_BIT, "../res/shaders/deferred_msaa_08.frag.spv", "../res/shaders/_visibility_deferred_msaa_08.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_08.frag.spv" }},
+	{ 16, { VK_SAMPLE_COUNT_16_BIT, "../res/shaders/deferred_msaa_16.frag.spv", "../res/shaders/_visibility_deferred_msaa_16.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_16.frag.spv" }}
+};
+
 class VulkanRenderer
 {
 public:
@@ -50,7 +67,7 @@ public:
 	};
 
 public:
-	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain);
+	void Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, int multisample_level = 1);
 	void InitPipelines();
 	void RenderScene();
 	void Cleanup();
@@ -150,6 +167,7 @@ protected:
 	VulkanPrimitiveBuffer* primitive_buffer_;
 	VulkanMaterialBuffer* material_buffer_;
 	VulkanTextureCache* texture_cache_;
+	int multisample_level_;
 
 	VulkanShader* material_shader_;
 	VulkanShader* shadow_map_shader_;

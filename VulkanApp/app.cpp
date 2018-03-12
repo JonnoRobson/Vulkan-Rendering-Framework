@@ -22,6 +22,10 @@ bool App::InitWindow()
 	std::cout << "Select model to load: ";
 	std::cin >> mesh_filenames_;
 
+	// read in the multisample level
+	std::cout << "Select multisample level: ";
+	std::cin >> multisample_level_;
+
 	if (glfwInit() == GLFW_FALSE)
 		return false;
 
@@ -77,10 +81,10 @@ bool App::InitVulkan()
 
 	// init the swap chain
 	swap_chain_->CreateSwapChain(devices_);
-
+	
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
-	renderer_->Init(devices_, swap_chain_);
+	renderer_->Init(devices_, swap_chain_, multisample_level_);
 
 	return true;
 }

@@ -358,5 +358,14 @@
     <None Include="..\res\shaders\visibility_front_peel.vert">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="..\res\shaders\deferred_msaa.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility_deferred_msaa.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility_peel_deferred_msaa.frag">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

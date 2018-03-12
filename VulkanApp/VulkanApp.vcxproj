@@ -575,6 +575,7 @@
     <None Include="..\res\shaders\deferred.comp" />
     <None Include="..\res\shaders\deferred.frag" />
     <None Include="..\res\shaders\deferred.vert" />
+    <None Include="..\res\shaders\deferred_msaa.frag" />
     <None Include="..\res\shaders\gaussian_blur.frag" />
     <None Include="..\res\shaders\g_buffer.frag" />
     <None Include="..\res\shaders\g_buffer.vert" />
@@ -590,11 +591,13 @@
     <None Include="..\res\shaders\visibility.frag" />
     <None Include="..\res\shaders\visibility.vert" />
     <None Include="..\res\shaders\visibility_deferred.frag" />
+    <None Include="..\res\shaders\visibility_deferred_msaa.frag" />
     <None Include="..\res\shaders\visibility_front_peel.frag" />
     <None Include="..\res\shaders\visibility_front_peel.vert" />
     <None Include="..\res\shaders\visibility_peel.frag" />
     <None Include="..\res\shaders\visibility_peel.vert" />
     <None Include="..\res\shaders\visibility_peel_deferred.frag" />
+    <None Include="..\res\shaders\visibility_peel_deferred_msaa.frag" />
     <None Include="..\res\shaders\visibility_peel_final.frag" />
     <None Include="..\res\shaders\visibility_peel_final.vert" />
     <None Include="..\res\shaders\visibility_peel_init.frag" />

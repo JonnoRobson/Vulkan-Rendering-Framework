@@ -318,7 +318,7 @@ void VulkanSwapChain::CreateImageViews()
 void VulkanSwapChain::CreateIntermediateImage()
 {
 	// create the intermediate storage image
-	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, intermediate_image_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, intermediate_image_, intermediate_image_memory_);
+	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, intermediate_image_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_SAMPLE_COUNT_1_BIT, intermediate_image_, intermediate_image_memory_);
 	intermediate_image_view_ = devices_->CreateImageView(intermediate_image_, intermediate_image_format_, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	// transition to the general image layout
@@ -329,7 +329,7 @@ void VulkanSwapChain::CreateDepthResources()
 {
 	depth_format_ = FindDepthFormat();
 
-	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth_image_, depth_image_memory_);
+	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_SAMPLE_COUNT_1_BIT, depth_image_, depth_image_memory_);
 	depth_image_view_ = devices_->CreateImageView(depth_image_, depth_format_, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	devices_->TransitionImageLayout(depth_image_, depth_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);

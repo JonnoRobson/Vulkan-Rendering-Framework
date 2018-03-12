@@ -4,12 +4,13 @@
 #include <array>
 #include <map>
 
-void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain)
+void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, int multisample_level)
 {
 	devices_ = devices;
 	swap_chain_ = swap_chain;
 	render_mode_ = RenderMode::VISIBILITY_PEELED;
 	timing_enabled_ = false;
+	multisample_level_ = multisample_level;
 
 	// load a default texture
 	default_texture_ = new Texture();
@@ -916,11 +917,11 @@ void VulkanRenderer::InitDeferredPipeline()
 	g_buffer_shader_->Init(devices_, swap_chain_, "../res/shaders/g_buffer.vert.spv", "", "", "../res/shaders/g_buffer.frag.spv");
 
 	deferred_shader_ = new VulkanShader();
-	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", "../res/shaders/deferred.frag.spv");
+	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", multisample_data[multisample_level_].deferred_shader);
 	
 	// initialize the g buffer
 	g_buffer_ = new VulkanRenderTarget();
-	g_buffer_->Init(devices_, VK_FORMAT_R32G32B32A32_SFLOAT, swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height, 2, false);
+	g_buffer_->Init(devices_, VK_FORMAT_R32G32B32A32_SFLOAT, swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height, 2, false, multisample_data[multisample_level_].sample_count);
 
 	// initialize the g buffer pipeline
 	g_buffer_pipeline_ = new GBufferPipeline();
@@ -1008,7 +1009,7 @@ void VulkanRenderer::InitVisibilityPipeline()
 	visibility_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility.vert.spv", "", "", "../res/shaders/visibility.frag.spv");
 
 	visibility_deferred_shader_ = new VulkanShader();
-	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_deferred.frag.spv");
+	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", multisample_data[multisample_level_].visibility_deferred_shader);
 
 	// create the visibility data buffer
 	devices_->CreateBuffer(sizeof(VisibilityRenderData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_data_buffer_, visibility_data_buffer_memory_);
@@ -1019,7 +1020,7 @@ void VulkanRenderer::InitVisibilityPipeline()
 	// initialize the visibility buffer
 	VkExtent2D swap_size = swap_chain_->GetSwapChainExtent();
 	visibility_buffer_ = new VulkanRenderTarget();
-	visibility_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, 1, false);
+	visibility_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, 1, false, multisample_data[multisample_level_].sample_count);
 
 	// initialize the visibility buffer generation pipeline
 	visibility_pipeline_ = new VisibilityPipeline();
@@ -1072,12 +1073,12 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 	visibility_peel_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_front_peel.vert.spv", "", "", "../res/shaders/visibility_front_peel.frag.spv");
 
 	visibility_peel_deferred_shader_ = new VulkanShader();
-	visibility_peel_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/visibility_peel_deferred.frag.spv");
+	visibility_peel_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", multisample_data[multisample_level_].visibility_peel_deferred_shader);
 
 	// initalize the peeled visibility buffer
 	VkExtent2D swap_size = swap_chain_->GetSwapChainExtent();
 	visibility_peel_buffer_ = new VulkanRenderTarget();
-	visibility_peel_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT, false);
+	visibility_peel_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT, false, multisample_data[multisample_level_].sample_count);
 
 	// initialize the min max depth buffer
 	peel_depth_buffer_ = new VulkanRenderTarget();

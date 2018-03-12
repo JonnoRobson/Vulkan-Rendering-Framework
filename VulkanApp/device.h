@@ -42,7 +42,7 @@ public:
 	void CreateLogicalDevice(VkPhysicalDeviceFeatures, std::vector<VkDeviceQueueCreateInfo>, std::vector<const char*>, std::vector<const char*>);
 
 	void CreateBuffer(VkDeviceSize, VkBufferUsageFlags, VkMemoryPropertyFlags, VkBuffer&, VkDeviceMemory&);
-	void CreateImage(uint32_t, uint32_t, VkFormat, VkImageTiling, VkImageUsageFlags, VkMemoryPropertyFlags, VkImage&, VkDeviceMemory&);
+	void CreateImage(uint32_t, uint32_t, VkFormat, VkImageTiling, VkImageUsageFlags, VkMemoryPropertyFlags, VkSampleCountFlagBits, VkImage&, VkDeviceMemory&);
 	VkImageView CreateImageView(VkImage, VkFormat, VkImageAspectFlags);
 	void CreateCommandBuffers(VkCommandPool command_pool, VkCommandBuffer* buffers, uint8_t count = 1);
 

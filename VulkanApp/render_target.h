@@ -9,7 +9,7 @@
 class VulkanRenderTarget
 {
 public:
-	void Init(VulkanDevices* devices, VkFormat format, uint32_t width, uint32_t height, uint32_t count, bool depth_enabled);
+	void Init(VulkanDevices* devices, VkFormat format, uint32_t width, uint32_t height, uint32_t count, bool depth_enabled, VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT);
 	void Cleanup();
 	
 	void ClearImage(VkClearColorValue clear_color = { 0.0f, 0.0f, 0.0f, 0.0f }, int image_index = -1);
