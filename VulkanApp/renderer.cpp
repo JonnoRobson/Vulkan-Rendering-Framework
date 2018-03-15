@@ -44,7 +44,7 @@ void VulkanRenderer::RenderScene()
 
 	// get swap chain index
 	uint32_t image_index = swap_chain_->GetCurrentSwapChainImage();
-	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
+	VkExtent2D swap_extent = swap_chain_->GetIntermediateImageExtent();
 
 
 	if (render_mode_ == RenderMode::BUFFER_VIS)
@@ -917,17 +917,18 @@ void VulkanRenderer::InitDeferredPipeline()
 	g_buffer_shader_->Init(devices_, swap_chain_, "../res/shaders/g_buffer.vert.spv", "", "", "../res/shaders/g_buffer.frag.spv");
 
 	deferred_shader_ = new VulkanShader();
-	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", multisample_data[multisample_level_].deferred_shader);
+	deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/deferred.vert.spv", "", "", "../res/shaders/" + multisample_data[multisample_level_].deferred_shader);
 	
 	// initialize the g buffer
 	g_buffer_ = new VulkanRenderTarget();
-	g_buffer_->Init(devices_, VK_FORMAT_R32G32B32A32_SFLOAT, swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height, 2, false, multisample_data[multisample_level_].sample_count);
+	g_buffer_->Init(devices_, VK_FORMAT_R32G32B32A32_SFLOAT, swap_chain_->GetIntermediateImageExtent().width, swap_chain_->GetIntermediateImageExtent().height, 2, false, multisample_data[multisample_level_].sample_count);
 
 	// initialize the g buffer pipeline
 	g_buffer_pipeline_ = new GBufferPipeline();
 	g_buffer_pipeline_->SetShader(g_buffer_shader_);
 	g_buffer_pipeline_->SetGBuffer(g_buffer_);
 	g_buffer_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_VERTEX_BIT, 0, matrix_buffer_, sizeof(UniformBufferObject));
+	
 	// material buffer and alpha maps are required to test for transparent pixels
 	g_buffer_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 1, material_buffer_->GetBuffer(), MAX_MATERIAL_COUNT * sizeof(MaterialData));
 	g_buffer_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 2, buffer_normalized_sampler_);
@@ -955,7 +956,7 @@ void VulkanRenderer::InitDeferredPipeline()
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
 
 	// add the g buffer to the pipeline
-	deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
 	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, buffer_normalized_sampler_);
 
 	// set the deferred shader
@@ -1009,7 +1010,7 @@ void VulkanRenderer::InitVisibilityPipeline()
 	visibility_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility.vert.spv", "", "", "../res/shaders/visibility.frag.spv");
 
 	visibility_deferred_shader_ = new VulkanShader();
-	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", multisample_data[multisample_level_].visibility_deferred_shader);
+	visibility_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/" + multisample_data[multisample_level_].visibility_deferred_shader);
 
 	// create the visibility data buffer
 	devices_->CreateBuffer(sizeof(VisibilityRenderData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, visibility_data_buffer_, visibility_data_buffer_memory_);
@@ -1018,7 +1019,7 @@ void VulkanRenderer::InitVisibilityPipeline()
 	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
 
 	// initialize the visibility buffer
-	VkExtent2D swap_size = swap_chain_->GetSwapChainExtent();
+	VkExtent2D swap_size = swap_chain_->GetIntermediateImageExtent();
 	visibility_buffer_ = new VulkanRenderTarget();
 	visibility_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, 1, false, multisample_data[multisample_level_].sample_count);
 
@@ -1057,6 +1058,8 @@ void VulkanRenderer::InitVisibilityPipeline()
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeData));
 	visibility_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, visibility_data_buffer_, sizeof(VisibilityRenderData));
 	visibility_deferred_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 17, swap_chain_->GetDepthImageView());
+	visibility_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 18, buffer_normalized_sampler_);
+
 	visibility_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 	CreateVisibilityCommandBuffer();
@@ -1070,19 +1073,23 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 
 	// create the visibility peel shaders
 	visibility_peel_shader_ = new VulkanShader();
-	visibility_peel_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_front_peel.vert.spv", "", "", "../res/shaders/visibility_front_peel.frag.spv");
+
+	if(multisample_level_ > 1)
+		visibility_peel_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_front_peel.vert.spv", "", "", "../res/shaders/visibility_front_peel_msaa.frag.spv");
+	else
+		visibility_peel_shader_->Init(devices_, swap_chain_, "../res/shaders/visibility_front_peel.vert.spv", "", "", "../res/shaders/visibility_front_peel.frag.spv");
 
 	visibility_peel_deferred_shader_ = new VulkanShader();
-	visibility_peel_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", multisample_data[multisample_level_].visibility_peel_deferred_shader);
-
+	visibility_peel_deferred_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/" + multisample_data[multisample_level_].visibility_peel_deferred_shader);
+	
 	// initalize the peeled visibility buffer
-	VkExtent2D swap_size = swap_chain_->GetSwapChainExtent();
+	VkExtent2D swap_size = swap_chain_->GetIntermediateImageExtent();
 	visibility_peel_buffer_ = new VulkanRenderTarget();
 	visibility_peel_buffer_->Init(devices_, VK_FORMAT_R32_UINT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT, false, multisample_data[multisample_level_].sample_count);
 
 	// initialize the min max depth buffer
 	peel_depth_buffer_ = new VulkanRenderTarget();
-	peel_depth_buffer_->Init(devices_, VK_FORMAT_D32_SFLOAT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT, false);
+	peel_depth_buffer_->Init(devices_, VK_FORMAT_D32_SFLOAT, swap_size.width, swap_size.height, VISIBILITY_PEEL_COUNT, false, multisample_data[multisample_level_].sample_count);
 	
 	std::vector<VkImageView> visibility_peels = visibility_peel_buffer_->GetImageViews();
 	std::vector<VkImageView> depth_peels = peel_depth_buffer_->GetImageViews();
@@ -1154,18 +1161,18 @@ void VulkanRenderer::InitTransparencyPipeline()
 	transparency_shader_->Init(devices_, swap_chain_, "../res/shaders/default_material.vert.spv", "", "", "../res/shaders/weighted_blended_transparency.frag.spv");
 
 	transparency_composite_shader_ = new VulkanShader();
-	transparency_composite_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/transparency_composite.frag.spv");
+	transparency_composite_shader_->Init(devices_, swap_chain_, "../res/shaders/screen_space.vert.spv", "", "", "../res/shaders/" + multisample_data[multisample_level_].transparency_composite_shader);
 
-	VkExtent2D image_extent = swap_chain_->GetSwapChainExtent();
+	VkExtent2D image_extent = swap_chain_->GetIntermediateImageExtent();
 
 	// calculate size of the light buffer
 	VkDeviceSize buffer_size = sizeof(SceneLightData) + (lights_.size() * sizeof(LightData));
 
 	// create the transparency buffers
 	accumulation_buffer_ = new VulkanRenderTarget();
-	accumulation_buffer_->Init(devices_, VK_FORMAT_R16G16B16A16_SFLOAT, image_extent.width, image_extent.height, 1, false);
+	accumulation_buffer_->Init(devices_, VK_FORMAT_R16G16B16A16_SFLOAT, image_extent.width, image_extent.height, 1, false, multisample_data[multisample_level_].sample_count);
 	revealage_buffer_ = new VulkanRenderTarget();
-	revealage_buffer_->Init(devices_, VK_FORMAT_R16_SFLOAT, image_extent.width, image_extent.height, 1, false);
+	revealage_buffer_->Init(devices_, VK_FORMAT_R16_SFLOAT, image_extent.width, image_extent.height, 1, false, multisample_data[multisample_level_].sample_count);
 
 	// create the transparency pipeline
 	transparency_pipeline_ = new WeightedBlendedTransparencyPipeline();

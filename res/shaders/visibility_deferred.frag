@@ -113,6 +113,7 @@ layout(binding = 16) uniform MatrixBuffer
 } matrix_data;
 
 layout(binding = 17) uniform texture2D depthBuffer;
+layout(binding = 18) uniform sampler bufferSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -221,7 +222,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], mapSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], bufferSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}
@@ -308,7 +309,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		}
 	}
 
-	uint shadowQuality = uint(max(1, min(8 * qualityLevel, 8)));
+	uint shadowQuality = uint(max(1, min(4 * qualityLevel, 4)));
 	
 	// calculate shadow occlusion and return black if fully occluded
 	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, shadowQuality);
@@ -438,7 +439,7 @@ Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID,
 	vec4 p2 = vec4(v2.pos, 1.0f);
 	
 	// sample pixel depth from the depth buffer
-	float depth = texture(sampler2D(depthBuffer, mapSampler), screenTexCoord).x;
+	float depth = texture(sampler2D(depthBuffer, bufferSampler), screenTexCoord).x;
 
 	vec3 worldPos = PositionFromDepth(depth, screenTexCoord);
 	vec3 weights = Intersect(worldPos.xyz, p0.xyz, p1.xyz, p2.xyz);

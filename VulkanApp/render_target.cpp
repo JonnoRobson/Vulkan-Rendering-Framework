@@ -8,6 +8,7 @@ void VulkanRenderTarget::Init(VulkanDevices* devices, VkFormat format, uint32_t 
 	render_target_image_views_.resize(count);
 	render_target_image_memories_.resize(count);
 	render_target_format_ = format;
+	render_target_sample_count_ = sample_count;
 
 	// create render targets
 	for (int i = 0; i < count; i++)

@@ -520,9 +520,6 @@
     <ClCompile Include="visibility_deferred_pipeline.cpp" />
     <ClCompile Include="visibility_front_peel_pipeline.cpp" />
     <ClCompile Include="visibility_peel_deferred_pipeline.cpp" />
-    <ClCompile Include="visibility_peel_final_pipeline.cpp" />
-    <ClCompile Include="visibility_peel_init_pipeline.cpp" />
-    <ClCompile Include="visibility_peel_pipeline.cpp" />
     <ClCompile Include="visibility_pipeline.cpp" />
     <ClCompile Include="weighted_blended_transparency_pipeline.cpp" />
   </ItemGroup>
@@ -561,9 +558,6 @@
     <ClInclude Include="visibility_deferred_pipeline.h" />
     <ClInclude Include="visibility_front_peel_pipeline.h" />
     <ClInclude Include="visibility_peel_deferred_pipeline.h" />
-    <ClInclude Include="visibility_peel_final_pipeline.h" />
-    <ClInclude Include="visibility_peel_init_pipeline.h" />
-    <ClInclude Include="visibility_peel_pipeline.h" />
     <ClInclude Include="visibility_pipeline.h" />
     <ClInclude Include="weighted_blended_transparency_pipeline.h" />
   </ItemGroup>
@@ -588,20 +582,16 @@
     <None Include="..\res\shaders\skybox.vert" />
     <None Include="..\res\shaders\tonemap.frag" />
     <None Include="..\res\shaders\transparency_composite.frag" />
+    <None Include="..\res\shaders\transparency_composite_msaa.frag" />
     <None Include="..\res\shaders\visibility.frag" />
     <None Include="..\res\shaders\visibility.vert" />
     <None Include="..\res\shaders\visibility_deferred.frag" />
     <None Include="..\res\shaders\visibility_deferred_msaa.frag" />
     <None Include="..\res\shaders\visibility_front_peel.frag" />
     <None Include="..\res\shaders\visibility_front_peel.vert" />
-    <None Include="..\res\shaders\visibility_peel.frag" />
-    <None Include="..\res\shaders\visibility_peel.vert" />
+    <None Include="..\res\shaders\visibility_front_peel_msaa.frag" />
     <None Include="..\res\shaders\visibility_peel_deferred.frag" />
     <None Include="..\res\shaders\visibility_peel_deferred_msaa.frag" />
-    <None Include="..\res\shaders\visibility_peel_final.frag" />
-    <None Include="..\res\shaders\visibility_peel_final.vert" />
-    <None Include="..\res\shaders\visibility_peel_init.frag" />
-    <None Include="..\res\shaders\visibility_peel_init.vert" />
     <None Include="..\res\shaders\weighted_blended_transparency.frag" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

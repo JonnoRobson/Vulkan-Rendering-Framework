@@ -13,7 +13,7 @@ class VulkanSwapChain
 public:	
 	void Init(GLFWwindow* window, VkInstance instance);
 	void Cleanup();
-	void CreateSwapChain(VulkanDevices* devices);
+	void CreateSwapChain(VulkanDevices* devices, int rendering_width, int rendering_height, int multisample_count = 1);
 
 	VkResult PreRender();
 	VkResult PostRender(VkSemaphore signal_semaphore);
@@ -33,8 +33,10 @@ public:
 	inline VkFormat GetSwapChainImageFormat() { return swap_chain_image_format_; }
 	inline VkFormat GetIntermediateImageFormat() { return intermediate_image_format_; }
 	inline VkExtent2D GetSwapChainExtent() { return swap_chain_extent_; }
+	inline VkExtent2D GetIntermediateImageExtent() { return intermediate_image_extent_; }
 	inline VkImage GetDepthImage() { return depth_image_; }
 	inline VkImageView GetDepthImageView() { return depth_image_view_; }
+	inline VkSampleCountFlagBits GetSampleCount() { return multisample_level_; }
 
 protected:
 	void CreateSurface();
@@ -65,6 +67,8 @@ protected:
 	VkFormat swap_chain_image_format_;
 	VkFormat intermediate_image_format_;
 	VkExtent2D swap_chain_extent_;
+	VkExtent2D intermediate_image_extent_;
+	VkSampleCountFlagBits multisample_level_;
 
 	// depth buffer components
 	VkImage depth_image_;

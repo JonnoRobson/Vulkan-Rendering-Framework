@@ -79,8 +79,8 @@ protected:
 	float prev_time_;
 	float frame_time_;
 
-	const int window_width_ = 1920;
-	const int window_height_ = 1080;
+	int window_width_;
+	int window_height_;
 
 	bool validation_layers_available_;
 

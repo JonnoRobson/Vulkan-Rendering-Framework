@@ -187,7 +187,7 @@ void HDR::Render(VulkanSwapChain* swap_chain, VkSemaphore* wait_semaphore)
 
 void HDR::InitPipelines(VulkanSwapChain* swap_chain)
 {
-	VkExtent2D swap_chain_dimensions = swap_chain->GetSwapChainExtent();
+	VkExtent2D swap_chain_dimensions = swap_chain->GetIntermediateImageExtent();
 
 	// initialize the HDR render targets
 	ldr_suppress_scene_ = new VulkanRenderTarget();

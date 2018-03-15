@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // defines
-#define MSAA_COUNT 2
+#define MSAA_COUNT 16
 
 // inputs
 layout(origin_upper_left) in vec4 gl_FragCoord;
@@ -263,7 +263,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		}
 	}
 
-	uint shadowQuality = uint(max(1, min(8 * qualityLevel, 8)));
+	uint shadowQuality = uint(max(1, min(4 * qualityLevel, 4)));
 	
 	// calculate shadow occlusion and return black if fully occluded
 	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, shadowQuality);
@@ -420,5 +420,5 @@ void main()
 	if(length(accumColor) <= 0)
 		discard;
 
-	outColor = accumColor / float(MSAA_COUNT);
+	outColor = accumColor / float(samplesApplied);
 }

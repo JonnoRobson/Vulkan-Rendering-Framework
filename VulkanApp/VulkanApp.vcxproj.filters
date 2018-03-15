@@ -120,9 +120,6 @@
     <ClCompile Include="visibility_deferred_pipeline.cpp">
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
-    <ClCompile Include="visibility_peel_pipeline.cpp">
-      <Filter>Source Files\pipelines</Filter>
-    </ClCompile>
     <ClCompile Include="visibility_peel_deferred_pipeline.cpp">
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
@@ -130,12 +127,6 @@
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
     <ClCompile Include="shape_culling_pipeline.cpp">
-      <Filter>Source Files\pipelines</Filter>
-    </ClCompile>
-    <ClCompile Include="visibility_peel_init_pipeline.cpp">
-      <Filter>Source Files\pipelines</Filter>
-    </ClCompile>
-    <ClCompile Include="visibility_peel_final_pipeline.cpp">
       <Filter>Source Files\pipelines</Filter>
     </ClCompile>
     <ClCompile Include="visibility_front_peel_pipeline.cpp">
@@ -239,9 +230,6 @@
     <ClInclude Include="visibility_deferred_pipeline.h">
       <Filter>Header Files\pipelines</Filter>
     </ClInclude>
-    <ClInclude Include="visibility_peel_pipeline.h">
-      <Filter>Header Files\pipelines</Filter>
-    </ClInclude>
     <ClInclude Include="visibility_peel_deferred_pipeline.h">
       <Filter>Header Files\pipelines</Filter>
     </ClInclude>
@@ -249,12 +237,6 @@
       <Filter>Header Files\pipelines</Filter>
     </ClInclude>
     <ClInclude Include="compute_pipeline.h">
-      <Filter>Header Files\pipelines</Filter>
-    </ClInclude>
-    <ClInclude Include="visibility_peel_init_pipeline.h">
-      <Filter>Header Files\pipelines</Filter>
-    </ClInclude>
-    <ClInclude Include="visibility_peel_final_pipeline.h">
       <Filter>Header Files\pipelines</Filter>
     </ClInclude>
     <ClInclude Include="visibility_front_peel_pipeline.h">
@@ -328,28 +310,10 @@
     <None Include="..\res\shaders\visibility_deferred.frag">
       <Filter>Shader Files</Filter>
     </None>
-    <None Include="..\res\shaders\visibility_peel.frag">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\res\shaders\visibility_peel.vert">
-      <Filter>Shader Files</Filter>
-    </None>
     <None Include="..\res\shaders\visibility_peel_deferred.frag">
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\shape_culling.comp">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\res\shaders\visibility_peel_init.frag">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\res\shaders\visibility_peel_init.vert">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\res\shaders\visibility_peel_final.frag">
-      <Filter>Shader Files</Filter>
-    </None>
-    <None Include="..\res\shaders\visibility_peel_final.vert">
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\visibility_front_peel.frag">
@@ -365,6 +329,12 @@
       <Filter>Shader Files</Filter>
     </None>
     <None Include="..\res\shaders\visibility_peel_deferred_msaa.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\transparency_composite_msaa.frag">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="..\res\shaders\visibility_front_peel_msaa.frag">
       <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>

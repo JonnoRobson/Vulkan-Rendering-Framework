@@ -8,7 +8,7 @@ void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t b
 	render_pass_info.renderPass = render_pass_;
 	render_pass_info.framebuffer = framebuffers_[buffer_index];
 	render_pass_info.renderArea.offset = { 0, 0 };
-	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
+	render_pass_info.renderArea.extent = swap_chain_->GetIntermediateImageExtent();
 
 	std::array<VkClearValue, 2> clear_values = {};
 	clear_values[0].color = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -25,8 +25,8 @@ void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t b
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)swap_chain_->GetSwapChainExtent().width;
-	viewport.height = (float)swap_chain_->GetSwapChainExtent().height;
+	viewport.width = (float)swap_chain_->GetIntermediateImageExtent().width;
+	viewport.height = (float)swap_chain_->GetIntermediateImageExtent().height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
@@ -34,7 +34,7 @@ void GBufferPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t b
 	// set the dynamic scissor data
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = swap_chain_->GetSwapChainExtent();
+	scissor.extent = swap_chain_->GetIntermediateImageExtent();
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
 	// bind the descriptor set to the pipeline
@@ -83,6 +83,16 @@ void GBufferPipeline::CreatePipeline()
 	blend_state.blendConstants[2] = 0.0f;
 	blend_state.blendConstants[3] = 0.0f;
 
+	// set up multisample state description
+	VkPipelineMultisampleStateCreateInfo multisample_state = {};
+	multisample_state.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisample_state.sampleShadingEnable = VK_FALSE;
+	multisample_state.rasterizationSamples = g_buffer_->GetSampleCount();
+	multisample_state.minSampleShading = 1.0f;
+	multisample_state.pSampleMask = nullptr;
+	multisample_state.alphaToCoverageEnable = VK_FALSE;
+	multisample_state.alphaToOneEnable = VK_FALSE;
+
 	// setup pipeline creation info
 	VkGraphicsPipelineCreateInfo pipeline_info = {};
 	pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -92,7 +102,7 @@ void GBufferPipeline::CreatePipeline()
 	pipeline_info.pInputAssemblyState = &shader_->GetInputAssemblyDescription();
 	pipeline_info.pViewportState = &shader_->GetViewportStateDescription();
 	pipeline_info.pRasterizationState = &shader_->GetRasterizerStateDescription();
-	pipeline_info.pMultisampleState = &shader_->GetMultisampleStateDescription();
+	pipeline_info.pMultisampleState = &multisample_state;
 	pipeline_info.pDepthStencilState = &shader_->GetDepthStencilStateDescription();
 	pipeline_info.pColorBlendState = &blend_state;
 	pipeline_info.pDynamicState = &shader_->GetDynamicStateDescription();
@@ -121,8 +131,8 @@ void GBufferPipeline::CreateFramebuffers()
 	framebuffer_info.renderPass = render_pass_;
 	framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 	framebuffer_info.pAttachments = attachments.data();
-	framebuffer_info.width = swap_chain_->GetSwapChainExtent().width;
-	framebuffer_info.height = swap_chain_->GetSwapChainExtent().height;
+	framebuffer_info.width = swap_chain_->GetIntermediateImageExtent().width;
+	framebuffer_info.height = swap_chain_->GetIntermediateImageExtent().height;
 	framebuffer_info.layers = 1;
 
 	if (vkCreateFramebuffer(devices_->GetLogicalDevice(), &framebuffer_info, nullptr, &framebuffers_[0]) != VK_SUCCESS)
@@ -136,7 +146,7 @@ void GBufferPipeline::CreateRenderPass()
 	// setup the 1st g buffer attachment
 	VkAttachmentDescription g_buffer_1_attachment = {};
 	g_buffer_1_attachment.format = g_buffer_->GetRenderTargetFormat();
-	g_buffer_1_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	g_buffer_1_attachment.samples = g_buffer_->GetSampleCount();
 	g_buffer_1_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	g_buffer_1_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	g_buffer_1_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -152,7 +162,7 @@ void GBufferPipeline::CreateRenderPass()
 	// setup the 2nd g buffer attachment
 	VkAttachmentDescription g_buffer_2_attachment = {};
 	g_buffer_2_attachment.format = g_buffer_->GetRenderTargetFormat();
-	g_buffer_2_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	g_buffer_2_attachment.samples = g_buffer_->GetSampleCount();
 	g_buffer_2_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	g_buffer_2_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	g_buffer_2_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -168,7 +178,7 @@ void GBufferPipeline::CreateRenderPass()
 	// setup the depth buffer attachment
 	VkAttachmentDescription depth_attachment = {};
 	depth_attachment.format = swap_chain_->FindDepthFormat();
-	depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depth_attachment.samples = swap_chain_->GetSampleCount();
 	depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	depth_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;

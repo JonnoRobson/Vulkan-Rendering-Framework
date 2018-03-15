@@ -1,4 +1,5 @@
 #include "swap_chain.h"
+#include "renderer.h"
 #include <stdexcept>
 #include <algorithm>
 #include <array>
@@ -136,7 +137,7 @@ void VulkanSwapChain::FinalizeIntermediateImage()
 
 	VkImageBlit image_blit = {};
 	image_blit.srcOffsets[0] = { 0, 0, 0 };
-	image_blit.srcOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.srcOffsets[1] = { (int)intermediate_image_extent_.width, (int)intermediate_image_extent_.height, 1 };
 	image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	image_blit.srcSubresource.baseArrayLayer = 0;
 	image_blit.srcSubresource.layerCount = 1;
@@ -200,14 +201,15 @@ void VulkanSwapChain::CreateSurface()
 	}
 }
 
-void VulkanSwapChain::CreateSwapChain(VulkanDevices* devices)
+void VulkanSwapChain::CreateSwapChain(VulkanDevices* devices, int rendering_width, int rendering_height, int multisample_count)
 {
 	devices_ = devices;
 
 	VkDevice vk_device = devices->GetLogicalDevice();
 	VkPhysicalDevice vk_physical_device = devices->GetPhysicalDevice();
 	intermediate_image_format_ = VK_FORMAT_R32G32B32A32_SFLOAT;
-	
+	multisample_level_ = multisample_data[multisample_count].sample_count;
+
 	// store the handle of any previous swap chain
 	VkSwapchainKHR old_swap_chain = swap_chain_;
 
@@ -288,6 +290,7 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevices* devices)
 
 	swap_chain_image_format_ = surface_format.format;
 	swap_chain_extent_ = extent;
+	intermediate_image_extent_ = { (uint32_t)rendering_width, (uint32_t)rendering_height };
 
 	// transition the swap chain images to the correct format
 	for (int i = 0; i < swap_chain_images_.size(); i++)
@@ -318,7 +321,7 @@ void VulkanSwapChain::CreateImageViews()
 void VulkanSwapChain::CreateIntermediateImage()
 {
 	// create the intermediate storage image
-	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, intermediate_image_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_SAMPLE_COUNT_1_BIT, intermediate_image_, intermediate_image_memory_);
+	devices_->CreateImage(intermediate_image_extent_.width, intermediate_image_extent_.height, intermediate_image_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_SAMPLE_COUNT_1_BIT, intermediate_image_, intermediate_image_memory_);
 	intermediate_image_view_ = devices_->CreateImageView(intermediate_image_, intermediate_image_format_, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	// transition to the general image layout
@@ -329,7 +332,7 @@ void VulkanSwapChain::CreateDepthResources()
 {
 	depth_format_ = FindDepthFormat();
 
-	devices_->CreateImage(swap_chain_extent_.width, swap_chain_extent_.height, depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_SAMPLE_COUNT_1_BIT, depth_image_, depth_image_memory_);
+	devices_->CreateImage(intermediate_image_extent_.width,intermediate_image_extent_.height, depth_format_, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, multisample_level_, depth_image_, depth_image_memory_);
 	depth_image_view_ = devices_->CreateImageView(depth_image_, depth_format_, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	devices_->TransitionImageLayout(depth_image_, depth_format_, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);

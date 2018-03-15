@@ -36,21 +36,22 @@ layout(binding = 1) uniform MaterialUberBuffer
 // textures
 layout(binding = 2) uniform sampler mapSampler;
 layout(binding = 3) uniform texture2D alphaMaps[512];
-layout(binding = 4, r32f) uniform image2D inMinDepthBuffer;
-layout(binding = 5, r32f) uniform image2D inMaxDepthBuffer;
+layout(binding = 4) uniform texture2DMS inDepthBuffer;
+layout(binding = 5) uniform sampler depthBufferSampler;
 
 // outputs
-layout(location = 0) out uint frontVisibilityBuffer;
-layout(location = 1) out uint backVisibilityBuffer;
+layout(location = 0) out uint outVisibility;
+
 #define SHAPE_ID_BITS 12
 
 void main()
-{
-	float fragDepth = gl_FragCoord.z;
+{ 
 	ivec2 depthBufferCoord = ivec2(gl_FragCoord.xy);
 	
-	float minDepth = imageLoad(inMinDepthBuffer, depthBufferCoord).x;
-	float maxDepth = imageLoad(inMaxDepthBuffer, depthBufferCoord).x;
+	float prevDepth = texelFetch(sampler2DMS(inDepthBuffer, depthBufferSampler), ivec2(gl_FragCoord.xy), gl_SampleID).r;
+	
+	if(gl_FragCoord.z <= prevDepth)
+		discard;
 	
 	// sample alpha of this pixel
 	float alpha = material_data.materials[matIndex].dissolve;
@@ -63,23 +64,7 @@ void main()
 	// if alpha for this pixel is zero simply discard it
 	if(alpha <= 0.0f)
 		discard;
-
-
-	frontVisibilityBuffer = 0;
-	backVisibilityBuffer = 0;
-
-	// fragment at this depth has already been peeled
-	if(fragDepth < minDepth || fragDepth > maxDepth)
-		return;
-
-	// fragment at this depth needs to be peeled again
-	if(fragDepth > minDepth && fragDepth < maxDepth)
-		return;
-
-	// fragment is on peeled layer from last pass so add it to the peeled visibility buffer
-	uint visibilityData = (gl_PrimitiveID << SHAPE_ID_BITS) | shapeID;
-	if(fragDepth == minDepth)
-		frontVisibilityBuffer = visibilityData;
-	else if (fragDepth == maxDepth)
-		backVisibilityBuffer = visibilityData;
+	
+	// send the viisbility data to the buffer
+	outVisibility = (gl_PrimitiveID << SHAPE_ID_BITS) | shapeID;
 }

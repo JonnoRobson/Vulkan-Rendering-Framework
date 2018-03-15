@@ -28,6 +28,7 @@ public:
 	inline VkFormat GetRenderTargetDepthFormat() { return render_target_depth_format_; }
 
 	inline int GetRenderTargetCount() { return render_target_images_.size(); }
+	inline VkSampleCountFlagBits GetSampleCount() { return render_target_sample_count_; }
 
 protected:
 	VulkanDevices* devices_;
@@ -42,6 +43,7 @@ protected:
 	VkImage render_target_depth_image_;
 	VkDeviceMemory render_target_depth_image_memory_;
 	VkImageView render_target_depth_image_view_;
+	VkSampleCountFlagBits render_target_sample_count_;
 
 };
 

@@ -133,8 +133,8 @@ void VulkanShader::CreateViewportState()
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)(swap_chain_->GetSwapChainExtent().width);
-	viewport.height = (float)(swap_chain_->GetSwapChainExtent().height);
+	viewport.width = (float)(swap_chain_->GetIntermediateImageExtent().width);
+	viewport.height = (float)(swap_chain_->GetIntermediateImageExtent().height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	viewports_.push_back(viewport);
@@ -142,7 +142,7 @@ void VulkanShader::CreateViewportState()
 	// setup scissor rect info
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = swap_chain_->GetSwapChainExtent();
+	scissor.extent = swap_chain_->GetIntermediateImageExtent();
 	scissor_rects_.push_back(scissor);
 
 	// setup viewport state creation info

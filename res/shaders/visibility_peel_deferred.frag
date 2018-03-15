@@ -311,7 +311,7 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		}
 	}
 
-	uint shadowQuality = uint(max(1, min(8 * qualityLevel, 8)));
+	uint shadowQuality = uint(max(1, min(4 * qualityLevel, 4)));
 	
 	// calculate shadow occlusion and return black if fully occluded
 	float occlusion = CalculateShadowOcclusion(worldPosition, -rayDir, lightIndex, shadowQuality);

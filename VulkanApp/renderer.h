@@ -42,15 +42,16 @@ struct SampleCountData
 	std::string deferred_shader;
 	std::string visibility_deferred_shader;
 	std::string visibility_peel_deferred_shader;
+	std::string transparency_composite_shader;
 };
 
 static std::map<int, SampleCountData> multisample_data =
 {
-	{ 1, { VK_SAMPLE_COUNT_1_BIT, "../res/shaders/deferred.frag.spv", "../res/shaders/visibility_deferred.frag.spv", "../res/shaders/visibility_peel_deferred.frag.spv" }},
-	{ 2, { VK_SAMPLE_COUNT_2_BIT, "../res/shaders/deferred_msaa_02.frag.spv", "../res/shaders/_visibility_deferred_msaa_02.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_02.frag.spv" }},
-	{ 4, { VK_SAMPLE_COUNT_4_BIT, "../res/shaders/deferred_msaa_04.frag.spv", "../res/shaders/_visibility_deferred_msaa_04.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_04.frag.spv" }},
-	{ 8, { VK_SAMPLE_COUNT_8_BIT, "../res/shaders/deferred_msaa_08.frag.spv", "../res/shaders/_visibility_deferred_msaa_08.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_08.frag.spv" }},
-	{ 16, { VK_SAMPLE_COUNT_16_BIT, "../res/shaders/deferred_msaa_16.frag.spv", "../res/shaders/_visibility_deferred_msaa_16.frag.spv", "../res/shaders/visibility_peel_deferred_msaa_16.frag.spv" }}
+	{ 1, { VK_SAMPLE_COUNT_1_BIT, "deferred.frag.spv", "visibility_deferred.frag.spv", "visibility_peel_deferred.frag.spv", "transparency_composite.frag.spv" }},
+	{ 2, { VK_SAMPLE_COUNT_2_BIT, "deferred_msaa_02.frag.spv", "visibility_deferred_msaa_02.frag.spv", "visibility_peel_deferred_msaa_02.frag.spv", "transparency_composite_msaa_02.frag.spv" }},
+	{ 4, { VK_SAMPLE_COUNT_4_BIT, "deferred_msaa_04.frag.spv", "visibility_deferred_msaa_04.frag.spv", "visibility_peel_deferred_msaa_04.frag.spv" , "transparency_composite_msaa_04.frag.spv" }},
+	{ 8, { VK_SAMPLE_COUNT_8_BIT, "deferred_msaa_08.frag.spv", "visibility_deferred_msaa_08.frag.spv", "visibility_peel_deferred_msaa_08.frag.spv", "transparency_composite_msaa_08.frag.spv" }},
+	{ 16, { VK_SAMPLE_COUNT_16_BIT, "deferred_msaa_16.frag.spv", "visibility_deferred_msaa_16.frag.spv", "visibility_peel_deferred_msaa_16.frag.spv", "transparency_composite_msaa_16.frag.spv" }}
 };
 
 class VulkanRenderer

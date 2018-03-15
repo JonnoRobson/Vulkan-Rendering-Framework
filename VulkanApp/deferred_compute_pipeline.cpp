@@ -12,7 +12,7 @@ void DeferredComputePipeline::RecordCommands(VkCommandBuffer& command_buffer, ui
 	uint32_t workgroup_size_x = 32;
 	uint32_t workgroup_size_y = 32;
 
-	VkExtent2D swap_extent = swap_chain_->GetSwapChainExtent();
+	VkExtent2D swap_extent = swap_chain_->GetIntermediateImageExtent();
 
 	uint32_t workgroup_count_x = swap_extent.width / workgroup_size_x;
 	if (swap_extent.width % workgroup_size_x > 0)

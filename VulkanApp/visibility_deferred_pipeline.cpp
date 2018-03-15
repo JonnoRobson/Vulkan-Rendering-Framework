@@ -8,7 +8,7 @@ void VisibilityDeferredPipeline::RecordCommands(VkCommandBuffer& command_buffer,
 	render_pass_info.renderPass = render_pass_;
 	render_pass_info.framebuffer = framebuffers_[0];
 	render_pass_info.renderArea.offset = { 0, 0 };
-	render_pass_info.renderArea.extent = swap_chain_->GetSwapChainExtent();
+	render_pass_info.renderArea.extent = swap_chain_->GetIntermediateImageExtent();
 	render_pass_info.clearValueCount = 0;
 	render_pass_info.pClearValues = nullptr;
 
@@ -20,8 +20,8 @@ void VisibilityDeferredPipeline::RecordCommands(VkCommandBuffer& command_buffer,
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float)(swap_chain_->GetSwapChainExtent().width);
-	viewport.height = (float)(swap_chain_->GetSwapChainExtent().height);
+	viewport.width = (float)(swap_chain_->GetIntermediateImageExtent().width);
+	viewport.height = (float)(swap_chain_->GetIntermediateImageExtent().height);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(command_buffer, 0, 1, &viewport);
@@ -29,7 +29,7 @@ void VisibilityDeferredPipeline::RecordCommands(VkCommandBuffer& command_buffer,
 	// set the dynamic scissor data
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = swap_chain_->GetSwapChainExtent();
+	scissor.extent = swap_chain_->GetIntermediateImageExtent();
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
 	// bind the descriptor set to the pipeline
@@ -100,8 +100,8 @@ void VisibilityDeferredPipeline::CreateFramebuffers()
 	framebuffer_info.renderPass = render_pass_;
 	framebuffer_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 	framebuffer_info.pAttachments = attachments.data();
-	framebuffer_info.width = swap_chain_->GetSwapChainExtent().width;
-	framebuffer_info.height = swap_chain_->GetSwapChainExtent().height;
+	framebuffer_info.width = swap_chain_->GetIntermediateImageExtent().width;
+	framebuffer_info.height = swap_chain_->GetIntermediateImageExtent().height;
 	framebuffer_info.layers = 1;
 
 	if (vkCreateFramebuffer(devices_->GetLogicalDevice(), &framebuffer_info, nullptr, &framebuffers_[0]) != VK_SUCCESS)

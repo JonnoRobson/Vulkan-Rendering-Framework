@@ -29,7 +29,7 @@ void TonemapPipeline::RecordCommands(VkCommandBuffer& command_buffer, uint32_t b
 	// set the dynamic scissor data
 	VkRect2D scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = swap_chain_->GetSwapChainExtent();
+	scissor.extent = swap_chain_->GetIntermediateImageExtent();
 	vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
 	// bind the descriptor set to the pipeline

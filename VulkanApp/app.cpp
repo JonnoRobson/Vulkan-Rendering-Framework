@@ -19,11 +19,19 @@ void App::Run()
 bool App::InitWindow()
 {
 	// read in mesh filenames before creating window as fullscreen workaround
-	std::cout << "Select model to load: ";
+	std::cout << "Enter model to load: ";
 	std::cin >> mesh_filenames_;
 
+	// read in resolution
+	std::cout << "Enter window resolution: ";
+	std::cin >> window_width_;
+	std::cin >> window_height_;
+
+	window_width_ = (window_width_ > 0) ? window_width_ : 1920;
+	window_height_ = (window_height_ > 0) ? window_height_ : 1080;
+
 	// read in the multisample level
-	std::cout << "Select multisample level: ";
+	std::cout << "Enter multisample level: ";
 	std::cin >> multisample_level_;
 
 	if (glfwInit() == GLFW_FALSE)
@@ -80,7 +88,7 @@ bool App::InitVulkan()
 	InitDevices();
 
 	// init the swap chain
-	swap_chain_->CreateSwapChain(devices_);
+	swap_chain_->CreateSwapChain(devices_, window_width_, window_height_, multisample_level_);
 	
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
@@ -182,7 +190,7 @@ bool App::InitResources()
 		lights_.push_back(light);
 	}
 	*/
-	camera_.SetViewDimensions(swap_chain_->GetSwapChainExtent().width, swap_chain_->GetSwapChainExtent().height);
+	camera_.SetViewDimensions(swap_chain_->GetIntermediateImageExtent().width, swap_chain_->GetIntermediateImageExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
 	camera_.SetPosition(glm::vec3(0.0f, -75.0f, 100.0f));
 	camera_.SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -515,6 +523,8 @@ void App::InitDevices()
 	device_features.independentBlend = VK_TRUE;
 	device_features.multiDrawIndirect = VK_TRUE;
 	device_features.geometryShader = VK_TRUE;
+	device_features.shaderStorageImageMultisample = VK_TRUE;
+	device_features.sampleRateShading = VK_TRUE;
 
 	// create the physical device
 	devices_ = new VulkanDevices(vk_instance_, swap_chain_->GetSurface(), device_features, device_extensions_);
@@ -542,7 +552,7 @@ void App::InitDevices()
 
 void App::RecreateSwapChain()
 {
-	swap_chain_->CreateSwapChain(devices_);
+	swap_chain_->CreateSwapChain(devices_, window_width_, window_height_, multisample_level_);
 	renderer_->RecreateSwapChainFeatures();
 }
 
