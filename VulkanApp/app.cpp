@@ -33,6 +33,7 @@ bool App::InitWindow()
 	// read in the multisample level
 	std::cout << "Enter multisample level: ";
 	std::cin >> multisample_level_;
+	multisample_level_ = std::max(1, std::min(8, multisample_level_));
 
 	if (glfwInit() == GLFW_FALSE)
 		return false;
@@ -40,8 +41,11 @@ bool App::InitWindow()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// Don't create an opengl context
 	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);		// Window should be resizable
 
-	//window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
+#ifdef NDEBUG
+	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", glfwGetPrimaryMonitor(), nullptr);
+#else	
 	window_ = glfwCreateWindow(window_width_, window_height_, "Vulkan", nullptr, nullptr);
+#endif
 
 	glfwSetWindowUserPointer(window_, this);
 	glfwSetWindowSizeCallback(window_, App::OnWindowResized);

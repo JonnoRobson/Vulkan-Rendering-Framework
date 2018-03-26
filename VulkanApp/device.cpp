@@ -669,7 +669,9 @@ std::vector<char> VulkanDevices::ReadFile(const std::string& filename)
 
 void VulkanDevices::WriteFile(const std::string& filename, const std::string& contents)
 {
-	std::ofstream file(filename, std::ios::out);
+	std::ofstream file;
+	
+	file.open(filename, std::ios::out | std::ofstream::app);
 
 	if (!file.is_open())
 	{

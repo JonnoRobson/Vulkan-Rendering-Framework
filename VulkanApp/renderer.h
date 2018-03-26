@@ -1,6 +1,8 @@
 #ifndef _RENDERER_H_
 #define _RENDERER_H_
 
+#define PERFORMANCE_CAPTURES 10
+
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
@@ -107,7 +109,7 @@ public:
 	inline VulkanTextureCache*	GetTextureCache() { return texture_cache_; }
 	inline HDR* GetHDR() { return hdr_; }
 
-	inline void EnableTiming() { timing_enabled_ = true; }
+	inline void EnableTiming() { performance_captures_remaining_ = PERFORMANCE_CAPTURES; }
 
 protected:
 	// pipeline creation functions
@@ -161,6 +163,9 @@ protected:
 	void RenderVisibilityPeelDeferred();
 	void RenderTransparency();
 	void CullGeometry();
+
+	// performance recording functions
+	void RecordPerformance();
 
 protected:
 	VulkanDevices* devices_;
@@ -253,8 +258,11 @@ protected:
 	std::vector<Texture*> reflection_textures_;
 
 	//  rendering stage timing
-	bool timing_enabled_;
-
+	int performance_captures_remaining_;
+	double visibility_time_;
+	double shading_time_;
+	double transparency_time_;
+	double post_process_time_;
 };
 
 #endif

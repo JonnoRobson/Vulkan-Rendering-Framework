@@ -9,7 +9,11 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, i
 	devices_ = devices;
 	swap_chain_ = swap_chain;
 	render_mode_ = RenderMode::VISIBILITY_PEELED;
-	timing_enabled_ = false;
+	performance_captures_remaining_ = 0;
+	visibility_time_ = 0;
+	shading_time_ = 0;
+	transparency_time_ = 0;
+	post_process_time_ = 0;
 	multisample_level_ = multisample_level;
 
 	// load a default texture
@@ -92,40 +96,26 @@ void VulkanRenderer::RenderScene()
 		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
 		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityRenderData));
 
-		if (timing_enabled_)
+		if (performance_captures_remaining_ > 0)
 		{
-			auto vis_begin = std::chrono::high_resolution_clock::now();
-
+			// render visibility
+			glfwSetTime(0.0);
 			RenderVisibility();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto vis_end = std::chrono::high_resolution_clock::now();
-			float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-			std::cout << "Visibility took " << vis_time << "ms.\n";
+			visibility_time_ += glfwGetTime() * 1000.0;
 
-			auto shade_begin = std::chrono::high_resolution_clock::now();
-
+			// render shading
+			glfwSetTime(0.0);
 			RenderVisbilityDeferred();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto shade_end = std::chrono::high_resolution_clock::now();
-			float shade_time = std::chrono::duration_cast<std::chrono::milliseconds>(shade_end - shade_begin).count();
-			std::cout << "Shading took " << shade_time << "ms.\n";
+			shading_time_ += glfwGetTime() * 1000.0;
 
 			// render transparency
-			auto transparency_begin = std::chrono::high_resolution_clock::now();
-
+			glfwSetTime(0.0);
 			current_signal_semaphore_ = transparency_composite_semaphore_;
 			RenderTransparency();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto transparency_end = std::chrono::high_resolution_clock::now();
-			float transparency_time = std::chrono::duration_cast<std::chrono::milliseconds>(transparency_end - transparency_begin).count();
-			std::cout << "Transparency took " << transparency_time << "ms.\n";
-
-			std::cout << "Total shading took " << vis_time + shade_time + transparency_time << "ms.\n\n\n";
-
-			timing_enabled_ = false;
+			transparency_time_ += glfwGetTime() * 1000.0;
 		}
 		else
 		{
@@ -144,31 +134,19 @@ void VulkanRenderer::RenderScene()
 		visibility_data.invProj = glm::inverse(render_camera_->GetProjectionMatrix());
 		devices_->CopyDataToBuffer(visibility_data_buffer_memory_, &visibility_data, sizeof(VisibilityPeelRenderData));
 	
-		if (timing_enabled_)
+		if (performance_captures_remaining_)
 		{
 			// render visibility
-			auto vis_begin = std::chrono::high_resolution_clock::now();
-
+			glfwSetTime(0.0);
 			RenderVisibilityPeel();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto vis_end = std::chrono::high_resolution_clock::now();
-			float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-			std::cout << "Visibility took " << vis_time << "ms.\n";
+			visibility_time_ += glfwGetTime() * 1000.0;
 
 			// render deferred stage
-			auto shade_begin = std::chrono::high_resolution_clock::now();
-
+			glfwSetTime(0.0);
 			RenderVisibilityPeelDeferred();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto shade_end = std::chrono::high_resolution_clock::now();
-			float shade_time = std::chrono::duration_cast<std::chrono::milliseconds>(shade_end - shade_begin).count();
-			std::cout << "Shading took " << shade_time << "ms.\n";
-
-			std::cout << "Total shading took " << vis_time + shade_time << "ms.\n\n\n";
-
-			timing_enabled_ = false;
+			shading_time_ += glfwGetTime() * 1000.0;
 		}
 		else
 		{
@@ -178,42 +156,26 @@ void VulkanRenderer::RenderScene()
 
 #elif _DEFERRED
 
-		if (timing_enabled_)
+		if (performance_captures_remaining_ > 0)
 		{
 			// render g buffer
-			auto vis_begin = std::chrono::high_resolution_clock::now();
-
+			glfwSetTime(0.0);
 			RenderGBuffer();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto vis_end = std::chrono::high_resolution_clock::now();
-			float vis_time = std::chrono::duration_cast<std::chrono::milliseconds>(vis_end - vis_begin).count();
-			std::cout << "Visibility took " << vis_time << "ms.\n";
-
+			visibility_time_ += glfwGetTime() * 1000.0;
+			
 			// render deferred stage
-			auto shade_begin = std::chrono::high_resolution_clock::now();
-
+			glfwSetTime(0.0);
 			RenderDeferred();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto shade_end = std::chrono::high_resolution_clock::now();
-			float shade_time = std::chrono::duration_cast<std::chrono::milliseconds>(shade_end - shade_begin).count();
-			std::cout << "Shading took " << shade_time << "ms.\n";
+			shading_time_ += glfwGetTime() * 1000.0;
 
 			// render transparency
-			auto transparency_begin = std::chrono::high_resolution_clock::now();
-
+			glfwSetTime(0.0);
 			current_signal_semaphore_ = transparency_composite_semaphore_;
 			RenderTransparency();
-
 			vkQueueWaitIdle(graphics_queue_);
-			auto transparency_end = std::chrono::high_resolution_clock::now();
-			float transparency_time = std::chrono::duration_cast<std::chrono::milliseconds>(transparency_end - transparency_begin).count();
-			std::cout << "Transparency took " << transparency_time << "ms.\n";
-
-			std::cout << "Total shading took " << vis_time + shade_time + transparency_time << "ms.\n\n\n";
-
-			timing_enabled_ = false;
+			transparency_time_ += glfwGetTime() * 1000.0;
 		}
 		else
 		{
@@ -225,12 +187,26 @@ void VulkanRenderer::RenderScene()
 
 #endif
 		
+		if (performance_captures_remaining_ > 0)
+			glfwSetTime(0.0);
+
 		if (hdr_->GetHDRMode() > 0)
 		{
 			hdr_->Render(swap_chain_, &current_signal_semaphore_);
 				current_signal_semaphore_ = hdr_->GetHDRSemaphore();
 		}
 		
+		if (performance_captures_remaining_ > 0)
+		{
+			vkQueueWaitIdle(graphics_queue_);
+			post_process_time_ += glfwGetTime() * 1000.0;
+
+			performance_captures_remaining_--;
+
+			if (performance_captures_remaining_ == 0)
+				RecordPerformance();
+		}
+
 		swap_chain_->FinalizeIntermediateImage();
 	}
 
@@ -1799,4 +1775,39 @@ uint32_t VulkanRenderer::AddTextureMap(Texture* texture, Texture::MapType map_ty
 	}
 
 	return 0;
+}
+
+void VulkanRenderer::RecordPerformance()
+{
+	double out_visibility = visibility_time_ / (float)PERFORMANCE_CAPTURES;
+	double out_shading = shading_time_ / (float)PERFORMANCE_CAPTURES;
+	double out_transparency = transparency_time_ / (float)PERFORMANCE_CAPTURES;
+	double out_post_process = post_process_time_ / (float)PERFORMANCE_CAPTURES;
+	double out_total = out_visibility + out_shading + out_transparency + out_post_process;
+
+#ifdef _DEFERRED
+	std::string out_filename = "_deferred_results.txt";
+#elif _VISIBILITY
+	std::string out_filename = "_visibility_results.txt";
+#elif _VISIBILITY_PEELED
+	std::string out_filename = "_visibility_peel_results.txt";
+#endif
+
+	VkExtent2D resolution = swap_chain_->GetIntermediateImageExtent();
+
+	// build the results string
+	std::string results_string = "Resolution: " + std::to_string(resolution.width) + "x" + std::to_string(resolution.height) + "\n";
+	results_string += "Sample Count: " + std::to_string(multisample_level_) + "\n\n";
+	results_string += "Visibility: " + std::to_string(out_visibility) + "ms\n";
+	results_string += "Shading: " + std::to_string(out_shading) + "ms\n";
+	results_string += "Transparency: " + std::to_string(out_transparency) + "ms\n";
+	results_string += "Post-Process: " + std::to_string(out_post_process) + "ms\n";
+	results_string += "Total Time: " + std::to_string(out_total) + "ms\n\n\n";
+
+	VulkanDevices::WriteFile(out_filename, results_string);
+
+	visibility_time_ = 0;
+	shading_time_ = 0;
+	transparency_time_ = 0;
+	post_process_time_ = 0;
 }

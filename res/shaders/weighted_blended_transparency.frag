@@ -245,24 +245,16 @@ vec4 CalculateLighting(vec4 worldPosition, vec3 worldNormal, vec2 fragTexCoord, 
 		return vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	}
 	
-	// don't bother with specular lighting if quality level is low
-	if(qualityLevel < 0.25f)
-	{
-		if(specularColor.x + specularColor.y + specularColor.z > 0)
-		{
-			// calculate eye vector
-			vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
+	// calculate specular lighting
+	// calculate eye vector
+	vec3 eyeVec = worldPosition.xyz - light_data.camera_pos.xyz;
 
-			// calculate reflected light vector
-			vec3 reflectLight = reflect(rayDir, worldNormal);
+	// calculate reflected light vector
+	vec3 reflectLight = reflect(rayDir, worldNormal);
 
-			float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularColor.w);
-			if(specularPower < 0.0f)
-				specularPower = 0.0f;
+	float specularPower = pow(clamp(dot(reflectLight, eyeVec), 0, 1), specularColor.w);
 
-			specularColor.xyz = specularColor.xyz * specularPower;
-		}
-	}
+	specularColor.xyz = specularColor.xyz * specularPower;
 
 	uint shadowQuality = uint(max(1, min(4 * qualityLevel, 4)));
 	
