@@ -89,9 +89,9 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12, r32ui) uniform uimage2D visibilityBuffers[PEEL_COUNT * 2];
+layout(binding = 12) uniform utexture2D visibilityBuffers[PEEL_COUNT * 2];
 layout(binding = 13) uniform texture2D depthBuffers[PEEL_COUNT * 2];
-layout(binding = 14) uniform sampler depthBufferSampler;
+layout(binding = 14) uniform sampler bufferSampler;
 
 // vertex, index and shape buffers
 layout(binding = 15) buffer VertexBuffer
@@ -116,6 +116,7 @@ layout(binding = 18) uniform MatrixBuffer
 	mat4 invProj;
 } matrix_data;
 
+layout(binding = 19) uniform sampler shadowMapSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -224,7 +225,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], mapSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}
@@ -477,7 +478,7 @@ void main()
 	for(int i = 0; i < PEEL_COUNT; i++)
 	{
 		// read from the visibility buffer texture
-		uint visibilityData = imageLoad(visibilityBuffers[i], visBufferCoord).r;
+		uint visibilityData = texelFetch(usampler2D(visibilityBuffers[i], bufferSampler), ivec2(gl_FragCoord.xy), 0).r;
 		uint triID = visibilityData >> SHAPE_ID_BITS;
 		uint shapeID = (visibilityData & SHAPE_ID_MASK);
 		uvec2 offsets = _shapes[shapeID].offsets.xy;
@@ -486,7 +487,7 @@ void main()
 			break;
 			
 		// load depth
-		float depth = texture(sampler2D(depthBuffers[i], depthBufferSampler), gl_FragCoord.xy).r;
+		float depth = texelFetch(sampler2D(depthBuffers[i], bufferSampler), ivec2(gl_FragCoord.xy), 0).r;
 		Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, gl_FragCoord.xy);
 		worldPosition = vertex.pos;
 		worldNormal = vertex.normal;

@@ -667,7 +667,7 @@ std::vector<char> VulkanDevices::ReadFile(const std::string& filename)
 	return buffer;
 }
 
-void VulkanDevices::WriteFile(const std::string& filename, const std::string& contents)
+void VulkanDevices::AppendFile(const std::string& filename, const std::string& contents)
 {
 	std::ofstream file;
 	

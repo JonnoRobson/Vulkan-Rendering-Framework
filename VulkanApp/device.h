@@ -88,7 +88,7 @@ protected:
 
 public:
 	static std::vector<char> ReadFile(const std::string& filename);
-	static void WriteFile(const std::string& filename, const std::string& contents);
+	static void AppendFile(const std::string& filename, const std::string& contents);
 	static void WriteDebugFile(const char* msg);
 };
 

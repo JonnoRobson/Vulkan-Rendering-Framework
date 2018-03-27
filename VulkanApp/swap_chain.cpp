@@ -171,14 +171,14 @@ void VulkanSwapChain::CopyToIntermediateImage(VkImage image, VkImageLayout image
 
 	VkImageBlit image_blit = {};
 	image_blit.srcOffsets[0] = { 0, 0, 0 };
-	image_blit.srcOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.srcOffsets[1] = { (int)intermediate_image_extent_.width, (int)intermediate_image_extent_.height, 1 };
 	image_blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	image_blit.srcSubresource.baseArrayLayer = 0;
 	image_blit.srcSubresource.layerCount = 1;
 	image_blit.srcSubresource.mipLevel = 0;
 
 	image_blit.dstOffsets[0] = { 0, 0, 0 };
-	image_blit.dstOffsets[1] = { (int)swap_chain_extent_.width, (int)swap_chain_extent_.height, 1 };
+	image_blit.dstOffsets[1] = { (int)intermediate_image_extent_.width, (int)intermediate_image_extent_.height, 1 };
 	image_blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	image_blit.dstSubresource.baseArrayLayer = 0;
 	image_blit.dstSubresource.layerCount = 1;

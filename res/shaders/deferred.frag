@@ -66,8 +66,9 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12, rgba32f) uniform image2D gBuffer[2];
-layout(binding = 13) uniform sampler gBufferSampler;
+layout(binding = 12) uniform texture2D gBuffer[2];
+layout(binding = 13) uniform sampler bufferSampler;
+layout(binding = 14) uniform sampler shadowMapSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -160,7 +161,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 		float lightCount = 0.0;
 
 		// sample the shadow map
-		ivec2 textureDims = textureSize(sampler2D(shadowMaps[shadowMapIndex], gBufferSampler), 0);
+		ivec2 textureDims = textureSize(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), 0);
 		float shadowMapTexelSize = 1.0 / textureDims.x;
 		for(int x = -pcfSizeMinus1; x <= pcfSizeMinus1; x++)
 		{
@@ -173,7 +174,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], gBufferSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}
@@ -340,8 +341,8 @@ void main()
 	uint matIndex = 0;
 
 	// sample the g-buffer textures
-	vec4 gBuffer1 = imageLoad(gBuffer[0], ivec2(gl_FragCoord.xy));
-	vec4 gBuffer2 = imageLoad(gBuffer[1], ivec2(gl_FragCoord.xy));
+	vec4 gBuffer1 = texelFetch(sampler2D(gBuffer[0], bufferSampler), ivec2(gl_FragCoord.xy), 0);
+	vec4 gBuffer2 = texelFetch(sampler2D(gBuffer[1], bufferSampler), ivec2(gl_FragCoord.xy), 0);
 
 	// discard pixel if it has an empty material index
 	if(gBuffer1.w == 0)
@@ -369,7 +370,7 @@ void main()
 		vec3 cameraVec = light_data.camera_data.xyz - worldPosition.xyz;
 		normal = PerturbNormal(normal, cameraVec, fragTexCoord, normal_map_index);
 	}
-
+	
 	// if ambient map index is non-zero sample the ambient map
 	vec4 ambient = material_data.materials[matIndex].ambient;
 	uint ambient_map_index = material_data.materials[matIndex].ambient_map_index;

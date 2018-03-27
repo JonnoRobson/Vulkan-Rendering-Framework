@@ -87,7 +87,7 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12, r32ui) uniform uimage2D visibilityBuffer;
+layout(binding = 12) uniform utexture2D visibilityBuffer;
 
 // vertex, index and shape buffers
 layout(binding = 13) buffer VertexBuffer
@@ -114,6 +114,7 @@ layout(binding = 16) uniform MatrixBuffer
 
 layout(binding = 17) uniform texture2D depthBuffer;
 layout(binding = 18) uniform sampler bufferSampler;
+layout(binding = 19) uniform sampler shadowMapSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -222,7 +223,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], bufferSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}
@@ -439,7 +440,7 @@ Vertex LoadAndInterpolateVertex(uint vertexOffset, uint indexOffset, uint triID,
 	vec4 p2 = vec4(v2.pos, 1.0f);
 	
 	// sample pixel depth from the depth buffer
-	float depth = texture(sampler2D(depthBuffer, bufferSampler), screenTexCoord).x;
+	float depth = texelFetch(sampler2D(depthBuffer, bufferSampler), ivec2(gl_FragCoord.xy), 0).x;
 
 	vec3 worldPos = PositionFromDepth(depth, screenTexCoord);
 	vec3 weights = Intersect(worldPos.xyz, p0.xyz, p1.xyz, p2.xyz);
@@ -462,7 +463,7 @@ void main()
 
 	// read from the visibility buffer texture
 	vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
-	uint visibilityData = imageLoad(visibilityBuffer, ivec2(gl_FragCoord.xy)).r;
+	uint visibilityData = texelFetch(usampler2D(visibilityBuffer, bufferSampler), ivec2(gl_FragCoord.xy), 0).r;
 	uint triID = visibilityData >> SHAPE_ID_BITS;
 	uint shapeID = (visibilityData & SHAPE_ID_MASK);
 	uvec2 offsets = _shapes[shapeID].offsets.xy;

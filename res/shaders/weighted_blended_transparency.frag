@@ -67,6 +67,7 @@ layout(binding = 10) uniform texture2D normalMaps[512];
 layout(binding = 11) uniform texture2D alphaMaps[512];
 layout(binding = 12) uniform texture2D reflectionMaps[512];
 layout(binding = 13) uniform texture2D shadowMaps[16];
+layout(binding = 14) uniform sampler shadowMapSampler;
 
 // outputs
 layout(location = 0) out vec4 accumulation;
@@ -164,7 +165,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 		float lightCount = 0.0;
 
 		// sample the shadow map
-		ivec2 textureDims = textureSize(sampler2D(shadowMaps[shadowMapIndex], mapSampler), 0);
+		ivec2 textureDims = textureSize(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), 0);
 		float shadowMapTexelSize = 1.0 / textureDims.x;
 		for(int x = -pcfSizeMinus1; x <= pcfSizeMinus1; x++)
 		{
@@ -177,7 +178,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], mapSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}

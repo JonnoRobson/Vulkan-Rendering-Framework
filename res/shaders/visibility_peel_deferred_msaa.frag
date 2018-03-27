@@ -91,9 +91,9 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12, r32ui) uniform uimage2DMS visibilityBuffers[PEEL_COUNT * 2];
+layout(binding = 12) uniform utexture2DMS visibilityBuffers[PEEL_COUNT * 2];
 layout(binding = 13) uniform texture2DMS depthBuffers[PEEL_COUNT * 2];
-layout(binding = 14) uniform sampler depthBufferSampler;
+layout(binding = 14) uniform sampler bufferSampler;
 
 // vertex, index and shape buffers
 layout(binding = 15) buffer VertexBuffer
@@ -118,6 +118,7 @@ layout(binding = 18) uniform MatrixBuffer
 	mat4 invProj;
 } matrix_data;
 
+layout(binding = 19) uniform sampler shadowMapSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -226,7 +227,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], mapSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}
@@ -485,7 +486,7 @@ void main()
 		for(int sample_num = 0; sample_num < MSAA_COUNT; sample_num++)
 		{
 			// read from the visibility buffer texture
-			uint visibilityData = imageLoad(visibilityBuffers[i], visBufferCoord, sample_num).r;
+			uint visibilityData = texelFetch(usampler2DMS(visibilityBuffers[i], bufferSampler), ivec2(gl_FragCoord.xy), sample_num).r;
 			uint triID = visibilityData >> SHAPE_ID_BITS;
 			uint shapeID = (visibilityData & SHAPE_ID_MASK);
 			uvec2 offsets = _shapes[shapeID].offsets.xy;
@@ -494,7 +495,7 @@ void main()
 				continue;
 			
 			// load depth
-			float depth = texelFetch(sampler2DMS(depthBuffers[i], depthBufferSampler), ivec2(gl_FragCoord.xy), sample_num).r;
+			float depth = texelFetch(sampler2DMS(depthBuffers[i], bufferSampler), ivec2(gl_FragCoord.xy), sample_num).r;
 			Vertex vertex = LoadAndInterpolateVertex(offsets.x, offsets.y, triID, depth, gl_FragCoord.xy);
 			worldPosition = vertex.pos;
 			worldNormal = vertex.normal;

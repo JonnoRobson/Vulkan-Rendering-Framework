@@ -156,7 +156,7 @@ void ShadowMapPipeline::CreatePipeline()
 	rasterizer_state.rasterizerDiscardEnable = VK_FALSE;
 	rasterizer_state.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer_state.lineWidth = 1.0f;
-	rasterizer_state.cullMode = VK_CULL_MODE_NONE;
+	rasterizer_state.cullMode = VK_CULL_MODE_BACK_BIT;
 	rasterizer_state.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizer_state.depthBiasEnable = VK_FALSE;
 	rasterizer_state.depthBiasConstantFactor = 0.0f;

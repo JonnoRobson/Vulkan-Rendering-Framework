@@ -97,6 +97,7 @@ bool App::InitVulkan()
 	// init the rendering pipeline
 	renderer_ = new VulkanRenderer();
 	renderer_->Init(devices_, swap_chain_, multisample_level_);
+	renderer_->LoadCapturePoints(mesh_filenames_);
 
 	return true;
 }
@@ -335,8 +336,26 @@ void App::Update()
 	// renderer timing
 	if (input_->IsKeyPressed(GLFW_KEY_ENTER))
 	{
-		renderer_->EnableTiming();
+		renderer_->StartPerformanceCapture();
 		input_->SetKeyUp(GLFW_KEY_ENTER);
+	}
+
+	// capture point recording
+	if (input_->IsKeyPressed(GLFW_KEY_TAB))
+	{
+		glm::vec3 cam_pos = camera_.GetPosition();
+		glm::vec3 cam_rot = camera_.GetRotation();
+
+		std::string sample_point = "\n" + std::to_string(cam_pos.x) + "\n";
+		sample_point += std::to_string(cam_pos.y) + "\n";
+		sample_point += std::to_string(cam_pos.z) + "\n";
+		sample_point += std::to_string(cam_rot.x) + "\n";
+		sample_point += std::to_string(cam_rot.y) + "\n";
+		sample_point += std::to_string(cam_rot.z);
+
+		VulkanDevices::AppendFile("../res/data/capture_points/" + mesh_filenames_ + "_capture_points.txt", sample_point);
+
+		input_->SetKeyUp(GLFW_KEY_TAB);
 	}
 }
 

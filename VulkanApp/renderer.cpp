@@ -1,6 +1,7 @@
 #include "renderer.h"
 #include <chrono>
 #include <iostream>
+#include <fstream>
 #include <array>
 #include <map>
 
@@ -15,6 +16,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, i
 	transparency_time_ = 0;
 	post_process_time_ = 0;
 	multisample_level_ = multisample_level;
+	model_filename_ = "";
 
 	// load a default texture
 	default_texture_ = new Texture();
@@ -196,6 +198,7 @@ void VulkanRenderer::RenderScene()
 				current_signal_semaphore_ = hdr_->GetHDRSemaphore();
 		}
 		
+		// capture post process time and move to next recording
 		if (performance_captures_remaining_ > 0)
 		{
 			vkQueueWaitIdle(graphics_queue_);
@@ -204,7 +207,21 @@ void VulkanRenderer::RenderScene()
 			performance_captures_remaining_--;
 
 			if (performance_captures_remaining_ == 0)
+			{
 				RecordPerformance();
+
+				// advance to the next performance capture point
+				current_capture_point_++;
+				if (current_capture_point_ < capture_points_.size())
+				{
+					performance_captures_remaining_ = PERFORMANCE_CAPTURES;
+
+					// place the camera at the next performance capture position
+					PerformanceCapturePoint capture_point = capture_points_[current_capture_point_];
+					render_camera_->SetPosition(capture_point.capture_position);
+					render_camera_->SetRotation(capture_point.capture_rotation);
+				}
+			}
 		}
 
 		swap_chain_->FinalizeIntermediateImage();
@@ -932,8 +949,9 @@ void VulkanRenderer::InitDeferredPipeline()
 	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
 
 	// add the g buffer to the pipeline
-	deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
-	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, buffer_normalized_sampler_);
+	deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, g_buffer_->GetImageViews());
+	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 13, buffer_unnormalized_sampler_);
+	deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 14, buffer_normalized_sampler_);
 
 	// set the deferred shader
 	deferred_pipeline_->SetShader(deferred_shader_);
@@ -1028,13 +1046,14 @@ void VulkanRenderer::InitVisibilityPipeline()
 	visibility_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
 
 	// add the visibility buffer to the pipeline
-	visibility_deferred_pipeline_->AddStorageImage(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_buffer_->GetImageViews()[0]);
+	visibility_deferred_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_buffer_->GetImageViews()[0]);
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 13, primitive_buffer_->GetVertexBuffer(), primitive_buffer_->GetVertexCount() * sizeof(Vertex));
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 14, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
 	visibility_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeData));
 	visibility_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, visibility_data_buffer_, sizeof(VisibilityRenderData));
 	visibility_deferred_pipeline_->AddTexture(VK_SHADER_STAGE_FRAGMENT_BIT, 17, swap_chain_->GetDepthImageView());
-	visibility_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 18, buffer_normalized_sampler_);
+	visibility_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 18, buffer_unnormalized_sampler_);
+	visibility_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 19, buffer_normalized_sampler_);
 
 	visibility_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
@@ -1117,13 +1136,14 @@ void VulkanRenderer::InitVisibilityPeelPipeline()
 	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, shadow_maps_);
 
 	// add visibility rendering resources to the pipeline
-	visibility_peel_deferred_pipeline_->AddStorageImageArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_peel_buffer_->GetImageViews());
+	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, visibility_peel_buffer_->GetImageViews());
 	visibility_peel_deferred_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, peel_depth_buffer_->GetImageViews());
 	visibility_peel_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 14, buffer_unnormalized_sampler_);
 	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 15, primitive_buffer_->GetVertexBuffer(), primitive_buffer_->GetVertexCount() * sizeof(Vertex));
 	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 16, primitive_buffer_->GetIndexBuffer(), primitive_buffer_->GetIndexCount() * sizeof(uint32_t));
 	visibility_peel_deferred_pipeline_->AddStorageBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 17, primitive_buffer_->GetShapeBuffer(), primitive_buffer_->GetShapeCount() * sizeof(ShapeData));
 	visibility_peel_deferred_pipeline_->AddUniformBuffer(VK_SHADER_STAGE_FRAGMENT_BIT, 18, visibility_data_buffer_, sizeof(VisibilityRenderData));
+	visibility_peel_deferred_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 19, buffer_normalized_sampler_);
 	visibility_peel_deferred_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
 
 	CreateVisibilityPeelCommandBuffers();
@@ -1169,6 +1189,7 @@ void VulkanRenderer::InitTransparencyPipeline()
 	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 11, alpha_textures_);
 	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 12, reflection_textures_);
 	transparency_pipeline_->AddTextureArray(VK_SHADER_STAGE_FRAGMENT_BIT, 13, shadow_maps_);
+	transparency_pipeline_->AddSampler(VK_SHADER_STAGE_FRAGMENT_BIT, 14, buffer_normalized_sampler_);
 
 	// initialize the transparency pipeline
 	transparency_pipeline_->Init(devices_, swap_chain_, primitive_buffer_);
@@ -1785,12 +1806,17 @@ void VulkanRenderer::RecordPerformance()
 	double out_post_process = post_process_time_ / (float)PERFORMANCE_CAPTURES;
 	double out_total = out_visibility + out_shading + out_transparency + out_post_process;
 
+	// extract the name of the model
+	std::string model = "";
+	for (int i = 0; i < model_filename_.find_last_of('.'); i++)
+		model += model_filename_[i];
+
 #ifdef _DEFERRED
-	std::string out_filename = "_deferred_results.txt";
+	std::string out_filename = "../res/data/performance_data/" + model + "_deferred_results.txt";
 #elif _VISIBILITY
-	std::string out_filename = "_visibility_results.txt";
+	std::string out_filename = "../res/data/performance_data/" + model + "_visibility_results.txt";
 #elif _VISIBILITY_PEELED
-	std::string out_filename = "_visibility_peel_results.txt";
+	std::string out_filename = "../res/data/performance_data/" + model + "_visibility_peel_results.txt";
 #endif
 
 	VkExtent2D resolution = swap_chain_->GetIntermediateImageExtent();
@@ -1802,12 +1828,57 @@ void VulkanRenderer::RecordPerformance()
 	results_string += "Shading: " + std::to_string(out_shading) + "ms\n";
 	results_string += "Transparency: " + std::to_string(out_transparency) + "ms\n";
 	results_string += "Post-Process: " + std::to_string(out_post_process) + "ms\n";
-	results_string += "Total Time: " + std::to_string(out_total) + "ms\n\n\n";
+	results_string += "Total Time: " + std::to_string(out_total) + "ms\n\n";
+	results_string += "//////////////////////////////\n\n";
 
-	VulkanDevices::WriteFile(out_filename, results_string);
+	VulkanDevices::AppendFile(out_filename, results_string);
 
 	visibility_time_ = 0;
 	shading_time_ = 0;
 	transparency_time_ = 0;
 	post_process_time_ = 0;
+}
+
+void VulkanRenderer::LoadCapturePoints(std::string filename)
+{
+	model_filename_ = filename;
+
+	std::ifstream file;
+
+	file.open("../res/data/capture_points/" + filename + "_capture_points.txt", std::ios::in);
+
+	if (!file.is_open())
+	{
+		return;
+	}
+
+	while (!file.eof())
+	{
+		PerformanceCapturePoint capture_point = {};
+		file >> capture_point.capture_position.x;
+		file >> capture_point.capture_position.y;
+		file >> capture_point.capture_position.z;
+		file >> capture_point.capture_rotation.x;
+		file >> capture_point.capture_rotation.y;
+		file >> capture_point.capture_rotation.z;
+
+		capture_points_.push_back(capture_point);
+	}
+
+	file.close();
+}
+
+void VulkanRenderer::StartPerformanceCapture()
+{
+	if (capture_points_.size() > 0)
+	{
+
+		performance_captures_remaining_ = PERFORMANCE_CAPTURES;
+		current_capture_point_ = 0;
+
+		PerformanceCapturePoint capture_point = capture_points_[current_capture_point_];
+
+		render_camera_->SetPosition(capture_point.capture_position);
+		render_camera_->SetRotation(capture_point.capture_rotation);
+	}
 }

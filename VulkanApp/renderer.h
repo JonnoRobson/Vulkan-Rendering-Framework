@@ -47,6 +47,12 @@ struct SampleCountData
 	std::string transparency_composite_shader;
 };
 
+struct PerformanceCapturePoint
+{
+	glm::vec3 capture_position;
+	glm::vec3 capture_rotation;
+};
+
 static std::map<int, SampleCountData> multisample_data =
 {
 	{ 1, { VK_SAMPLE_COUNT_1_BIT, "deferred.frag.spv", "visibility_deferred.frag.spv", "visibility_peel_deferred.frag.spv", "transparency_composite.frag.spv" }},
@@ -109,7 +115,8 @@ public:
 	inline VulkanTextureCache*	GetTextureCache() { return texture_cache_; }
 	inline HDR* GetHDR() { return hdr_; }
 
-	inline void EnableTiming() { performance_captures_remaining_ = PERFORMANCE_CAPTURES; }
+	void StartPerformanceCapture();
+	void LoadCapturePoints(std::string filename);
 
 protected:
 	// pipeline creation functions
@@ -259,10 +266,13 @@ protected:
 
 	//  rendering stage timing
 	int performance_captures_remaining_;
+	int current_capture_point_;
 	double visibility_time_;
 	double shading_time_;
 	double transparency_time_;
 	double post_process_time_;
+	std::string model_filename_;
+	std::vector<PerformanceCapturePoint> capture_points_;
 };
 
 #endif

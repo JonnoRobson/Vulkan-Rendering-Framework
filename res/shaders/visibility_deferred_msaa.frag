@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 // defines
-#define MSAA_COUNT 16
+#define MSAA_COUNT 8
 
 // inputs
 layout(origin_upper_left) in vec4 gl_FragCoord;
@@ -90,7 +90,7 @@ layout(binding = 9) uniform texture2D alphaMaps[512];
 layout(binding = 10) uniform texture2D reflectionMaps[512];
 layout(binding = 11) uniform texture2D shadowMaps[96];
 
-layout(binding = 12, r32ui) uniform uimage2DMS visibilityBuffer;
+layout(binding = 12) uniform utexture2DMS visibilityBuffer;
 
 // vertex, index and shape buffers
 layout(binding = 13) buffer VertexBuffer
@@ -117,7 +117,7 @@ layout(binding = 16) uniform MatrixBuffer
 
 layout(binding = 17) uniform texture2DMS depthBuffer;
 layout(binding = 18) uniform sampler bufferSampler;
-
+layout(binding = 19) uniform sampler shadowMapSampler;
 
 // outputs
 layout(location = 0) out vec4 outColor;
@@ -226,7 +226,7 @@ float CalculateShadowOcclusion(vec4 worldPosition, vec3 rayDir, uint lightIndex,
 				if((clamp(pcfCoord.x, 0, 1) == pcfCoord.x) && (clamp(pcfCoord.y, 0, 1) == pcfCoord.y))
 				{
 					// check if sample is in light
-					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], bufferSampler), pcfCoord).x;
+					float shadowMapValue = texture(sampler2D(shadowMaps[shadowMapIndex], shadowMapSampler), pcfCoord).x;
 					if(lightSpacePos.z - 0.001 <= shadowMapValue)
 						lightCount += 1.0;
 				}
@@ -468,7 +468,7 @@ void main()
 	{
 		// read from the visibility buffer texture
 		vec2 pixelCoord = screenTexCoord * matrix_data.screenDimensions.xy;
-		uint visibilityData = imageLoad(visibilityBuffer, ivec2(gl_FragCoord.xy), sample_num).r;
+		uint visibilityData = texelFetch(usampler2DMS(visibilityBuffer, bufferSampler), ivec2(gl_FragCoord.xy), sample_num).r;
 		uint triID = visibilityData >> SHAPE_ID_BITS;
 		uint shapeID = (visibilityData & SHAPE_ID_MASK);
 		uvec2 offsets = _shapes[shapeID].offsets.xy;
