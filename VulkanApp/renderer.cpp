@@ -1822,13 +1822,13 @@ void VulkanRenderer::RecordPerformance()
 	VkExtent2D resolution = swap_chain_->GetIntermediateImageExtent();
 
 	// build the results string
-	std::string results_string = "Resolution: " + std::to_string(resolution.width) + "x" + std::to_string(resolution.height) + "\n";
+	std::string results_string = "Resolution: " + std::to_string(resolution.width) + " " + std::to_string(resolution.height) + "\n";
 	results_string += "Sample Count: " + std::to_string(multisample_level_) + "\n\n";
-	results_string += "Visibility: " + std::to_string(out_visibility) + "ms\n";
-	results_string += "Shading: " + std::to_string(out_shading) + "ms\n";
-	results_string += "Transparency: " + std::to_string(out_transparency) + "ms\n";
-	results_string += "Post-Process: " + std::to_string(out_post_process) + "ms\n";
-	results_string += "Total Time: " + std::to_string(out_total) + "ms\n\n";
+	results_string += "Visibility: " + std::to_string(out_visibility) + "\n";
+	results_string += "Shading: " + std::to_string(out_shading) + "\n";
+	results_string += "Transparency: " + std::to_string(out_transparency) + "\n";
+	results_string += "Post-Process: " + std::to_string(out_post_process) + "\n";
+	results_string += "Total Time: " + std::to_string(out_total) + "\n\n";
 	results_string += "//////////////////////////////\n\n";
 
 	VulkanDevices::AppendFile(out_filename, results_string);

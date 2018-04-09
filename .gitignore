@@ -1,9 +1,8 @@
 VulkanApp.sdf
 VulkanApp.VC.db
 VulkanApp.VC.VC.opendb
-_deferred_results.txt
-_visibility_results.txt
-_visibility_peel_results.txt
+res/data/
+x64/res/data/
 *.tlog
 x64/
 Debug/
