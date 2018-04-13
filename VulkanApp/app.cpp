@@ -1,5 +1,6 @@
 #include "app.h"
 #include <chrono>
+#include <fstream>
 
 void App::Run()
 {
@@ -134,11 +135,13 @@ bool App::InitResources()
 	}
 
 	// set the first filepath used as the material directory for this load
-	std::string texture_dir;
+	std::string texture_dir, lightmap_filepath;
 	size_t filename_begin = filepaths[0].find_last_of('/');
 	size_t filename_end = filepaths[0].find_last_of('.');
-	texture_dir = "../res/materials/" + (filepaths[0].substr(filename_begin + 1, (filename_end - 1) - filename_begin)) + "/";
+	std::string typeless_filename = (filepaths[0].substr(filename_begin + 1, (filename_end - 1) - filename_begin));
+	texture_dir = "../res/materials/" + typeless_filename + "/";
 	renderer_->SetTextureDirectory(texture_dir);
+
 
 	for (std::string filepath : filepaths)
 	{
@@ -148,53 +151,99 @@ bool App::InitResources()
 		renderer_->AddMesh(loaded_mesh);
 	}
 
-	
-	Light* test_light = new Light();
-	test_light->SetType(0.0f);
-	test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light->SetDirection(glm::vec4(0.0f, -0.15f, -1.0f, 1.0f));
-	//test_light->SetColor(glm::vec4(0.23f, 0.19f, 0.34f, 1.0f));
-	test_light->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	test_light->SetIntensity(1.0f);
-	test_light->SetRange(1.0f);
-	test_light->SetShadowsEnabled(true);
-	test_light->Init(devices_, renderer_);
-	lights_.push_back(test_light);
-	
-	
-	Light* test_light_b = new Light();
-	test_light_b->SetType(0.0f);
-	test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-	test_light_b->SetDirection(glm::vec4(0.0f, 0.15f, -1.0f, 1.0f));
-	test_light_b->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
-	//test_light_b->SetColor(glm::vec4(0.11f, 0.24f, 0.89f, 1.0f));
-	test_light_b->SetIntensity(1.0f);
-	test_light_b->SetRange(1.0f);
-	test_light_b->SetShadowsEnabled(true);
-	test_light_b->Init(devices_, renderer_);
-	lights_.push_back(test_light_b);
-	
+	// load lightmap
 
-	// light test
-	/*
-	glm::vec3 scene_min, scene_max;
-	renderer_->GetSceneMinMax(scene_min, scene_max);
-	int light_count = 4;
-	for (int i = 0; i < light_count; i++)
+	// determine the lightmap filename
+	lightmap_filepath = "../res/lightmaps/" + typeless_filename + ".txt";
+
+	std::ifstream file;
+	file.open(lightmap_filepath, std::ios::in);
+	if (!file.is_open())
 	{
-		glm::vec4 position = glm::vec4(rand() % (int)(scene_max.x - scene_min.x) + scene_min.x, rand() % (int)(scene_max.y - scene_min.y) + scene_min.y, rand() % (int)(scene_max.z - scene_min.z) + scene_min.z, 1.0);
+		// if there is no lightmap for this file use default setup
+		Light* test_light = new Light();
+		test_light->SetType(0.0f);
+		test_light->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		test_light->SetDirection(glm::vec4(0.0f, -0.15f, -1.0f, 1.0f));
+		test_light->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+		test_light->SetIntensity(1.0f);
+		test_light->SetRange(1.0f);
+		test_light->SetShadowsEnabled(true);
+		test_light->Init(devices_, renderer_);
+		lights_.push_back(test_light);
 
-		Light* light = new Light();
-		light->SetType(1.0f);
-		light->SetPosition(position);
-		light->SetColor(glm::vec4((float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, (float)rand() / (float)RAND_MAX, 1));
-		light->SetIntensity(1.0f);
-		light->SetRange(10000.0f);
-		light->SetShadowsEnabled(true);
-		light->Init(devices_, renderer_);
-		lights_.push_back(light);
+
+		Light* test_light_b = new Light();
+		test_light_b->SetType(0.0f);
+		test_light_b->SetPosition(glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+		test_light_b->SetDirection(glm::vec4(0.0f, 0.15f, -1.0f, 1.0f));
+		test_light_b->SetColor(glm::vec4(1.0f, 0.94f, 0.88f, 1.0f));
+		test_light_b->SetIntensity(1.0f);
+		test_light_b->SetRange(1.0f);
+		test_light_b->SetShadowsEnabled(true);
+		test_light_b->Init(devices_, renderer_);
+		lights_.push_back(test_light_b);
 	}
-	*/
+	else
+	{
+		// read in the light map
+		while (!file.eof())
+		{
+			Light* light = new Light();
+			float data_x, data_y, data_z;
+			std::string ignore;
+
+			// read in light type
+			file >> data_x;
+			if (data_x > 2.0f || data_x < 0.0f) // check eof errors
+				break;
+			light->SetType(data_x);
+
+			// read in light position
+			file >> data_x;
+			file >> data_y;
+			file >> data_z;
+			light->SetPosition(glm::vec4(data_x, data_y, data_z, 1.0f));
+
+			// read in light direction
+			file >> data_x;
+			file >> data_y;
+			file >> data_z;
+			light->SetDirection(glm::vec4(data_x, data_y, data_z, 1.0f));
+
+			// read in light color
+			file >> data_x;
+			file >> data_y;
+			file >> data_z;
+			light->SetColor(glm::vec4(data_x, data_y, data_z, 1.0f));
+
+			// read in light intensity
+			file >> data_x;
+			light->SetIntensity(data_x);
+
+			// read in light range
+			file >> data_x;
+			light->SetRange(data_x);
+
+			// read in shadows enabled
+			file >> data_x;
+			light->SetShadowsEnabled(data_x == 1.0);
+
+			// read in ignoring transparent geometry
+			file >> data_x;
+			light->SetIgnoreTransparent(data_x == 1.0);
+
+			// ignore the divider
+			file >> ignore;
+
+			// initialize the light and add it to the light list
+			light->Init(devices_, renderer_);
+			lights_.push_back(light);
+		}
+
+		file.close();
+	}
+
 	camera_.SetViewDimensions(swap_chain_->GetIntermediateImageExtent().width, swap_chain_->GetIntermediateImageExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
 	camera_.SetPosition(glm::vec3(0.0f, -75.0f, 100.0f));

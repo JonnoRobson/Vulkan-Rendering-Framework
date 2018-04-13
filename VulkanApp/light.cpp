@@ -13,6 +13,7 @@ Light::Light()
 	range_ = 0.0f;
 	type_ = 0.0f;
 	shadows_enabled_ = false;
+	ignore_transparent_ = false;
 	stationary_ = true;
 	light_buffer_index_ = 0;
 	shadow_map_ = nullptr;
@@ -277,7 +278,10 @@ void Light::RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh
 
 			for (Mesh* mesh : meshes)
 			{
-				mesh->RecordRenderCommands(shadow_map_command_buffers_[i], RenderStage::GENERIC);
+				if(ignore_transparent_)
+					mesh->RecordRenderCommands(shadow_map_command_buffers_[i], RenderStage::OPAQUE);
+				else
+					mesh->RecordRenderCommands(shadow_map_command_buffers_[i], RenderStage::GENERIC);
 			}
 
 			vkCmdEndRenderPass(shadow_map_command_buffers_[i]);

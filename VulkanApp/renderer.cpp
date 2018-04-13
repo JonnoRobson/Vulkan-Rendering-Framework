@@ -1727,7 +1727,6 @@ void VulkanRenderer::CreateLightBuffer()
 
 	SceneLightData light_data = {};
 	light_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
-	//light_data.scene_data = glm::vec4(glm::vec3(0.85f * 10.0f, 0.68f * 10.0f, 0.92f * 10.0f), lights_.size());
 	light_data.camera_data = glm::vec4(0.0f, 0.0f, 0.0f, 1000.0f);
 
 	devices_->CopyDataToBuffer(light_buffer_memory_, &light_data, sizeof(SceneLightData));

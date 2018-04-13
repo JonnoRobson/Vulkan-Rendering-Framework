@@ -63,6 +63,9 @@ public:
 	inline void SetShadowsEnabled(bool shadows_enabled) { shadows_enabled_ = shadows_enabled; }
 	inline bool GetShadowsEnabled() { return shadows_enabled_; }
 	
+	inline void SetIgnoreTransparent(bool ignore) { ignore_transparent_ = ignore; }
+	inline bool GetIgnoreTransparent(bool ignore) { return ignore_transparent_; }
+
 	inline void SetLightStationary(bool stationary) { stationary_ = stationary; }
 	inline bool GetLightStationary() { return stationary_; }
 
@@ -101,6 +104,7 @@ protected:
 	float intensity_;
 	float type_;
 	bool shadows_enabled_;
+	bool ignore_transparent_;
 	bool stationary_;
 
 	// shadow mapping data
