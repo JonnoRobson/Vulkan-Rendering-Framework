@@ -55,22 +55,20 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 
 	std::string mat_dir = "../res/materials/";
 
+	// load obj file and output properties
 	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, filename.c_str(), mat_dir.c_str()))
 	{
 		throw std::runtime_error(err);
 	}
-
 	std::cout << "Model contains " << shapes.size() << " shapes" << std::endl;
-
 	std::cout << "Model contains " << materials.size() << " unique materials" << std::endl;
 
-	
+	// output index count
 	size_t index_count = 0;
 	for (const tinyobj::shape_t& shape : shapes)
 	{
 		index_count += shape.mesh.indices.size();
 	}
-
 	std::cout << "Model contains " << index_count << " indices" << std::endl;
 
 	if(renderer)
@@ -124,11 +122,13 @@ void Mesh::CreateModelMesh(VulkanDevices* devices, VulkanRenderer* renderer, std
 		shape_threads[thread_index] = std::thread(&Mesh::LoadShapeThreaded, this, &shape_mutex, devices, renderer, &attrib, &materials, thread_shapes);
 	}
 
+	// join threads
 	for (int i = 0; i < thread_count; i++)
 	{
 		shape_threads[i].join();
 	}
 
+	// output shape complexity
 	std::cout << "The most complex shape contains " << most_complex_shape_size_ << " triangles.\n";
 }
 
@@ -264,7 +264,7 @@ void Mesh::LoadShapeThreaded(std::mutex* shape_mutex, VulkanDevices* devices, Vu
 		if (shape_max_vertex.z > max_vertex_.z)
 			max_vertex_.z = shape_max_vertex.z;
 
-
+		// initialize the shape including its bounding box
 		most_complex_shape_size_ = std::max(most_complex_shape_size_, (uint32_t)indices.size() / 3);
 		BoundingBox shape_bounding_box = {shape_min_vertex, shape_max_vertex};
 		std::unique_lock<std::mutex> shape_lock(*shape_mutex);

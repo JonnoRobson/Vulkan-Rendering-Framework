@@ -5,6 +5,7 @@
 
 Material::Material()
 {
+	// setup default material properties
 	material_properties_.ambient = glm::vec4(0.0f);
 	material_properties_.diffuse = glm::vec4(0.0f);
 	material_properties_.specular = glm::vec4(0.0f);
@@ -39,7 +40,7 @@ Material::Material()
 
 void Material::CleanUp()
 {
-	// clean up textures
+	// clean up textures via the texture cache
 	if (ambient_texture_ && ambient_texture_ != default_texture_)
 	{
 		texture_cache_->ReleaseTexture(ambient_texture_);
@@ -111,7 +112,7 @@ void Material::InitMaterial(VulkanDevices* devices, VulkanRenderer* renderer, ti
 
 	std::string tex_dir = texture_path;
 
-	// load material textures
+	// load material textures using the default texture if filename is missing
 	if (!material.ambient_texname.empty())
 	{
 		ambient_texture_ = texture_cache_->LoadTexture(tex_dir + material.ambient_texname);

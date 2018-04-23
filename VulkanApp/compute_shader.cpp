@@ -19,7 +19,7 @@ void VulkanComputeShader::Cleanup()
 
 void VulkanComputeShader::LoadShader(std::string cs_filename)
 {
-
+	// build compute shader
 	if (!cs_filename.empty())
 	{
 		auto comp_shader_code = VulkanDevices::ReadFile(cs_filename);

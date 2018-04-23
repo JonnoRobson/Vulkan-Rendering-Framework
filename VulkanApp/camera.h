@@ -7,6 +7,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 
+/**
+* Camera class for generating view and projection matrices
+*/
 class Camera
 {
 public:

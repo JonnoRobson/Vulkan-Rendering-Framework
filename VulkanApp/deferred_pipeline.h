@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for deferred rendering
+*/
 class DeferredPipeline : public VulkanPipeline
 {
 public:

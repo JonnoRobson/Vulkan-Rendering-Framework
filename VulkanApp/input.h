@@ -3,6 +3,9 @@
 
 #include <GLFW\glfw3.h>
 
+/**
+* Stores input variable states
+*/
 class Input
 {
 public:

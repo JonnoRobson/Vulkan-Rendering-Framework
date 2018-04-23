@@ -8,6 +8,9 @@
 
 #include "device.h"
 
+/**
+* Stores and handles all data related to the vulkan swap chain
+*/
 class VulkanSwapChain
 {
 public:	
@@ -22,6 +25,7 @@ public:
 
 	VkFormat FindDepthFormat();
 
+	// getters for swap chain components
 	inline VkSemaphore GetImageAvailableSemaphore() { return image_available_semaphore_; }
 	inline uint32_t GetCurrentSwapChainImage() { return current_image_index_; }
 	inline VkSurfaceKHR GetSurface() { return surface_; }

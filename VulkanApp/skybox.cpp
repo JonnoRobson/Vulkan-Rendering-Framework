@@ -278,7 +278,7 @@ void Skybox::InitCommandBuffer(VkCommandPool command_pool)
 		throw std::runtime_error("failed to allocate render command buffers!");
 	}
 
-
+	// setup the command buffer
 	VkCommandBufferBeginInfo begin_info = {};
 	begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	begin_info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;

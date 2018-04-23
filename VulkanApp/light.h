@@ -34,6 +34,9 @@ struct LightData
 	uint32_t padding[3];
 };
 
+/**
+* Stores all data for a single light and handles shadow map rendering
+*/
 class Light
 {
 public:

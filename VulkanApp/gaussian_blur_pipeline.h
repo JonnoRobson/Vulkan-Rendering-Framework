@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for rendering a single direction of a gaussian blur
+*/
 class GaussianBlurPipeline : public VulkanPipeline
 {
 public:

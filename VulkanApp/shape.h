@@ -19,6 +19,9 @@ struct BoundingBox
 	glm::vec4 max_vertex;
 };
 
+/**
+* Stores indexes into the primitive buffer for a single mesh shape
+*/
 class Shape
 {
 public:

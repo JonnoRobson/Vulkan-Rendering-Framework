@@ -20,15 +20,18 @@ void VulkanPipeline::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, V
 
 void VulkanPipeline::CleanUp()
 {
+	// clean up descriptor sets
 	vkDestroyDescriptorSetLayout(devices_->GetLogicalDevice(), descriptor_set_layout_, nullptr);
 	vkDestroyDescriptorPool(devices_->GetLogicalDevice(), descriptor_pool_, nullptr);
 	vkDestroyRenderPass(devices_->GetLogicalDevice(), render_pass_, nullptr);
 	
+	// clean up framebuffers
 	for (int i = 0; i < framebuffers_.size(); i++)
 	{
 		vkDestroyFramebuffer(devices_->GetLogicalDevice(), framebuffers_[i], nullptr);
 	}
 
+	// clean up pipeline resources
 	vkDestroyPipelineLayout(devices_->GetLogicalDevice(), pipeline_layout_, nullptr);
 	vkDestroyPipeline(devices_->GetLogicalDevice(), pipeline_, nullptr);
 }
@@ -113,6 +116,7 @@ void VulkanPipeline::CreateDescriptorSet()
 		descriptor_write.descriptorType = descriptor.layout_binding.descriptorType;
 		descriptor_write.descriptorCount = descriptor.layout_binding.descriptorCount;
 
+		// set up buffer or image info based on descriptor type
 		if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
 			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		{

@@ -8,6 +8,9 @@
 
 #define MAX_TEXTURE_RESOLUTION 2048
 
+/**
+* Handles loading and storing for a single texture image
+*/
 class Texture
 {
 public:

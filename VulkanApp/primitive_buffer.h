@@ -29,6 +29,10 @@ struct IndirectDrawCommand
 	uint32_t padding[3];
 };
 
+/**
+* Stores all primitive data in three buffers for access in deferred rendering
+* Storing data this way also reduces buffer binding overhead
+*/
 class VulkanPrimitiveBuffer
 {
 public:

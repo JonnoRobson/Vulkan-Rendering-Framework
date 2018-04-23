@@ -5,6 +5,9 @@
 #include "mesh.h"
 #include "camera.h"
 
+/**
+* Vulkan graphics pipeline for rendering a skybox
+*/
 class SkyboxPipeline : public VulkanPipeline
 {
 public:
@@ -16,6 +19,9 @@ protected:
 	void CreatePipeline();
 };
 
+/**
+* Stores and handles all resources for rendering a skybox
+*/
 class Skybox
 {
 public:

@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for rendering a shadow map
+*/
 class ShadowMapPipeline : public VulkanPipeline
 {
 public:

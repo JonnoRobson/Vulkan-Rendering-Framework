@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for compositing transparency buffers into a draw buffer
+*/
 class TransparencyCompositePipeline : public VulkanPipeline
 {
 public:

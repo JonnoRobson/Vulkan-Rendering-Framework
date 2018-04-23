@@ -32,7 +32,7 @@ void VulkanShader::Cleanup()
 
 void VulkanShader::LoadShaders(std::string vs_filename, std::string ts_filename, std::string gs_filename, std::string fs_filename)
 {
-
+	// load and create shader modules if filename is provided
 	if (!vs_filename.empty())
 	{
 		auto vert_shader_code = VulkanDevices::ReadFile(vs_filename);

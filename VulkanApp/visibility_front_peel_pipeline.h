@@ -5,6 +5,9 @@
 
 #define VISIBILITY_PEEL_COUNT 4
 
+/**
+* Vulkan graphics pipeline for rendering a layered visibility buffer
+*/
 class VisibilityFrontPeelPipeline : public VulkanPipeline
 {
 public:

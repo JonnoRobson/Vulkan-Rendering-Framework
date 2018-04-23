@@ -18,6 +18,7 @@ void Texture::Init(VulkanDevices* devices, std::string filename, bool sampler)
 	vk_device_handle_ = devices->GetLogicalDevice();
 	texture_name_ = filename;
 
+	// load the texture data from file
 	int tex_width, tex_height, tex_channels;
 	stbi_uc* pixels = stbi_load(filename.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 
@@ -124,6 +125,7 @@ void Texture::Cleanup()
 
 void Texture::InitSampler(VulkanDevices* devices)
 {
+	// create a sampler with anisotropy and repeated tiling
 	VkSamplerCreateInfo sampler_info = {};
 	sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	sampler_info.magFilter = VK_FILTER_LINEAR;

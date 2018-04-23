@@ -31,7 +31,9 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 #define ENABLE_VALIDATION_LAYERS true
 #endif
 
-
+/**
+* Master class that handles rendering, resources, and input
+*/
 class App
 {
 public:

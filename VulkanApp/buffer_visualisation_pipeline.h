@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for rendering a buffer to the screen
+*/
 class BufferVisualisationPipeline : public VulkanPipeline
 {
 public:

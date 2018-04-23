@@ -69,6 +69,7 @@ glm::mat4 Camera::GetProjectionMatrix()
 {
 	glm::mat4 proj_matrix;
 
+	// correct projection matrix for vulkan projection
 	glm::mat4 clip =
 		glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
 			0.0f, -1.0f, 0.0f, 0.0f,

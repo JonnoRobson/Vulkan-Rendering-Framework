@@ -4,6 +4,9 @@
 #include "pipeline.h"
 #include "render_target.h"
 
+/**
+* Vulkan graphics pipeline for rendering a visibility buffer
+*/
 class VisibilityPipeline : public VulkanPipeline
 {
 public:

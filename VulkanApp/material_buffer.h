@@ -5,6 +5,9 @@
 
 #define MAX_MATERIAL_COUNT 512
 
+/**
+* Stores all material data for use in deferred rendering stages
+*/
 class VulkanMaterialBuffer
 {
 public:

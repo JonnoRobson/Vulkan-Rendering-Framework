@@ -8,6 +8,9 @@
 #include "tonemap_pipeline.h"
 #include "render_target.h"
 
+/**
+* stores and uses all resources required for HDR rendering
+*/
 class HDR
 {
 public:

@@ -7,6 +7,7 @@
 
 void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, int multisample_level)
 {
+	// set defaults and necessary data
 	devices_ = devices;
 	swap_chain_ = swap_chain;
 	render_mode_ = RenderMode::VISIBILITY_PEELED;
@@ -25,6 +26,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, i
 	// create the texture cache
 	texture_cache_ = new VulkanTextureCache(devices);
 
+	// initialize resources that do not require additional user data
 	CreateShaders();
 	CreatePrimitiveBuffer();
 	CreateMaterialBuffer();
@@ -32,6 +34,7 @@ void VulkanRenderer::Init(VulkanDevices* devices, VulkanSwapChain* swap_chain, i
 	CreateBuffers();
 	CreateSemaphores();
 
+	// store the graphics and compute queues for use later
 	vkGetDeviceQueue(devices_->GetLogicalDevice(), devices_->GetQueueFamilyIndices().graphics_family, 0, &graphics_queue_);
 	vkGetDeviceQueue(devices_->GetLogicalDevice(), devices_->GetQueueFamilyIndices().compute_family, 0, &compute_queue_);
 }
@@ -70,10 +73,8 @@ void VulkanRenderer::RenderScene()
 		// send camera data to the gpu
 		SceneLightData scene_data = {};
 		scene_data.scene_data = glm::vec4(glm::vec3(0.1f, 0.1f, 0.1f), lights_.size());
-		//scene_data.scene_data = glm::vec4(glm::vec3(0.85f * 0.5f, 0.68f * 0.5f, 0.92f * 0.5f), lights_.size());
 		scene_data.camera_data = glm::vec4(render_camera_->GetPosition(), 1000.0f);
 		devices_->CopyDataToBuffer(light_buffer_memory_, &scene_data, sizeof(SceneLightData));
-
 
 		for (Light* light : lights_)
 		{
@@ -192,6 +193,7 @@ void VulkanRenderer::RenderScene()
 		if (performance_captures_remaining_ > 0)
 			glfwSetTime(0.0);
 
+		// render hdr if enabled
 		if (hdr_->GetHDRMode() > 0)
 		{
 			hdr_->Render(swap_chain_, &current_signal_semaphore_);
@@ -224,6 +226,7 @@ void VulkanRenderer::RenderScene()
 			}
 		}
 
+		// copy the draw buffer to the back buffer
 		swap_chain_->FinalizeIntermediateImage();
 	}
 
@@ -268,6 +271,7 @@ void VulkanRenderer::RenderGBuffer()
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &g_buffer_command_buffers_[0];
 
+	// signal the g buffer semaphore
 	VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -289,6 +293,8 @@ void VulkanRenderer::RenderDeferred()
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	// wait for the g buffer and skybox to finish rendering before rendering this stage
 	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submit_info.waitSemaphoreCount = 2;
@@ -297,6 +303,7 @@ void VulkanRenderer::RenderDeferred()
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &deferred_command_buffer_;
 
+	// signal the main render semaphore
 	VkSemaphore signal_semaphores[] = { render_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -346,6 +353,7 @@ void VulkanRenderer::RenderVisibility()
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &visibility_command_buffer_;
 
+	// signal the visibility buffer semaphore when rendering is complete
 	VkSemaphore signal_semaphores[] = { g_buffer_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -367,6 +375,8 @@ void VulkanRenderer::RenderVisbilityDeferred()
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	// wait for the visibility and skybox to finish before rendering
 	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submit_info.waitSemaphoreCount = 2;
@@ -375,6 +385,7 @@ void VulkanRenderer::RenderVisbilityDeferred()
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &visibility_deferred_command_buffer_;
 
+	// signal the main render semaphore
 	VkSemaphore signal_semaphores[] = { render_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -410,6 +421,7 @@ void VulkanRenderer::RenderVisibilityPeel()
 		// submit the draw command buffer
 		submit_info.pCommandBuffers = &visibility_peel_command_buffers_[i];
 
+		// only signal the visibility buffer semaphore on the final rendering pass
 		if (i == VISIBILITY_PEEL_COUNT - 1)
 		{
 			submit_info.signalSemaphoreCount = 1;
@@ -439,6 +451,8 @@ void VulkanRenderer::RenderVisibilityPeelDeferred()
 	// submit the draw command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	// wait for the visibility buffer and skybox to finish before rendering
 	VkSemaphore wait_semaphores[] = { g_buffer_semaphore_, skybox_semaphore };
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submit_info.waitSemaphoreCount = 2;
@@ -447,6 +461,7 @@ void VulkanRenderer::RenderVisibilityPeelDeferred()
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &visibility_peel_deferred_command_buffer_;
 
+	// signal the main render semaphore
 	VkSemaphore signal_semaphores[] = { render_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -471,12 +486,15 @@ void VulkanRenderer::RenderTransparency()
 	// submit the transparency render command buffer
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	// wait for opaque geometry to finish before rendering
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &transparency_command_buffer_;
 
+	// signal the transparent rendering semaphore
 	VkSemaphore signal_semaphores[] = { transparency_semaphore_ };
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -491,12 +509,15 @@ void VulkanRenderer::RenderTransparency()
 	wait_semaphores[0] = transparency_semaphore_;
 	submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	// wait for the accumulation and revealage buffers before rendering
 	submit_info.waitSemaphoreCount = 1;
 	submit_info.pWaitSemaphores = wait_semaphores;
 	submit_info.pWaitDstStageMask = wait_stages;
 	submit_info.commandBufferCount = 1;
 	submit_info.pCommandBuffers = &transparency_composite_command_buffer_;
 
+	// signal the transparent composite semaphore
 	signal_semaphores[0] = transparency_composite_semaphore_;
 	submit_info.signalSemaphoreCount = 1;
 	submit_info.pSignalSemaphores = signal_semaphores;
@@ -538,6 +559,7 @@ void VulkanRenderer::RenderVisualisation(uint32_t image_index)
 
 void VulkanRenderer::CullGeometry()
 {
+	// submit the shape culling compute shader
 	VkSubmitInfo submit_info = {};
 	submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submit_info.waitSemaphoreCount = 0;
@@ -1648,6 +1670,7 @@ void VulkanRenderer::RemoveMesh(Mesh* remove_mesh)
 
 void VulkanRenderer::GetSceneMinMax(glm::vec3& scene_min, glm::vec3& scene_max)
 {
+	// loop through all meshes and find the min/max extents of the loaded data
 	scene_min = glm::vec3(1e8f, 1e8f, 1e8f);
 	scene_max = glm::vec3(-1e8f, -1e8f, -1e8f);
 	for (Mesh* mesh : meshes_)
@@ -1715,6 +1738,7 @@ void VulkanRenderer::CreateSemaphores()
 
 void VulkanRenderer::CreateBuffers()
 {
+	// create the matrix buffer
 	devices_->CreateBuffer(sizeof(UniformBufferObject), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, matrix_buffer_, matrix_buffer_memory_);
 }
 
@@ -1853,6 +1877,7 @@ void VulkanRenderer::LoadCapturePoints(std::string filename)
 
 	while (!file.eof())
 	{
+		// read in capture point entry
 		PerformanceCapturePoint capture_point = {};
 		file >> capture_point.capture_position.x;
 		file >> capture_point.capture_position.y;

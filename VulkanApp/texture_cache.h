@@ -5,6 +5,9 @@
 
 #include "texture.h"
 
+/**
+* Stores all loaded textures to reduce instances of duplicate textures being loaded
+*/
 class VulkanTextureCache
 {
 public:

@@ -29,17 +29,21 @@ void VulkanSwapChain::CleanupSwapChain()
 {
 	VkDevice device = devices_->GetLogicalDevice();
 
+	// clean up semaphores
 	vkDestroySemaphore(device, image_available_semaphore_, nullptr);
 
+	// clean up swap chain images
 	for (size_t i = 0; i < swap_chain_images_.size(); i++)
 	{
 		vkDestroyImageView(device, swap_chain_image_views_[i], nullptr);
 	}
 	
+	// clean up intermediate buffer resources
 	vkDestroyImage(device, intermediate_image_, nullptr);
 	vkDestroyImageView(device, intermediate_image_view_, nullptr);
 	vkFreeMemory(device, intermediate_image_memory_, nullptr);
 
+	// clean up the depth buffer resources
 	vkDestroyImageView(device, depth_image_view_, nullptr);
 	vkDestroyImage(device, depth_image_, nullptr);
 	vkFreeMemory(device, depth_image_memory_, nullptr);
@@ -239,7 +243,7 @@ void VulkanSwapChain::CreateSwapChain(VulkanDevices* devices, int rendering_widt
 	create_info.imageArrayLayers = 1;
 	create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;	// VK_IMAGE_USAGE_TRANSFER_DST_BIT for post processing
 
-																	// set up swap chain usage across multiple queue families
+	// set up swap chain usage across multiple queue families
 	QueueFamilyIndices indices = VulkanDevices::FindQueueFamilies(vk_physical_device, surface_);
 	uint32_t queue_family_indices[] = { (uint32_t)indices.graphics_family, (uint32_t)indices.present_family };
 

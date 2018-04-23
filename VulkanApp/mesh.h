@@ -66,6 +66,10 @@ namespace std
 		}
 	};
 }
+
+/**
+* Handles loading of an obj model file and stores individual mesh shapes and materials
+*/
 class Mesh
 {
 public:

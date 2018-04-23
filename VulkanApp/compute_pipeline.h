@@ -5,6 +5,9 @@
 #include "compute_shader.h"
 #include "texture.h"
 
+/**
+* Base functionality for all Vulkan compute piplines
+*/
 class VulkanComputePipeline
 {
 protected:

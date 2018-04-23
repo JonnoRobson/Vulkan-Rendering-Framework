@@ -8,6 +8,9 @@
 #include <string>
 #include <vector>
 
+/**
+* Base wrapper class for vulkan compute shaders
+*/
 class VulkanComputeShader
 {
 public:

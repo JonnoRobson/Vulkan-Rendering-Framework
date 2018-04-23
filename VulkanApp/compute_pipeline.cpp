@@ -96,6 +96,7 @@ void VulkanComputePipeline::CreateDescriptorSet()
 		descriptor_write.descriptorType = descriptor.layout_binding.descriptorType;
 		descriptor_write.descriptorCount = descriptor.layout_binding.descriptorCount;
 
+		// set up buffer or image info based on descriptor type
 		if (descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER ||
 			descriptor.layout_binding.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 		{

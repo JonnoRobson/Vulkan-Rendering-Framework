@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for performing tonemapping between two buffers
+*/
 class TonemapPipeline : public VulkanPipeline
 {
 public:

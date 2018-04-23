@@ -6,6 +6,9 @@
 
 #include "device.h"
 
+/**
+* Stores all handles for all data associated with a single set of render target images
+*/
 class VulkanRenderTarget
 {
 public:

@@ -10,6 +10,9 @@
 #include "swap_chain.h"
 #include "texture.h"
 
+/**
+* Base wrapper class for all vulkan graphics shaders
+*/
 class VulkanShader
 {
 public:

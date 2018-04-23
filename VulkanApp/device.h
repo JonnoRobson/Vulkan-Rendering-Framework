@@ -33,6 +33,9 @@ struct SwapChainSupportDetails
 	std::vector<VkPresentModeKHR> present_modes;
 };
 
+/**
+* Master class that initializes and stores the vulkan physical and logical devices
+*/
 class VulkanDevices
 {
 public:

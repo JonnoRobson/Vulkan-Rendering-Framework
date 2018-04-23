@@ -120,6 +120,7 @@ void Light::GenerateShadowMap(VkCommandPool command_pool, std::vector<Mesh*>& me
 
 void Light::SendLightData(VulkanDevices* devices, VkDeviceMemory light_buffer_memory)
 {
+	// copy light data to the lighting buffer
 	LightData light_data = {};
 	light_data.position = glm::vec4(position_);
 	light_data.direction = glm::vec4(direction_);
@@ -155,6 +156,7 @@ glm::mat4 Light::GetProjectionMatrix()
 
 void Light::CalculateViewMatrices()
 {
+	// setup light view matrices based on light type
 	if (type_ == 0.0f)
 	{
 		view_matrices_[0] = glm::lookAt(glm::vec3(direction_ * -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -188,6 +190,7 @@ void Light::CalculateProjectionMatrix()
 {
 	if (type_ == 0.0f)
 	{
+		// correct light projection matrix for vulkan projection
 		glm::mat4 clip =
 		glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
 				0.0f, -1.0f, 0.0f, 0.0f,
@@ -213,6 +216,7 @@ void Light::CalculateProjectionMatrix()
 	}
 	else
 	{
+		// correct light projection matrix for vulkan projection
 		glm::mat4 clip =
 		glm::mat4(1.0f, 0.0f, 0.0f, 0.0f,
 				0.0f, -1.0f, 0.0f, 0.0f,
@@ -248,8 +252,8 @@ void Light::RecordShadowMapCommands(VkCommandPool command_pool, std::vector<Mesh
 			scene_max_vertex_ = mesh_max;
 	}
 
+	// recreate the shadow map command buffer to render all scene meshes
 	vkFreeCommandBuffers(devices_->GetLogicalDevice(), command_pool, shadow_map_command_buffers_.size(), shadow_map_command_buffers_.data());
-
 
 	VkCommandBufferAllocateInfo allocate_info = {};
 	allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;

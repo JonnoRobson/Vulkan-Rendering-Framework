@@ -62,6 +62,9 @@ static std::map<int, SampleCountData> multisample_data =
 	{ 16, { VK_SAMPLE_COUNT_16_BIT, "deferred_msaa_16.frag.spv", "visibility_deferred_msaa_16.frag.spv", "visibility_peel_deferred_msaa_16.frag.spv", "transparency_composite_msaa_16.frag.spv" }}
 };
 
+/**
+* Master class that stores and handles all rendering resources
+*/
 class VulkanRenderer
 {
 public:

@@ -3,6 +3,9 @@
 
 #include "pipeline.h"
 
+/**
+* Vulkan graphics pipeline for removing colour range below 1.0 while modifying image dimensions
+*/
 class LDRSuppressPipeline : public VulkanPipeline
 {
 public:

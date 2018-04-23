@@ -3,6 +3,9 @@
 
 #include "compute_pipeline.h"
 
+/**
+* Vulkan compute pipeline for executing basic geometry culling
+*/
 class ShapeCullingPipeline : public VulkanComputePipeline
 {
 public:

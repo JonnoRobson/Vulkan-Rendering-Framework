@@ -19,6 +19,7 @@ void VulkanTextureCache::Cleanup()
 
 Texture* VulkanTextureCache::LoadTexture(std::string texture_filename)
 {
+	// search for the texture in loaded textures
 	for (Texture* texture : textures_)
 	{
 		if (texture->GetTextureName() == texture_filename)
@@ -28,6 +29,7 @@ Texture* VulkanTextureCache::LoadTexture(std::string texture_filename)
 		}
 	}
 
+	// if texture is not loaded add it to the cache
 	Texture* texture = new Texture();
 	texture->Init(devices_, texture_filename);
 	texture->IncrementUsageCount();

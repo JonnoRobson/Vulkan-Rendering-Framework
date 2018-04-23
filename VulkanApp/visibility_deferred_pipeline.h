@@ -12,6 +12,9 @@ struct VisibilityRenderData
 	glm::mat4 invProj;
 };
 
+/**
+* Vulkan graphics pipeline for deferred rendering using a visibility buffer
+*/
 class VisibilityDeferredPipeline : public VulkanPipeline
 {
 public:

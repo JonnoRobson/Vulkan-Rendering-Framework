@@ -4,6 +4,9 @@
 #include "pipeline.h"
 #include "render_target.h"
 
+/**
+* Vulkan graphics pipeline for rendering transparency using weighted blended oit
+*/
 class WeightedBlendedTransparencyPipeline : public VulkanPipeline
 {
 public:

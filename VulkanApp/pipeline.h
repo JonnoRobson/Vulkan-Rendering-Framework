@@ -7,6 +7,9 @@
 #include "texture.h"
 #include "shader.h"
 
+/**
+* Base functionality for all vulkan graphics pipelines
+*/
 class VulkanPipeline
 {
 protected:

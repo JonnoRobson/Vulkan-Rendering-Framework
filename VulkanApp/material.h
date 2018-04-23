@@ -31,6 +31,9 @@ struct MaterialData
 	uint32_t reflection_map_index;
 };
 
+/**
+* Stores material data including texture pointers and property data
+*/
 class Material
 {
 public:

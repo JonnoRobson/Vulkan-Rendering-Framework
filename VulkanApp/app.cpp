@@ -152,7 +152,6 @@ bool App::InitResources()
 	}
 
 	// load lightmap
-
 	// determine the lightmap filename
 	lightmap_filepath = "../res/lightmaps/" + typeless_filename + ".txt";
 
@@ -244,6 +243,7 @@ bool App::InitResources()
 		file.close();
 	}
 
+	// setup camera
 	camera_.SetViewDimensions(swap_chain_->GetIntermediateImageExtent().width, swap_chain_->GetIntermediateImageExtent().height);
 	camera_.SetFieldOfView(glm::radians(45.0f));
 	camera_.SetPosition(glm::vec3(0.0f, -75.0f, 100.0f));
@@ -251,11 +251,13 @@ bool App::InitResources()
 
 	renderer_->SetCamera(&camera_);
 
+	// generate default shadow maps for lights
 	for (Light* light : lights_)
 	{
 		light->GenerateShadowMap(renderer_->GetCommandPool(), renderer_->GetMeshes());
 	}
 
+	// init renderer features that require user data
 	renderer_->InitPipelines();
 
 	return true;
@@ -443,6 +445,7 @@ void App::DrawFrame()
 
 bool App::CreateInstance()
 {
+	// setup vulkan application and instance info
 	VkApplicationInfo app_info = {};
 	app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	app_info.pApplicationName = "Vulkan Renderer";
@@ -480,6 +483,7 @@ bool App::CreateInstance()
 
 bool App::ValidateExtensions()
 {
+	// get all available extensions
 	uint32_t extension_count = 0;
 	vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 
@@ -495,6 +499,7 @@ bool App::ValidateExtensions()
 
 	bool extensions_found = true;
 
+	// check that all required extensions are available on this device
 	for (int i = 0; i < required_extensions.size(); i++)
 	{
 		bool found = false;
@@ -512,10 +517,7 @@ bool App::ValidateExtensions()
 		}
 	}
 
-	if (extensions_found)
-		return true;
-	else
-		return false;
+	return extensions_found;
 }
 
 std::vector<const char*> App::GetRequiredExtensions()
@@ -546,6 +548,7 @@ bool App::CheckValidationLayerSupport()
 	std::vector<VkLayerProperties> available_layers(layer_count);
 	vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
 
+	// check all requested vulkan validation layers are a available on this device
 	for (const char* layer_name : validation_layers_)
 	{
 		bool layer_found = false;
@@ -589,6 +592,7 @@ void App::SetupDebugCallback()
 
 void App::InitDevices()
 {
+	// setup required device features
 	VkPhysicalDeviceFeatures device_features = {};
 	device_features.samplerAnisotropy = VK_TRUE;
 	device_features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;

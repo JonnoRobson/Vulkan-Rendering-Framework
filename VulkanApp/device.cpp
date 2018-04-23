@@ -160,18 +160,18 @@ SwapChainSupportDetails VulkanDevices::QuerySwapChainSupport(VkPhysicalDevice de
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
 
+	// get swap chain formats available on this device
 	uint32_t format_count;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, nullptr);
-
 	if (format_count != 0)
 	{
 		details.formats.resize(format_count);
 		vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, details.formats.data());
 	}
 
+	// get swap chain presentation modes available on this device
 	uint32_t present_mode_count;
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, nullptr);
-
 	if (present_mode_count != 0)
 	{
 		details.present_modes.resize(present_mode_count);
@@ -205,6 +205,7 @@ uint32_t VulkanDevices::FindMemoryType(uint32_t type_filter, VkMemoryPropertyFla
 	VkPhysicalDeviceMemoryProperties mem_properties;
 	vkGetPhysicalDeviceMemoryProperties(physical_device_, &mem_properties);
 
+	// search for the type of memory type with matching properties and available size
 	for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++)
 	{
 		if ((type_filter & (1 << i)) && ((mem_properties.memoryTypes[i].propertyFlags & properties) == properties) && mem_properties.memoryHeaps[mem_properties.memoryTypes[i].heapIndex].size >= memory_size)
@@ -235,6 +236,7 @@ void VulkanDevices::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Vk
 {
 	VkResult result;
 
+	// create the buffer handle for the buffer
 	VkBufferCreateInfo buffer_info = {};
 	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 	buffer_info.size = size;
@@ -247,9 +249,11 @@ void VulkanDevices::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Vk
 		throw std::runtime_error("failed to create buffer!");
 	}
 
+	// find the storage requirements of the buffer
 	VkMemoryRequirements mem_requirements;
 	vkGetBufferMemoryRequirements(logical_device_, buffer, &mem_requirements);
 
+	// allocate the memory for this buffer
 	VkMemoryAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	alloc_info.allocationSize = mem_requirements.size;
@@ -266,6 +270,7 @@ void VulkanDevices::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, Vk
 
 void VulkanDevices::CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkSampleCountFlagBits sample_count, VkImage& image, VkDeviceMemory& image_memory)
 {
+	// create the image handle for the image
 	VkImageCreateInfo image_info = {};
 	image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	image_info.imageType = VK_IMAGE_TYPE_2D;
@@ -287,9 +292,11 @@ void VulkanDevices::CreateImage(uint32_t width, uint32_t height, VkFormat format
 		throw std::runtime_error("failed to create image!");
 	}
 
+	// find the storage requirements of the image
 	VkMemoryRequirements mem_requirements;
 	vkGetImageMemoryRequirements(logical_device_, image, &mem_requirements);
 
+	// allocate the memory for the image
 	VkMemoryAllocateInfo alloc_info = {};
 	alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	alloc_info.allocationSize = mem_requirements.size;
@@ -323,6 +330,7 @@ void VulkanDevices::TransitionImageLayout(VkImage image, VkFormat format, VkImag
 	barrier.subresourceRange.baseArrayLayer = 0;
 	barrier.subresourceRange.layerCount = 1;
 	
+	// determine the image aspects that are being transitioned
 	if (old_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ||new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
 	{
 		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -418,7 +426,7 @@ void VulkanDevices::TransitionImageLayout(VkImage image, VkFormat format, VkImag
 		throw std::runtime_error("unsupported layout transition!");
 	}
 
-
+	// execute a pipeline barrier to transition the image
 	vkCmdPipelineBarrier(
 		command_buffer,
 		source_stage, destination_stage,
